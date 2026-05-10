@@ -7,3 +7,9 @@ dist/
 .DS_Store
 .turbo
 coverage/
+
+# Build cache (per-worktree, never tracked)
+*.tsbuildinfo
+
+# Session metadata (per-worktree, never tracked)
+.team/
