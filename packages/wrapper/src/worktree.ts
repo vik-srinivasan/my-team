@@ -5,8 +5,8 @@ import { mkdir, writeFile, readdir, copyFile, cp, realpath } from 'node:fs/promi
 import { existsSync } from 'node:fs';
 import { simpleGit } from 'simple-git';
 
-import type { SessionMeta, SessionState } from '@viktown/shared';
-import { NotAGitRepoError, WorktreeError } from '@viktown/shared';
+import type { SessionMeta, SessionState } from '@my-team/shared';
+import { NotAGitRepoError, WorktreeError } from '@my-team/shared';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SESSIONS_DIR = join(homedir(), 'team', 'sessions');

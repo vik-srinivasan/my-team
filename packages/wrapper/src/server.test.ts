@@ -7,7 +7,7 @@ import { execSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { realpath } from 'node:fs/promises';
 import pino from 'pino';
-import type { WsServerEvent } from '@viktown/shared';
+import type { WsServerEvent } from '@my-team/shared';
 
 import { SessionManager } from './session-manager.js';
 import { createServer } from './server.js';

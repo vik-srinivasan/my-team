@@ -2,7 +2,7 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import WebSocket from 'ws';
 
-import type { WsServerEvent } from '@viktown/shared';
+import type { WsServerEvent } from '@my-team/shared';
 
 const WS_BASE = 'ws://127.0.0.1:3001';
 

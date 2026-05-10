@@ -2,7 +2,7 @@ import { WebSocketServer, WebSocket } from 'ws';
 import type { Server as HttpServer } from 'node:http';
 import type { Logger } from 'pino';
 
-import type { WsClientEvent, WsServerEvent } from '@viktown/shared';
+import type { WsClientEvent, WsServerEvent } from '@my-team/shared';
 import type { SessionManager } from '../session-manager.js';
 
 export function setupWebSocket(

@@ -5,7 +5,7 @@ import type {
   SessionDetail,
   DiffResponse,
   TeamFiles,
-} from '@viktown/shared';
+} from '@my-team/shared';
 
 const BASE = '/api';
 

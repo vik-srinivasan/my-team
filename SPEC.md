@@ -1,8 +1,8 @@
-# Viktown — Multi-Agent Orchestrator for Claude Code
+# my-team — Multi-Agent Orchestrator for Claude Code
 
 ## 1. Overview
 
-Viktown is a local multi-agent orchestrator that turns Claude Code into a coordinated team of specialists. The user chats with a "captain" agent to plan a piece of work, approves the plan, then walks away. A team of specialists (engineer, tester, reviewer, git) executes the plan inside an isolated git worktree, communicates through shared files in a `.team/` directory, and opens a pull request when done. The user oversees through a CLI today and a local web UI as part of the same v1.
+my-team is a local multi-agent orchestrator that turns Claude Code into a coordinated team of specialists. The user chats with a "captain" agent to plan a piece of work, approves the plan, then walks away. A team of specialists (engineer, tester, reviewer, git) executes the plan inside an isolated git worktree, communicates through shared files in a `.team/` directory, and opens a pull request when done. The user oversees through a CLI today and a local web UI as part of the same v1.
 
 The system runs entirely on the user's Mac for v1. Long-running execution survives terminal closes, SSH disconnects, and wrapper restarts (via a daemon). It does not yet survive machine sleep or shutdown — that's a future "deploy to a small server" upgrade that does not change any of this code.
 
@@ -83,7 +83,7 @@ Each session lives at `~/team/sessions/<session-id>/`. Inside:
 └── .claude/agents/  (specialist definitions for this session)
 ```
 
-The session branch is `viktown/<session-id>` off the source repo's default branch.
+The session branch is `my-team/<session-id>` off the source repo's default branch.
 
 ### 4.2 `.team/` files
 
@@ -94,7 +94,7 @@ The session branch is `viktown/<session-id>` off the source repo's default branc
   "title": "Add fog of war to map rendering",
   "source_repo": "/Users/dom/code/wyvern",
   "source_branch": "main",
-  "session_branch": "viktown/abc123",
+  "session_branch": "my-team/abc123",
   "created_at": "2026-05-09T10:30:00Z"
 }
 ```

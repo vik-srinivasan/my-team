@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
 import { readTeamFile, readTeamState, readTeamMeta, readAllTeamFiles, teamDir } from './team-files.js';
-import type { SessionMeta, SessionState } from '@viktown/shared';
+import type { SessionMeta, SessionState } from '@my-team/shared';
 
 describe('team-files', () => {
   let worktreePath: string;

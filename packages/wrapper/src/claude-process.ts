@@ -3,7 +3,7 @@ import { EventEmitter } from 'node:events';
 import { readFile } from 'node:fs/promises';
 import { execSync } from 'node:child_process';
 
-import { ClaudeProcessError } from '@viktown/shared';
+import { ClaudeProcessError } from '@my-team/shared';
 
 interface CaptainProcessEventMap {
   data: [text: string];
