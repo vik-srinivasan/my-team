@@ -37,12 +37,13 @@ Checked off as completed. See `implementation_plan.md` for detailed steps.
 
 ## Phase 2 — Full Specialist Roster
 
-- [ ] 2.1 Scout specialist (read-only codebase exploration → context.md)
-- [ ] 2.2 Tester specialist (integration tests, suite runner)
-- [ ] 2.3 Reviewer specialist (review.md, severity buckets, iteration loop)
-- [ ] 2.4 Git specialist (push branch, open PR via gh)
-- [ ] 2.5 Done criteria, blocked state, notifications
-- [ ] 2.6 Phase 2 integration test + push
+- [ ] 2.1 Scout specialist prompt + scouting phase in session manager
+- [ ] 2.2 Tester specialist prompt
+- [ ] 2.3 Reviewer specialist prompt
+- [ ] 2.4 Git specialist prompt + remove wrapper direct PR creation
+- [ ] 2.5 Update captain + engineer prompts for full roster and review loop
+- [ ] 2.6 Done criteria, blocked state, notifications
+- [ ] 2.7 Phase 2 integration test + push
 
 ---
 

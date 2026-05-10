@@ -1,6 +1,8 @@
 # Viktown — Implementation Plan
 
-This document is the authoritative build plan. Every stage has a clear deliverable and acceptance criteria. Tasks are tracked in `tasks.md`. Commits happen after every major stage; pushes happen after every phase.
+This document is the authoritative build plan derived from `SPEC.md`, which is the source of truth for all architecture, data model, and behavioral decisions. Every stage has a clear deliverable and acceptance criteria. Tasks are tracked in `tasks.md`. Commits happen after every major stage; pushes happen after every phase.
+
+When this plan and `SPEC.md` conflict, `SPEC.md` wins. Update this plan to match.
 
 ---
 
@@ -366,35 +368,43 @@ This document is the authoritative build plan. Every stage has a clear deliverab
 **Goal**: Add scout, tester, reviewer, git specialists. Implement the review iteration loop. Full done criteria. All CLI commands working.
 
 ### Stage 2.1 — Scout Specialist
-- Write `agent-prompts/scout.md` (read-only, produces `context.md`)
-- Update captain prompt to dispatch scout during scouting phase
+- Write `agent-prompts/scout.md` per SPEC.md §5.2 (read-only, tools: Read/Grep/Glob, model: sonnet, produces `context.md`)
 - Update session manager to handle `scouting` phase
 - Test: scout produces `context.md` from a real repo
 
 ### Stage 2.2 — Tester Specialist
-- Write `agent-prompts/tester.md` (writes integration tests, runs suite)
-- Update captain prompt to dispatch tester after engineer
+- Write `agent-prompts/tester.md` per SPEC.md §5.4 (tools: Read/Write/Edit/Grep/Glob/Bash, model: sonnet, writes integration tests, runs suite, files review.md entries for real bugs)
 - Test: tester writes tests and reports results
 
 ### Stage 2.3 — Reviewer Specialist
-- Write `agent-prompts/reviewer.md` (produces `review.md`)
-- Update captain prompt to dispatch reviewer after tester
-- Implement review iteration loop in captain prompt (engineer ↔ reviewer, max 8 iterations)
-- Test: reviewer produces `review.md`, engineer addresses blockers
+- Write `agent-prompts/reviewer.md` per SPEC.md §5.5 (tools: Read/Grep/Glob/Write, model: sonnet, writes only to .team/review.md, severity buckets: Blocking/Suggestion/Approved)
+- Test: reviewer produces `review.md` with correct format
 
 ### Stage 2.4 — Git Specialist
-- Write `agent-prompts/git.md` (pushes branch, opens PR via `gh`)
+- Write `agent-prompts/git.md` per SPEC.md §5.6 (tools: Read/Bash scoped to git+gh, model: haiku, pushes branch, opens PR via `gh pr create`)
 - Remove wrapper's direct `gh` PR creation from Phase 1
-- Update captain prompt to dispatch git agent on `done`
 - Test: git agent pushes and opens PR
 
-### Stage 2.5 — Done Criteria & Blocked State
-- Implement full done criteria check: all tasks `[x]`, review approved, tests green
-- Implement `blocked` state: max review iterations, must-ask hits, fatal errors
-- Notification system: write to `~/team/notifications/` on block
+### Stage 2.5 — Update Captain & Engineer Prompts for Full Roster
+- Rewrite `agent-prompts/captain.md` to:
+  - Remove Phase 1 simplifications
+  - Dispatch scout during scouting phase (SPEC.md §6 step 2)
+  - Dispatch engineer → tester → reviewer in executing phase (SPEC.md §6 step 5)
+  - Implement review iteration loop: re-dispatch engineer with review.md, then reviewer again, up to max_review_iterations (SPEC.md §6 step 5)
+  - Dispatch git agent on done (SPEC.md §6 step 7)
+  - Reference all specialist agents by name for Task tool dispatch
+  - Implement stuck protocol and must-ask escalation (SPEC.md §5.1)
+- Update `agent-prompts/engineer.md` to:
+  - Reference all other specialists it interacts with (reviewer feedback in review.md, tester bug reports)
+  - Ensure review.md addressing instructions are complete per SPEC.md §4.2
+
+### Stage 2.6 — Done Criteria & Blocked State
+- Implement full done criteria check per SPEC.md §6 step 6: all tasks `[x]`, review approved (no blockers), tests green
+- Implement `blocked` state: max review iterations, must-ask hits, fatal errors (SPEC.md §6 failure modes)
+- Notification system: write to `~/team/notifications/` on block (SPEC.md §5.1)
 - Test: verify blocked state triggers on max iterations
 
-### Stage 2.6 — Phase 2 Integration Test & Push
+### Stage 2.7 — Phase 2 Integration Test & Push
 - End-to-end test with all specialists
 - All Phase 2 tasks checked off
 - Push
