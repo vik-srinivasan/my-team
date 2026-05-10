@@ -62,4 +62,4 @@
 - [x] @engineer Vercel preview deploy. Preview: https://landing-kx26xye0c-vikr4m-5448s-projects.vercel.app · Production alias: https://landing-eosin-mu.vercel.app
 
 ### Git
-- [ ] @git Push to the existing branch / PR #8. Comment on PR with the new preview URL.
+- [x] @git Push to the existing branch / PR #8. Comment on PR with the new preview URL.

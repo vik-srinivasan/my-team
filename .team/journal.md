@@ -120,3 +120,10 @@ Blockers: 0
 Suggestions: 0
 Verdict: Approved
 Notes: Round 3 polish work is excellent. Infra strip successfully moved to top (INFRA_ROW_Y=60 < CAPTAIN_Y=218 < AGENT_ROW_Y=510), maintaining visual hierarchy while being the first element in reading order. Dispatch curves polished: evenly-spaced anchor points across Captain's bottom edge (180px span, t = i/(n-1) interpolation), smooth S-curves with midpoint control, no crossing. Result return arc separated to the right (ctrl2X = endX + 90), completely decoupled from dispatch fan — dispatch uses Captain's bottom edge, result uses Captain's right edge. Labels positioned intentionally on their lines: `spawn` sits mid-way between Wrapper and Captain with background chip; `Task tool` sits just below Captain on the dispatch fan; `→ artifacts` sits on the result arc. No stray lines — all strokes are intentional and stay within their layers (infra lines at y=83 within infra row, spawn arrow dashed from y=106 to y=218, divider at y=134). ViewBox expanded to 720 for breathing room. Aria-label rewritten to reflect new top-to-bottom reading order. No regressions: useReducedMotion still guards motion, readonly preserved on all interfaces, no `any`, tests updated to validate INFRA_ROW_Y < CAPTAIN_Y < AGENT_ROW_Y ordering. All tests pass (21/21). Build passes. Ready for merge.
+
+## 2026-05-10T23:50:00Z — git
+Action: Pushed branch and added PR #8 comment
+Commits: 55616f8 (chore(team): update round 3 tracking files), e774880 (refactor(landing): polish architecture diagram and move infra to top)
+PR: https://github.com/vik-srinivasan/my-team/pull/8
+Comment: https://github.com/vik-srinivasan/my-team/pull/8#issuecomment-4416617790
+Status: All round-3 changes pushed to origin/my-team/clear-ash-84. PR #8 auto-updated with round-3 polish commit. Comment summarizes infra repositioning, curve cleanup, label polish, and new preview URL. Tester + reviewer both light approvals; no blockers. Ready to merge.
