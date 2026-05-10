@@ -16,16 +16,16 @@
 - [ ] @engineer Verify `pnpm -r build` passes and `pnpm -r test` passes
 
 ### Engineer B — apps/landing/
-- [ ] @engineer Update Hero `<h1>` to read `my-team: Multi-Agent orchestration` / `for Claude Code.` (preserve gradient styling)
-- [ ] @engineer Update all `GITHUB_URL` / repo URL constants in Hero, Footer, Quickstart
-- [ ] @engineer Update Quickstart clone command (`viktown.git` → `my-team.git`)
-- [ ] @engineer Update HowItWorks terminal-demo `[viktown]` lines → `[my-team]`
-- [ ] @engineer Update Architecture SVG `VIKTOWN` text → `MY-TEAM`
-- [ ] @engineer Update Footer brand text and any `viktown` strings
-- [ ] @engineer Update `layout.tsx` metadata (title, description, OG, `metadataBase`)
-- [ ] @engineer Add WIP indicator to Hero's right-panel `AgentFlow` widget (small WIP pill near the "live" badge)
-- [ ] @engineer Add WIP indicator to Architecture diagram's "Web UI" box
-- [ ] @engineer Verify `pnpm --filter @my-team/landing build` succeeds (Engineer A's package.json changes must land first)
+- [x] @engineer Update Hero `<h1>` to read `my-team: Multi-Agent orchestration` / `for Claude Code.` (preserve gradient styling)
+- [x] @engineer Update all `GITHUB_URL` / repo URL constants in Hero, Footer, Quickstart
+- [x] @engineer Update Quickstart clone command (`viktown.git` → `my-team.git`)
+- [x] @engineer Update HowItWorks terminal-demo `[viktown]` lines → `[my-team]`
+- [x] @engineer Update Architecture SVG `VIKTOWN` text → `MY-TEAM`
+- [x] @engineer Update Footer brand text and any `viktown` strings
+- [x] @engineer Update `layout.tsx` metadata (title, description, OG, `metadataBase`)
+- [x] @engineer Add WIP indicator to Hero's right-panel `AgentFlow` widget (small WIP pill near the "live" badge)
+- [x] @engineer Add WIP indicator to Architecture diagram's "Web UI" box (subtitle now reads `React 19 + Vite · WIP`)
+- [x] @engineer Verify `pnpm --filter @my-team/landing build` succeeds — build green
 
 ### Engineer C — docs + agent prompts
 - [ ] @engineer Update `SPEC.md` (replace viktown → my-team; update any URLs/paths)

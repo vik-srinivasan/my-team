@@ -12,8 +12,8 @@ Multi-agent orchestrator for Claude Code. Turns Claude Code into a coordinated t
 ## Install
 
 ```bash
-git clone https://github.com/vik-srinivasan/viktown.git
-cd viktown
+git clone https://github.com/vik-srinivasan/my-team.git
+cd my-team
 ./setup.sh
 ```
 

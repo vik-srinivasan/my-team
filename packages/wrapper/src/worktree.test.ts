@@ -61,7 +61,7 @@ describe('worktree', () => {
           // Best effort cleanup
         }
         try {
-          execSync(`git branch -D viktown/${sessionId}`, { cwd: tempRepo });
+          execSync(`git branch -D my-team/${sessionId}`, { cwd: tempRepo });
         } catch {
           // Best effort cleanup
         }
@@ -93,7 +93,7 @@ describe('worktree', () => {
       expect(metaContent.id).toBe(sessionId);
       expect(metaContent.title).toBe('Test Session');
       expect(metaContent.source_repo).toBe(tempRepo);
-      expect(metaContent.session_branch).toBe(`viktown/${sessionId}`);
+      expect(metaContent.session_branch).toBe(`my-team/${sessionId}`);
 
       // state.json starts at 'created'
       const stateContent = JSON.parse(await readFile(join(teamDir, 'state.json'), 'utf-8'));

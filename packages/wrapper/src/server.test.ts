@@ -115,7 +115,7 @@ describe('HTTP API integration', () => {
     await sessionManager.killSession(sessionId);
     try {
       execSync(`git worktree remove "${worktreePath}" --force`, { cwd: tempRepo });
-      execSync(`git branch -D viktown/${sessionId}`, { cwd: tempRepo });
+      execSync(`git branch -D my-team/${sessionId}`, { cwd: tempRepo });
     } catch {
       // Best effort
     }
@@ -186,7 +186,7 @@ describe('HTTP API integration', () => {
     await sessionManager.killSession(sessionId);
     try {
       execSync(`git worktree remove "${worktreePath}" --force`, { cwd: tempRepo });
-      execSync(`git branch -D viktown/${sessionId}`, { cwd: tempRepo });
+      execSync(`git branch -D my-team/${sessionId}`, { cwd: tempRepo });
     } catch {
       // Best effort
     }
@@ -234,7 +234,7 @@ describe('HTTP API integration', () => {
     await sessionManager.killSession(sessionId);
     try {
       execSync(`git worktree remove "${worktreePath}" --force`, { cwd: tempRepo });
-      execSync(`git branch -D viktown/${sessionId}`, { cwd: tempRepo });
+      execSync(`git branch -D my-team/${sessionId}`, { cwd: tempRepo });
     } catch {
       // Best effort
     }
@@ -271,7 +271,7 @@ describe('HTTP API integration', () => {
     const worktreePath = getWorktreePath(sessionId);
     try {
       execSync(`git worktree remove "${worktreePath}" --force`, { cwd: tempRepo });
-      execSync(`git branch -D viktown/${sessionId}`, { cwd: tempRepo });
+      execSync(`git branch -D my-team/${sessionId}`, { cwd: tempRepo });
     } catch {
       // Best effort
     }

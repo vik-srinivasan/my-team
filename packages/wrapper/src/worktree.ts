@@ -12,7 +12,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const SESSIONS_DIR = join(homedir(), 'team', 'sessions');
 const ARCHIVES_DIR = join(homedir(), 'team', 'archives');
 const GLOBAL_AGENTS_DIR = join(homedir(), '.claude', 'agents');
-const VIKTOWN_AGENTS_DIR = resolve(__dirname, '..', '..', '..', 'agent-prompts');
+const MY_TEAM_AGENTS_DIR = resolve(__dirname, '..', '..', '..', 'agent-prompts');
 
 export async function resolveRepoRoot(path: string): Promise<string> {
   const resolved = await realpath(path);
@@ -54,7 +54,7 @@ export async function createWorktree(
   const repoRoot = await resolveRepoRoot(sourceRepo);
   const defaultBranch = await getDefaultBranch(repoRoot);
   const worktreePath = getWorktreePath(sessionId);
-  const sessionBranch = `viktown/${sessionId}`;
+  const sessionBranch = `my-team/${sessionId}`;
 
   // Ensure sessions directory exists
   await mkdir(SESSIONS_DIR, { recursive: true });
@@ -135,8 +135,8 @@ async function copyAgentPrompts(
   const destDir = join(worktreePath, '.claude', 'agents');
   await mkdir(destDir, { recursive: true });
 
-  // Priority order (last wins): Viktown built-in → global → source repo
-  await copyMdFiles(VIKTOWN_AGENTS_DIR, destDir);
+  // Priority order (last wins): my-team built-in → global → source repo
+  await copyMdFiles(MY_TEAM_AGENTS_DIR, destDir);
   await copyMdFiles(GLOBAL_AGENTS_DIR, destDir);
   await copyMdFiles(join(sourceRepo, '.claude', 'agents'), destDir);
 }
@@ -147,7 +147,7 @@ export async function removeWorktree(
 ): Promise<void> {
   const repoRoot = await resolveRepoRoot(sourceRepo);
   const worktreePath = getWorktreePath(sessionId);
-  const sessionBranch = `viktown/${sessionId}`;
+  const sessionBranch = `my-team/${sessionId}`;
   const git = simpleGit(repoRoot);
 
   try {

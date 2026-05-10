@@ -14,7 +14,7 @@ describe('team-files', () => {
     title: 'Test Session',
     source_repo: '/tmp/repo',
     source_branch: 'main',
-    session_branch: 'viktown/test-session-42',
+    session_branch: 'my-team/test-session-42',
     created_at: '2026-05-09T10:00:00Z',
   };
 
