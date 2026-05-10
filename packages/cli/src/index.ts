@@ -11,6 +11,8 @@ import { cleanCommand } from './commands/clean.js';
 import { archiveCommand } from './commands/archive.js';
 import { logsCommand } from './commands/logs.js';
 import { notificationsCommand } from './commands/notifications.js';
+import { helpInfoCommand } from './commands/help-info.js';
+import { uiCommand } from './commands/ui.js';
 
 const program = new Command();
 
@@ -29,5 +31,7 @@ program.addCommand(cleanCommand());
 program.addCommand(archiveCommand());
 program.addCommand(logsCommand());
 program.addCommand(notificationsCommand());
+program.addCommand(helpInfoCommand());
+program.addCommand(uiCommand());
 
 program.parse();
