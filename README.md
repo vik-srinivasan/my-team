@@ -60,9 +60,14 @@ This creates an isolated worktree, spawns a captain agent, and drops you into th
 | `team attach <id>` | Re-attach to a session's chat |
 | `team kill <id>` | Terminate a session |
 | `team logs <id>` | Print recent journal entries |
+| `team open <id>` | Open a session worktree in VS Code |
 | `team archive <id>` | Archive `.team/` files |
 | `team clean <id>` | Remove session worktree |
+| `team purge <id>` | Kill and clean a session in one step |
 | `team notifications` | Show blocked session alerts |
+| `team notifications --clear` | Clear all notifications |
+| `team ui` | Open the web dashboard in your browser |
+| `team help` | Show this help summary |
 
 ### Recents and shortcuts
 
