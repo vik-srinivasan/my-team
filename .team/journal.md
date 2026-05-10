@@ -1,55 +1,67 @@
-## 2026-05-10T19:35:00Z — captain
-Session started. Title: "UI-changes". User wants to simplify the my-team dashboard webapp: drop heavy per-session detail (terminal chat already covers that), keep a multi-session overview surfacing captain output and flagging sessions needing attention. Dispatching scout to map current UI code.
+# Journal — odd-shade-36 (ui-changes)
 
-## 2026-05-10T19:48:00Z — captain
-Plan approved by user ("go"). Beginning execution. Dispatching engineer to work through tasks.md in order: backend types -> foundations -> store -> components. Single engineer because the tasks are tightly coupled across shared types and component files (parallel engineers would step on App.tsx and store.ts).
+## 2026-05-10T21:00:00Z — captain
+Session started. User wants to redesign the dashboard UI: left sidebar with session tabs (name + status + color indicator: green=smooth, yellow=updates available, red=needs intervention), main panel shows streamed captain output (like Claude Code). Dispatching scout in background.
 
-## 2026-05-10T20:00:00Z — engineer
-Completed: All @engineer tasks (backend types, frontend foundations, store/data plumbing, layout + components).
-Created: packages/ui/src/lib/phase.ts, packages/ui/src/lib/attention.ts, packages/ui/src/lib/attention.test.ts, packages/ui/src/components/OutputLog.tsx (renamed from Chat.tsx), packages/ui/src/dev-seed.ts.
-Modified: packages/shared/src/types.ts, packages/wrapper/src/session-manager.ts, packages/wrapper/src/server.test.ts, packages/ui/src/store.ts, packages/ui/src/hooks/useSession.ts, packages/ui/src/hooks/useWebSocket.ts, packages/ui/src/App.tsx, packages/ui/src/components/SessionList.tsx, packages/ui/src/main.tsx.
-Deleted: packages/ui/src/components/RightPanel.tsx (and its rightTab / teamFiles / diff store slices, ws handlers, and useSession fetches).
-Commits: 55098fb feat(shared) SessionSummary fields; ba73b37 feat(wrapper) listSessions populates fields; 565a379 refactor(ui) extract phase lib; 430f1ee feat(ui) attention lib + tests; 8303e25 feat(ui) lastViewed slice; 2c13dc8 refactor(ui) useSession; 03354fe refactor(ui) useWebSocket; 7a0b351 feat(ui) two-column layout + OutputLog; 0cce1ba feat(ui) sidebar attention badges; 63600b3 feat(ui) dev-seed; 772f3ec fix(ui) vite/client reference.
-Build/test status: pnpm -C packages/ui build green, pnpm -C packages/wrapper build green, full repo test suite (47 tests) all passing including the new attention tests. Pre-existing CLI build error and root pnpm lint failure unchanged from base.
-Preview: cd packages/ui && pnpm dev, then open http://localhost:5173/?seed=1 to see the new dashboard with mock sessions exercising every attention path.
+## 2026-05-10T21:06:00Z — captain
+Plan approved by user. Dispatching engineer.
 
-## 2026-05-10T20:15:00Z — tester
-Completed: Build verification and test suite run for the dashboard UI rewrite. All four @tester tasks completed.
-Tests written: No new test files needed — attention.test.ts (8 tests) already covers all required cases; existing wrapper suite covers the new listSessions fields.
-Tests passed: 47 (all)
-Tests failed: 0 (one timing-flaky test in server.test.ts observed on first run under load, passed on subsequent runs — pre-existing issue)
-Bugs filed: 1 non-blocking concern (api.ts dead methods), 1 pre-existing flaky test noted
+## 2026-05-10T21:15:00Z — engineer
+Completed: phaseFriendlyLabel helper with full mapping and dynamic specialist name for executing phase.
+Created: packages/ui/src/lib/phase.test.ts
+Modified: packages/ui/src/lib/phase.ts
+Commit: 57a913c
 
-## 2026-05-10T20:30:00Z — reviewer
+## 2026-05-10T21:18:00Z — engineer
+Completed: SessionList prominent green/yellow/red status indicator driven by getAttention(); friendly label under title.
+Modified: packages/ui/src/components/SessionList.tsx
+Commit: a45f885
+Preview: `pnpm --filter @my-team/ui dev` and open the dashboard; `?seed=1` shows the 5 mock sessions with the new indicators. Built artifact also available via `pnpm --filter @my-team/ui preview` after `build`.
+
+## 2026-05-10T21:25:00Z — engineer
+Completed: Tightened stripAnsi/isMeaningfulText + new cleanCaptainOutput line filter for PTY noise (permission chrome, contemplating spinners + typo variants, token counters, ctrl+o expand chrome, box-drawing leftovers, stray ANSI fragments). Markdown headers/code fences/sentences pass through.
+Created: packages/ui/src/hooks/useWebSocket.test.ts (42 tests covering noisy + meaningful fixtures)
+Modified: packages/ui/src/hooks/useWebSocket.ts
+Commit: 1098671
+
+## 2026-05-10T21:27:00Z — engineer
+Completed: Visual sanity check of OutputLog.tsx — no code change needed. cleanCaptainOutput preserves markdown structure (headings, code fences, hr rules), which ReactMarkdown + remark-gfm + rehype-highlight render correctly.
+All 69 UI unit tests pass; `pnpm --filter @my-team/ui build` succeeds.
+
+## 2026-05-10T21:14:00Z — captain
+Engineer returned (3 commits: 57a913c phaseFriendlyLabel, a45f885 SessionList indicator, 1098671 PTY noise filter). 69 tests pass, build green. Dispatching tester + reviewer in parallel.
+
+## 2026-05-10T21:30:00Z — tester
+Completed: Light-effort verification of engineer's UI work.
+Test suite: `pnpm --filter @my-team/ui test` — 69 tests passed (4 files: phase.test.ts, useWebSocket.test.ts, attention.test.ts, last-viewed.test.ts)
+Build: `pnpm --filter @my-team/ui build` — success (dist/ ready: 554 KB JS, 17.75 KB CSS)
+Assessment: No suspicious failures. Noise filter regex tests comprehensive; friendly label mapping correct. Build artifact healthy.
+Bugs filed: none
+
+## 2026-05-10T21:31:00Z — reviewer
 Completed: Review pass 1
-Blockers: 2
-Suggestions: 2
-Verdict: Blockers remain
+Findings: 1 blocking issue (contemplating regex over-filters legitimate words like "complete"), 1 suggestion (test coverage for edge cases)
+Verdict: Blockers remain — must fix regex before merge
+Issue location: packages/ui/src/hooks/useWebSocket.ts line 27
+Details: The pattern `/\b(?:co[mn]t?em|co[mn])pl[ae]t(?:e|ing|es|or)?/` will match "complete" (c+o+m+plet+e) causing legitimate output to be silently dropped from the captain stream. Recommend explicit list of typo variants or stricter anchoring.
 
-## 2026-05-10T20:10:00Z — captain
-Tester green; reviewer Blocking with two items: (1) dead `api.diff()/team()/teamFile()` methods + `DiffResponse`/`TeamFiles` imports left in `packages/ui/src/api.ts` after RightPanel deletion, (2) missing tests for `lastViewed` localStorage persistence. Re-dispatching engineer (review iteration 1).
+## 2026-05-10T21:18:00Z — captain
+Tester green. Reviewer found 1 Blocking: contemplating regex matches "complete"/"completing"/"completion" etc. Verified the false positive locally. Re-dispatching engineer to tighten the regex and add regression tests.
 
-## 2026-05-10T20:25:00Z — engineer
-Completed: Both reviewer blockers + the suggestion about completing the attention priority matrix.
-Created: packages/ui/src/lib/last-viewed.ts (extracted helpers from store.ts so they're unit-testable without jsdom), packages/ui/src/lib/last-viewed.test.ts (13 cases: missing key, malformed JSON, array / null / non-string filtering, SSR guard, getItem/setItem error swallow, round-trip).
-Modified: packages/ui/src/api.ts (dropped dead diff/team/teamFile methods + DiffResponse/TeamFiles imports — verified no callers remain in `packages/ui/src`; shared types stay because wrapper + cli still consume them), packages/ui/src/store.ts (now imports the extracted helpers instead of inlining them), packages/ui/src/lib/attention.test.ts (added "prefers blocked reason over must_ask" symmetrical priority case), .team/tasks.md, .team/review.md (resolved/skipped notes inline).
-Commits: 684bc45 refactor(ui): drop unused diff/team/teamFile API methods; f2adb73 test(ui): cover lastViewed localStorage persistence.
-Build/test status: `pnpm -C packages/ui build` green; `pnpm test` 61/61 across 8 files (was 47 / 7 — added the new last-viewed.test.ts file with 13 cases plus 1 new attention case).
-Suggestion skipped: removing `WsTeamFileEvent` / `WsDiffEvent` from `WsServerEvent` (out of scope; reviewer themselves marked "not urgent" and it would touch shared types still consumed by the wrapper + cli).
+## 2026-05-10T21:35:00Z — engineer
+Completed: Addressed review pass 1 blocker — replaced the contemplating-spinner regex with a stem-anchored pattern that does not match "complete"/"completion"/"template"/"implemented"/"compatible".
+New pattern: `/\b(?:contempl|conplat|complat)(?:at)?(?:e|ing|es|ed|or|ion)?\b/i` — verified via node against the full must/must-not matrix from the review.
+Added: 11 regression test cases in `useWebSocket.test.ts` under "does NOT drop legitimate word" covering complete/completed/completing/completes/completion, "the implementation is complete", "all tasks are now completed", "template literal", "implemented", and "compatible".
+Modified: packages/ui/src/hooks/useWebSocket.ts, packages/ui/src/hooks/useWebSocket.test.ts
+Verification: `pnpm --filter @my-team/ui test` — 80/80 pass (was 69, +11 new); `pnpm --filter @my-team/ui build` green.
+Commit: 40f759d
 
-## 2026-05-10T21:00:00Z — reviewer
-Completed: Review pass 2
-Blockers: 0
+## 2026-05-10T22:15:00Z — reviewer
+Completed: Review pass 2 (follow-up verification)
+Blockers: 0 (review pass 1 blocker resolved)
 Suggestions: 0
 Verdict: Approved
+Details: Verified regex fix in commit 40f759d. New pattern correctly anchors on "contempl"/"conplat"/"complat" stems and avoids false positives on complete/completed/completing/completes/completion/template/compatible/implemented. Regression test suite comprehensively covers all required must-not-match cases (lines 113–127 in useWebSocket.test.ts) and existing noise tests confirm true positives still caught (lines 43–45). No blockers remain, ready for merge.
 
-## 2026-05-10T20:25:00Z — captain
-Reviewer signed off on fix-up commits (684bc45, f2adb73). 14 total commits on branch. All tests green (61/61), all builds green. Dispatching git to push branch and open PR.
-
-## 2026-05-10T21:15:00Z — git
-Action: Pushed branch and opened PR
-Branch: viktown/rich-shade-12 (15 commits, +780-451)
-PR: https://github.com/vik-srinivasan/viktown/pull/4
-Title: UI: lightweight multi-session dashboard
-Summary: Simplified dashboard with two-column layout (sidebar + output log), dropped right panel, added attention badges (critical/unread), lastViewed localStorage persistence.
-All 61 tests passing. Ready for merge.
+## 2026-05-10T21:38:00Z — captain
+Reviewer pass 2: Approved. 80 tests pass, build green. All @engineer tasks complete. Dispatching git to push and open PR.
