@@ -5,8 +5,18 @@ import type { SessionSummary } from '@my-team/shared';
 import { useSessionStore } from '../store.js';
 import { NewSessionModal } from './NewSessionModal.js';
 import { api } from '../api.js';
-import { phaseDot, phaseLabel } from '../lib/phase.js';
+import { phaseFriendlyLabel } from '../lib/phase.js';
 import { getAttention, type Attention } from '../lib/attention.js';
+
+/**
+ * Map the derived attention state to a single Tailwind background class used
+ * by the prominent left-edge status indicator. Red beats yellow beats green.
+ */
+function attentionDotClass(attention: Attention): string {
+  if (attention.critical) return 'bg-red-500';
+  if (attention.hasUpdate) return 'bg-amber-400';
+  return 'bg-emerald-500';
+}
 
 function timeAgo(iso: string): string {
   if (!iso) return '';
@@ -104,24 +114,28 @@ export function SessionList() {
                     : 'border-l-2 border-transparent hover:bg-zinc-800/50'
                 }`}
               >
-                <div className="flex items-center gap-2">
-                  <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${phaseDot(s.phase)}`} />
+                <div className="flex items-center gap-2.5">
+                  <span
+                    className={`h-3 w-3 shrink-0 rounded-full ring-2 ring-zinc-950 ${attentionDotClass(
+                      attention,
+                    )} ${attention.critical ? 'animate-pulse' : ''}`}
+                    title={
+                      attention.critical
+                        ? attention.reason ?? 'Needs attention'
+                        : attention.hasUpdate
+                        ? 'New activity'
+                        : 'Running smoothly'
+                    }
+                  />
                   <span className="truncate text-sm font-medium text-zinc-200">{s.title}</span>
-                  {attention.hasUpdate && !isSelected && (
-                    <span
-                      className="h-1.5 w-1.5 shrink-0 rounded-full bg-blue-400"
-                      title="New captain output since you last looked"
-                    />
-                  )}
                   <span className="ml-auto shrink-0 text-xs text-zinc-600">
                     {timeAgo(ageSource)}
                   </span>
                 </div>
-                <div className="mt-1 ml-3.5 flex items-center gap-2 text-xs text-zinc-500">
-                  <span>{phaseLabel(s.phase)}</span>
-                  {s.active_specialist && (
-                    <span className="text-cyan-500">{s.active_specialist}</span>
-                  )}
+                <div className="mt-1 ml-[1.375rem] flex items-center gap-2 text-xs text-zinc-500">
+                  <span className="truncate">
+                    {phaseFriendlyLabel(s.phase, s.active_specialist)}
+                  </span>
                   {attention.critical && attention.reason && (
                     <span
                       className="ml-auto flex items-center gap-1 rounded-full border border-red-700/50 bg-red-900/40 px-1.5 py-0.5 text-[10px] font-medium text-red-300"
