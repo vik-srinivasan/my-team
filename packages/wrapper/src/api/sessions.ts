@@ -15,6 +15,8 @@ import type { SessionManager } from '../session-manager.js';
 const CreateSessionSchema = z.object({
   source_repo: z.string().min(1),
   title: z.string().min(1),
+  cols: z.number().int().positive().optional(),
+  rows: z.number().int().positive().optional(),
 });
 
 const SendInputSchema = z.object({
@@ -66,7 +68,7 @@ export function createSessionsRouter(
   router.post('/', async (req: Request, res: Response) => {
     try {
       const body = CreateSessionSchema.parse(req.body);
-      const session = await sessionManager.createSession(body.source_repo, body.title);
+      const session = await sessionManager.createSession(body.source_repo, body.title, body.cols, body.rows);
       const response: CreateSessionResponse = {
         id: session.meta.id,
         title: session.meta.title,

@@ -22,7 +22,9 @@ export function newCommand(): Command {
       const spinner = ora('Creating session...').start();
 
       try {
-        const session = await api.createSession(sourceRepo, title);
+        const cols = process.stdout.isTTY ? process.stdout.columns : undefined;
+        const rows = process.stdout.isTTY ? process.stdout.rows : undefined;
+        const session = await api.createSession(sourceRepo, title, cols, rows);
         spinner.succeed(chalk.green(`Session created: ${chalk.bold(session.id)}`));
         console.log(`  Title:    ${session.title}`);
         console.log(`  Worktree: ${session.worktree_path}`);

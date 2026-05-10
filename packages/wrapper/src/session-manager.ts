@@ -47,8 +47,6 @@ interface ManagedSession {
   watcher: TeamFileWatcher | null;
   lastDiff: string;
   diffTimer: ReturnType<typeof setTimeout> | null;
-  outputBuffer: string;
-  outputTimer: ReturnType<typeof setTimeout> | null;
 }
 
 export class SessionManager extends EventEmitter<SessionManagerEventMap> {
@@ -62,7 +60,7 @@ export class SessionManager extends EventEmitter<SessionManagerEventMap> {
     this.captainPromptPath = captainPromptPath;
   }
 
-  async createSession(sourceRepo: string, title: string): Promise<Session> {
+  async createSession(sourceRepo: string, title: string, cols?: number, rows?: number): Promise<Session> {
     const repoRoot = await resolveRepoRoot(sourceRepo);
     const existingIds = new Set(this.sessions.keys());
     const sessionId = generateSessionId(existingIds);
@@ -90,32 +88,20 @@ export class SessionManager extends EventEmitter<SessionManagerEventMap> {
     const captain = await spawnCaptain({
       worktreePath,
       captainPromptPath: this.captainPromptPath,
+      cols,
+      rows,
     });
 
     session.pid = captain.pid;
 
-    // Forward captain output as WS events (buffered to avoid per-character fragmentation)
+    // Forward captain output as WS events immediately (no buffering —
+    // buffering can split ANSI escape sequences mid-sequence, causing garbled TUI output)
     captain.on('data', (text) => {
-      const managed = this.sessions.get(sessionId);
-      if (!managed) return;
-      managed.outputBuffer += text;
-
-      // Flush after 100ms of inactivity
-      if (managed.outputTimer) clearTimeout(managed.outputTimer);
-      managed.outputTimer = setTimeout(() => {
-        this.flushOutput(sessionId);
-      }, 100);
-
-      // Also flush if buffer gets large
-      if (managed.outputBuffer.length > 4096) {
-        this.flushOutput(sessionId);
-      }
+      this.emitEvent(sessionId, { type: 'output', text });
     });
 
     captain.on('exit', (code) => {
       this.log.info({ sessionId, code }, 'Captain process exited');
-      // Flush any remaining buffered output
-      this.flushOutput(sessionId);
       const managed = this.sessions.get(sessionId);
       if (managed) {
         managed.session.pid = null;
@@ -196,8 +182,6 @@ export class SessionManager extends EventEmitter<SessionManagerEventMap> {
       watcher,
       lastDiff: '',
       diffTimer: null,
-      outputBuffer: '',
-      outputTimer: null,
     };
     this.sessions.set(sessionId, managed);
 
@@ -391,20 +375,6 @@ export class SessionManager extends EventEmitter<SessionManagerEventMap> {
         this.log.error({ sessionId, err }, 'Auto-cleanup failed');
       }
     }, GRACE_PERIOD);
-  }
-
-  private flushOutput(sessionId: string): void {
-    const managed = this.sessions.get(sessionId);
-    if (!managed || !managed.outputBuffer) return;
-
-    if (managed.outputTimer) {
-      clearTimeout(managed.outputTimer);
-      managed.outputTimer = null;
-    }
-
-    const text = managed.outputBuffer;
-    managed.outputBuffer = '';
-    this.emitEvent(sessionId, { type: 'output', text });
   }
 
   private scheduleDiffEmit(sessionId: string): void {

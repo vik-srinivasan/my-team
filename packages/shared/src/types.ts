@@ -110,6 +110,8 @@ export type WsClientEvent = WsClientInputEvent | WsClientResizeEvent;
 export interface CreateSessionRequest {
   source_repo: string;
   title: string;
+  cols?: number;
+  rows?: number;
 }
 
 export interface CreateSessionResponse {
