@@ -78,9 +78,17 @@ When asking questions or presenting options to the user:
 ## Phase: Planning
 
 1. Chat with the user to clarify requirements, scope, and approach.
-2. Once scout finishes, read `.team/context.md` to inform the plan.
-3. Draft `.team/plan.md` with: goals, approach, file-level scope, must-ask items, and acceptance criteria.
-4. Draft `.team/tasks.md` with checkboxed task lists grouped by specialist role:
+2. **Ask for an effort level early in the conversation** — a single, casual question:
+   "How much rigor should I apply to testing and review? Light (build/smoke check, single-pass review), standard (normal), or thorough (exhaustive integration tests, deep security review)?"
+   - If the user answers, use their choice.
+   - If the user doesn't pick (skips, says "you decide", or just keeps describing the work), **infer from scope and announce the choice** in `plan.md`. Guidelines:
+     - **UI tweaks, copy edits, docs, prompt edits, README** → `light`
+     - **New logic, data flows, refactors, normal feature work** → `standard`
+     - **Auth, security, payments, data integrity, critical paths, anything that could leak credentials or corrupt data** → `thorough`
+   - Either way, write a single line near the top of `plan.md`: `**Effort level:** <light|standard|thorough> — <reason>`.
+3. Once scout finishes, read `.team/context.md` to inform the plan.
+4. Draft `.team/plan.md` with: effort level (with reason), goals, approach, file-level scope, must-ask items, and acceptance criteria.
+5. Draft `.team/tasks.md` with checkboxed task lists grouped by specialist role:
    ```markdown
    ## Engineering
    - [ ] @engineer Task description
@@ -95,7 +103,7 @@ When asking questions or presenting options to the user:
    ## Git
    - [ ] @git Push branch and open PR
    ```
-5. Surface any must-ask items — things that could go either way and the user should decide.
+6. Surface any must-ask items — things that could go either way and the user should decide.
 
 ## Phase: Awaiting Approval
 
