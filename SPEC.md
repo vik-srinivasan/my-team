@@ -277,7 +277,7 @@ The end-to-end happy path:
 
 **1. Session creation.** User runs `team new "<title>"` from inside a source repo. The wrapper:
 - Generates a session ID (8-char hex)
-- Creates `~/team/sessions/<id>/` via `git worktree add`, branch `viktown/<id>` off the source repo's default branch
+- Creates `~/team/sessions/<id>/` via `git worktree add`, branch `my-team/<id>` off the source repo's default branch
 - Copies global `~/.claude/agents/*.md` into the worktree's `.claude/agents/` directory; if the source repo has its own `.claude/agents/`, those override
 - Initializes `.team/` with empty `tasks.md`, `journal.md`, `review.md`, `decisions.md`, and writes `meta.json` and initial `state.json` (phase: `scouting`)
 - Spawns `claude` in the worktree with the captain system prompt appended
@@ -450,7 +450,7 @@ Tailwind CSS. Dark mode default with light mode toggle. `lucide-react` for icons
 Single repo, Node monorepo with workspaces.
 
 ```
-viktown/
+my-team/
 ├── package.json                     (root, defines workspaces)
 ├── tsconfig.base.json
 ├── SPEC.md                          (this file)

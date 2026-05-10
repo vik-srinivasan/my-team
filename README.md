@@ -1,4 +1,4 @@
-# Viktown
+# my-team
 
 Multi-agent orchestrator for Claude Code. Turns Claude Code into a coordinated team of specialists that plan, implement, test, review, and ship code — all from a single command.
 
