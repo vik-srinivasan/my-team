@@ -1,7 +1,7 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import ora from 'ora';
-import { execSync } from 'node:child_process';
+import { execSync, spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { readdir, mkdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
@@ -43,14 +43,16 @@ async function bootstrapProject(name: string, withGitHub: boolean, isPublic: boo
 
   if (withGitHub) {
     const visibility = isPublic ? '--public' : '--private';
-    try {
-      execSync(`gh repo create ${name} --source=. --remote=origin --push ${visibility}`, {
-        cwd: targetDir,
-        stdio: 'inherit',
-      });
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      throw new EmptyProjectInitError(`gh repo create failed: ${message}`);
+    const result = spawnSync(
+      'gh',
+      ['repo', 'create', name, '--source=.', '--remote=origin', '--push', visibility],
+      { cwd: targetDir, stdio: 'inherit', shell: false },
+    );
+    if (result.error) {
+      throw new EmptyProjectInitError(`gh repo create failed: ${result.error.message}`);
+    }
+    if (result.status !== 0) {
+      throw new EmptyProjectInitError(`gh repo create failed with exit code ${result.status}`);
     }
   }
 
@@ -83,7 +85,8 @@ export function newCommand(): Command {
         title = arg2 ?? arg1;
       } else if (arg2 !== undefined) {
         // Shortcut form: arg1 is a basename, arg2 is the title.
-        const resolution = await resolveShortcut(arg1).catch(() => ({ kind: 'none' as const }));
+        const registryPath = process.env['VIKTOWN_REGISTRY_PATH'];
+        const resolution = await resolveShortcut(arg1, registryPath).catch(() => ({ kind: 'none' as const }));
         if (resolution.kind === 'one') {
           sourceRepo = resolution.path;
           title = arg2;
