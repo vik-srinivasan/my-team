@@ -1,9 +1,9 @@
 {
   "phase": "done",
-  "active_specialist": "git",
+  "active_specialist": null,
   "review_iterations": 0,
   "max_review_iterations": 8,
-  "last_checkpoint": "2026-05-11T00:30:00Z",
+  "last_checkpoint": "2026-05-11T00:32:00Z",
   "blockers": [],
   "must_ask_pending": []
 }

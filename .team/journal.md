@@ -160,3 +160,13 @@ Commits: 3c22699 (chore(team): update round 5 tracking files), 11e492b (refactor
 PR: https://github.com/vik-srinivasan/my-team/pull/8
 Comment: https://github.com/vik-srinivasan/my-team/pull/8#issuecomment-4416660653
 Status: Branch my-team/clear-ash-84 pushed to origin. PR #8 comment summarizes round 5 changes (bidirectional Captain↔agent arrows, reverted per-agent return curves, production deploy verified). All round-5 commits now live on the branch. Fast path — tester/reviewer not run, production alias verified serving new build. Ready to merge.
+
+## 2026-05-11T00:51:00Z — engineer
+Completed: Round 6 fix — Captain-end arrowhead orientation on Captain↔agent dispatch curves
+Modified: apps/landing/app/components/Architecture.tsx, apps/landing/app/components/Architecture.test.ts, .team/tasks.md
+Build: pnpm --filter @my-team/landing build — passed (Next.js 16.2.6, 3 static routes)
+Tests: pnpm vitest run apps/landing — 21/21 passed (Architecture: 10/10 green)
+Commit: 8829ff6 fix(landing): correct start-marker orientation on captain↔agent arrows
+Production deploy: https://landing-80qvlqz9p-vikr4m-5448s-projects.vercel.app (aliased to https://landing-eosin-mu.vercel.app)
+Verification: `curl -s https://landing-eosin-mu.vercel.app | grep -c arrow-accent-start` → 0 (broken marker gone); `... grep -c bidirectional` → 1 (aria-label still describes bidirectional arrows). Captain-end arrowheads now point INTO Captain.
+Root cause: the `arrow-accent-start` marker used `orient="auto"`, which orients along path direction — at a path's start that's the same direction as the end-marker, so both arrowheads pointed the same way (away from Captain). Fix: reuse the existing `arrow-accent` marker (which uses `orient="auto-start-reverse"` — SVG auto-flips it 180° when used as marker-start) for both ends and delete the redundant marker definition.

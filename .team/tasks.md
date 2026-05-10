@@ -97,3 +97,16 @@
 
 ### Git
 - [x] @git Push to PR #8. Brief comment with the new preview URL.
+
+---
+
+## Round 6 (current — tiny one-file bugfix, no tester/reviewer)
+
+### Engineering
+- [x] @engineer In `Architecture.tsx`: change `markerStart="url(#arrow-accent-start)"` to `markerStart="url(#arrow-accent)"` on the dispatch curves so the Captain-end arrowhead points INTO Captain (the existing `arrow-accent` marker uses `orient="auto-start-reverse"`, which auto-flips when used as marker-start). Delete the now-unused `arrow-accent-start` `<marker>` block (and its comment).
+- [x] @engineer Update `Architecture.test.ts` to assert `arrow-accent` is referenced via both `markerStart` and `markerEnd` on the dispatch paths (legacy `arrow-accent-start` marker is gone).
+- [x] @engineer Run `pnpm --filter @my-team/landing build` and `pnpm --filter @my-team/landing test` and confirm both pass. (Landing tests: 21/21 pass; build OK.)
+- [x] @engineer Commit using Conventional Commits style. → commit 8829ff6
+
+### Preview
+- [x] @engineer Vercel **production** deploy from `apps/landing/` using `vercel --prod --yes`. Production alias: https://landing-eosin-mu.vercel.app · verified `arrow-accent-start` count = 0, `bidirectional` count = 1.
