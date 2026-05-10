@@ -153,3 +153,10 @@ Commit: 11e492b refactor(landing): bidirectional captain↔agent arrows, drop di
 Production deploy: https://landing-nt377zzho-vikr4m-5448s-projects.vercel.app (aliased to https://landing-eosin-mu.vercel.app)
 Verification: `curl -s https://landing-eosin-mu.vercel.app | grep -c bidirectional` → 1 (alias is serving the new build)
 Visual change: Each of the five Captain→agent dispatch curves is now a single accent-blue line with arrowheads at BOTH ends — Captain ↔ agent — replacing the round-4 pair of solid-out + dim-dashed-back curves. The "→ artifacts" chip is gone. Implementation: a mirrored marker `arrow-accent-start` referenced via `marker-start`; existing `arrow-accent` stays on `marker-end`; same accent fill, same curve geometry.
+
+## 2026-05-11T00:35:00Z — git
+Action: Pushed branch and added PR #8 comment
+Commits: 3c22699 (chore(team): update round 5 tracking files), 11e492b (refactor(landing): bidirectional captain↔agent arrows, drop dim return curves)
+PR: https://github.com/vik-srinivasan/my-team/pull/8
+Comment: https://github.com/vik-srinivasan/my-team/pull/8#issuecomment-4416660653
+Status: Branch my-team/clear-ash-84 pushed to origin. PR #8 comment summarizes round 5 changes (bidirectional Captain↔agent arrows, reverted per-agent return curves, production deploy verified). All round-5 commits now live on the branch. Fast path — tester/reviewer not run, production alias verified serving new build. Ready to merge.

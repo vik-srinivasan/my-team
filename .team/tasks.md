@@ -96,4 +96,4 @@
 - [x] @engineer Vercel **production** deploy from `apps/landing/` using `vercel --prod --yes`. Verify the public alias `landing-eosin-mu.vercel.app` actually serves the new build (curl it and grep for a string only present in the new aria-label, e.g. "bidirectional"). Capture URL.
 
 ### Git
-- [ ] @git Push to PR #8. Brief comment with the new preview URL.
+- [x] @git Push to PR #8. Brief comment with the new preview URL.
