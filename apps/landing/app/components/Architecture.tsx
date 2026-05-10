@@ -154,22 +154,6 @@ export default function Architecture() {
                 >
                   <path d="M 0 0 L 10 5 L 0 10 z" fill="#22d3ee" />
                 </marker>
-                {/* Mirrored accent arrowhead used as marker-start so dispatch
-                    paths read as bidirectional Captain ↔ agent. Same fill /
-                    size as `arrow-accent`; orient="auto" (not
-                    auto-start-reverse) so it points back toward Captain when
-                    placed at the start of a path. */}
-                <marker
-                  id="arrow-accent-start"
-                  viewBox="0 0 10 10"
-                  refX="8"
-                  refY="5"
-                  markerWidth="6"
-                  markerHeight="6"
-                  orient="auto"
-                >
-                  <path d="M 0 0 L 10 5 L 0 10 z" fill="#22d3ee" />
-                </marker>
                 <marker
                   id="arrow-dim"
                   viewBox="0 0 10 10"
@@ -451,7 +435,7 @@ export default function Architecture() {
                     stroke="#22d3ee"
                     strokeOpacity={0.55}
                     strokeWidth={1.25}
-                    markerStart="url(#arrow-accent-start)"
+                    markerStart="url(#arrow-accent)"
                     markerEnd="url(#arrow-accent)"
                   />
                 );

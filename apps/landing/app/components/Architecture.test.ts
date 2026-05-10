@@ -62,11 +62,13 @@ describe('Architecture component', () => {
     expect(archContent).toContain('Task tool');
     // Each dispatch path must carry both marker-start and marker-end so it
     // reads as Captain ↔ agent. React lower-cases marker attributes as
-    // markerStart / markerEnd in JSX.
-    expect(archContent).toContain('markerStart="url(#arrow-accent-start)"');
+    // markerStart / markerEnd in JSX. The single `arrow-accent` marker uses
+    // orient="auto-start-reverse" so it auto-flips when used as marker-start.
+    expect(archContent).toContain('markerStart="url(#arrow-accent)"');
     expect(archContent).toContain('markerEnd="url(#arrow-accent)"');
-    // The mirrored arrowhead marker must be defined.
-    expect(archContent).toContain('id="arrow-accent-start"');
+    // The legacy mirrored marker is gone — `arrow-accent` is the sole accent
+    // arrowhead marker.
+    expect(archContent).not.toContain('arrow-accent-start');
     // The round-4 per-agent return curves and "→ artifacts" label are gone.
     expect(archContent).not.toContain('Per-agent return curves');
     expect(archContent).not.toContain('return-${agent.id}');
