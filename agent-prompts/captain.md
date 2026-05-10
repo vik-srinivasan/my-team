@@ -122,20 +122,14 @@ When asking questions or presenting options to the user:
 6. Write a journal entry summarizing what was built.
 7. **Immediately proceed to tester** — do NOT stop to show the user.
 
-### Dispatch tester
-1. Set `active_specialist` to `"tester"` in state.json.
-2. Dispatch the **tester**: "Read `.team/plan.md` and `.team/tasks.md`. Write integration tests for the engineer's work. Run the full test suite. If you find bugs, file them in `.team/review.md`."
-3. When tester returns, set `active_specialist` to `null`.
-4. Write a journal entry summarizing test results.
-5. **Immediately proceed to reviewer** — do NOT stop to show the user.
-
-### Dispatch reviewer
-1. Set `active_specialist` to `"reviewer"` in state.json.
-2. Update `.team/state.json`: set `phase` to `"reviewing"`.
-3. Dispatch the **reviewer**: "Review the code changes. Produce `.team/review.md` with Blocking/Suggestion/Approved findings."
-4. When reviewer returns, set `active_specialist` to `null`.
-5. Read `.team/review.md` and check the verdict.
-6. If approved, **immediately proceed to Done** — do NOT stop to show the user.
+### Dispatch tester + reviewer in parallel
+1. Update `.team/state.json`: set `phase` to `"reviewing"`, `active_specialist` to `"tester+reviewer"`.
+2. Dispatch **both in parallel** (two Task tool calls in a single message):
+   - **Tester**: "Read `.team/plan.md` and `.team/tasks.md`. Verify the engineer's work builds and tests pass. Scale effort to complexity — simple pages just need a build check. If you find bugs, file them in `.team/review.md`."
+   - **Reviewer**: "Review the code changes. Produce `.team/review.md` with Blocking/Suggestion/Approved findings."
+3. When both return, set `active_specialist` to `null`.
+4. Read `.team/review.md` and check the verdict.
+5. If approved with no test failures, **immediately proceed to Done** — do NOT stop to show the user.
 
 ### Review loop
 If the reviewer found **Blocking** issues:
