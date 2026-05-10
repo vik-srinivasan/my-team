@@ -25,6 +25,7 @@ export function useWebSocket(sessionId: string | null) {
   const setTeamFile = useSessionStore((s) => s.setTeamFile);
   const setDiff = useSessionStore((s) => s.setDiff);
   const setRightTab = useSessionStore((s) => s.setRightTab);
+  const setRemoteUrl = useSessionStore((s) => s.setRemoteUrl);
 
   const finalizeStream = useCallback(() => {
     streamingMessageId.current = null;
@@ -92,6 +93,10 @@ export function useWebSocket(sessionId: string | null) {
           setDiff(event.diff);
           break;
 
+        case 'remote_url':
+          setRemoteUrl(event.url);
+          break;
+
         case 'specialist': {
           finalizeStream();
           const label = event.name.charAt(0).toUpperCase() + event.name.slice(1);
@@ -115,7 +120,7 @@ export function useWebSocket(sessionId: string | null) {
     ws.onerror = () => {
       ws.close();
     };
-  }, [sessionId, addMessage, appendToMessage, setSessionState, setTeamFile, setDiff, setRightTab, finalizeStream]);
+  }, [sessionId, addMessage, appendToMessage, setSessionState, setTeamFile, setDiff, setRightTab, setRemoteUrl, finalizeStream]);
 
   useEffect(() => {
     connect();

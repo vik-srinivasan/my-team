@@ -48,6 +48,10 @@ export interface SessionStore {
   // Right column tab
   rightTab: RightTab;
   setRightTab: (tab: RightTab) => void;
+
+  // Remote control URL
+  remoteUrl: string | null;
+  setRemoteUrl: (url: string) => void;
 }
 
 export const useSessionStore = create<SessionStore>((set) => ({
@@ -70,6 +74,7 @@ export const useSessionStore = create<SessionStore>((set) => ({
       teamFiles: {},
       diff: '',
       sessionState: null,
+      remoteUrl: null,
     }),
 
   sessionState: null,
@@ -104,4 +109,7 @@ export const useSessionStore = create<SessionStore>((set) => ({
 
   rightTab: 'diff',
   setRightTab: (tab) => set({ rightTab: tab }),
+
+  remoteUrl: null,
+  setRemoteUrl: (url) => set({ remoteUrl: url }),
 }));

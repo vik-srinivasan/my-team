@@ -1,64 +1,58 @@
 import { useSessionStore } from '../store.js';
 
-const AGENTS = ['captain', 'scout', 'engineer', 'tester', 'reviewer', 'git'] as const;
+const PIPELINE = [
+  { key: 'scout', label: 'Scout' },
+  { key: 'engineer', label: 'Eng' },
+  { key: 'tester', label: 'Test' },
+  { key: 'reviewer', label: 'Rev' },
+  { key: 'git', label: 'Git' },
+] as const;
 
-function statusColor(status: string): string {
-  switch (status) {
-    case 'active':
-      return 'text-green-400';
-    case 'done':
-      return 'text-zinc-400';
-    case 'blocked':
-      return 'text-amber-400';
-    default:
-      return 'text-zinc-600';
-  }
-}
-
-function getAgentStatus(
-  agentName: string,
-  activeSpecialist: string | null,
+function getStatus(
+  agent: string,
+  active: string | null,
   phase: string,
-): string {
-  if (agentName === 'captain') {
-    return phase === 'done' || phase === 'cleaned' ? 'done' : 'active';
-  }
-  if (activeSpecialist === agentName) return 'active';
+): 'active' | 'done' | 'idle' {
+  if (active === agent) return 'active';
+  // Consider agents "done" if we're past their phase
   if (phase === 'done' || phase === 'cleaned') return 'done';
   return 'idle';
 }
 
 export function AgentList() {
   const sessionState = useSessionStore((s) => s.sessionState);
+  const phase = sessionState?.phase ?? 'created';
+  const active = sessionState?.active_specialist ?? null;
 
   return (
-    <div className="border-t border-zinc-800">
-      <div className="px-3 py-2">
-        <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
-          Agents
-        </h2>
+    <div className="border-t border-zinc-800 px-3 py-2">
+      <div className="flex items-center gap-1.5 mb-2">
+        <span className={`h-1.5 w-1.5 rounded-full ${
+          phase === 'done' || phase === 'cleaned' ? 'bg-green-400' :
+          phase === 'killed' ? 'bg-zinc-500' :
+          'bg-blue-400 animate-pulse'
+        }`} />
+        <span className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Captain</span>
       </div>
-      <div className="pb-2">
-        {AGENTS.map((agent) => {
-          const status = getAgentStatus(
-            agent,
-            sessionState?.active_specialist ?? null,
-            sessionState?.phase ?? 'created',
-          );
+      <div className="flex items-center gap-0.5">
+        {PIPELINE.map((agent, i) => {
+          const status = getStatus(agent.key, active, phase);
           return (
-            <div
-              key={agent}
-              className="flex items-center gap-2 px-3 py-1 text-sm"
-            >
-              <span
-                className={`h-1.5 w-1.5 rounded-full ${
-                  status === 'active' ? 'bg-green-400' : status === 'done' ? 'bg-zinc-500' : 'bg-zinc-700'
+            <div key={agent.key} className="flex items-center">
+              <div
+                className={`rounded px-1.5 py-0.5 text-xs transition-colors ${
+                  status === 'active'
+                    ? 'bg-blue-600/30 text-blue-300 font-medium'
+                    : status === 'done'
+                      ? 'bg-zinc-800 text-zinc-500'
+                      : 'bg-zinc-800/50 text-zinc-600'
                 }`}
-              />
-              <span className="text-zinc-300">{agent}</span>
-              <span className={`ml-auto text-xs ${statusColor(status)}`}>
-                {status}
-              </span>
+              >
+                {agent.label}
+              </div>
+              {i < PIPELINE.length - 1 && (
+                <span className="text-zinc-700 text-xs mx-0.5">›</span>
+              )}
             </div>
           );
         })}
