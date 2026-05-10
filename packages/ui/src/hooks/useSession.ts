@@ -12,6 +12,7 @@ export function useSession() {
   const setSessionState = useSessionStore((s) => s.setSessionState);
   const setTeamFiles = useSessionStore((s) => s.setTeamFiles);
   const setDiff = useSessionStore((s) => s.setDiff);
+  const setRightTab = useSessionStore((s) => s.setRightTab);
 
   // Fetch session list on mount and poll every 5s
   useEffect(() => {
@@ -37,6 +38,13 @@ export function useSession() {
         'review.md': detail.team.review,
         'decisions.md': detail.team.decisions,
       });
+      // Auto-switch right tab based on phase
+      const phase = detail.state.phase;
+      if (phase === 'planning' || phase === 'awaiting_approval') {
+        setRightTab('plan');
+      } else {
+        setRightTab('diff');
+      }
     }).catch(() => {});
 
     api.sessions.diff(selectedId).then((d) => setDiff(d.diff)).catch(() => {});

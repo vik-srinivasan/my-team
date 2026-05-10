@@ -1,3 +1,7 @@
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+
+import type { RightTab } from '../store.js';
 import { useSessionStore } from '../store.js';
 
 const TAB_FILE_MAP: Record<string, string> = {
@@ -6,6 +10,14 @@ const TAB_FILE_MAP: Record<string, string> = {
   journal: 'journal.md',
   decisions: 'decisions.md',
 };
+
+const TABS: { id: RightTab; label: string }[] = [
+  { id: 'diff', label: 'Diff' },
+  { id: 'plan', label: 'Plan' },
+  { id: 'review', label: 'Review' },
+  { id: 'journal', label: 'Journal' },
+  { id: 'decisions', label: 'Decisions' },
+];
 
 export function TeamArtifactPanel() {
   const rightTab = useSessionStore((s) => s.rightTab);
@@ -18,44 +30,31 @@ export function TeamArtifactPanel() {
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
       <div className="flex items-center gap-1 border-b border-zinc-800 px-3 py-2">
-        <TabButton label="Diff" onClick={() => setRightTab('diff')} />
-        <TabButton label="Plan" active={rightTab === 'plan'} onClick={() => setRightTab('plan')} />
-        <TabButton label="Review" active={rightTab === 'review'} onClick={() => setRightTab('review')} />
-        <TabButton label="Journal" active={rightTab === 'journal'} onClick={() => setRightTab('journal')} />
-        <TabButton label="Decisions" active={rightTab === 'decisions'} onClick={() => setRightTab('decisions')} />
+        {TABS.map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setRightTab(tab.id)}
+            className={`rounded px-2 py-1 text-xs ${
+              rightTab === tab.id
+                ? 'bg-zinc-700 text-zinc-100'
+                : 'text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
       <div className="flex-1 overflow-y-auto p-4">
         {content ? (
-          <pre className="whitespace-pre-wrap font-mono text-xs text-zinc-300">
-            {content}
-          </pre>
+          <div className="prose prose-invert prose-sm max-w-none">
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+              {content}
+            </ReactMarkdown>
+          </div>
         ) : (
           <p className="text-sm text-zinc-500">No {rightTab} content yet</p>
         )}
       </div>
     </div>
-  );
-}
-
-function TabButton({
-  label,
-  active,
-  onClick,
-}: {
-  label: string;
-  active?: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={`rounded px-2 py-1 text-xs ${
-        active
-          ? 'bg-zinc-700 text-zinc-100'
-          : 'text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300'
-      }`}
-    >
-      {label}
-    </button>
   );
 }
