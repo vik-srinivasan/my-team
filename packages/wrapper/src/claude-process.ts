@@ -1,6 +1,7 @@
 import * as pty from 'node-pty';
 import { EventEmitter } from 'node:events';
 import { readFile } from 'node:fs/promises';
+import { execSync } from 'node:child_process';
 
 import { ClaudeProcessError } from '@viktown/shared';
 
@@ -73,7 +74,15 @@ export async function spawnCaptain(options: SpawnCaptainOptions): Promise<Captai
     );
   }
 
-  const ptyProcess = pty.spawn('claude', [
+  // Resolve full path to claude — node-pty doesn't always inherit shell PATH
+  let claudeBin = 'claude';
+  try {
+    claudeBin = execSync('which claude', { encoding: 'utf-8' }).trim();
+  } catch {
+    // Fall back to bare name and hope it's on PATH
+  }
+
+  const ptyProcess = pty.spawn(claudeBin, [
     '--append-system-prompt', captainPrompt,
   ], {
     name: 'xterm-256color',
