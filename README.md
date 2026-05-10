@@ -73,8 +73,12 @@ See `SPEC.md` for the full specification.
 - `packages/ui` — Web UI (Phase 3)
 
 **Agent prompts:**
-- `agent-prompts/captain.md` — Session orchestrator
-- `agent-prompts/engineer.md` — Implementation specialist
+- `agent-prompts/captain.md` — Session orchestrator (dispatches all specialists)
+- `agent-prompts/scout.md` — Read-only codebase explorer (produces `context.md`)
+- `agent-prompts/engineer.md` — Implementation specialist (writes code + unit tests)
+- `agent-prompts/tester.md` — Test specialist (integration tests, suite runner)
+- `agent-prompts/reviewer.md` — Code reviewer (produces `review.md`)
+- `agent-prompts/git.md` — Release specialist (pushes branch, opens PR)
 
 ## Non-obvious dependencies
 

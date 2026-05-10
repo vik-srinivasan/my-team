@@ -37,13 +37,13 @@ Checked off as completed. See `implementation_plan.md` for detailed steps.
 
 ## Phase 2 — Full Specialist Roster
 
-- [ ] 2.1 Scout specialist prompt + scouting phase in session manager
-- [ ] 2.2 Tester specialist prompt
-- [ ] 2.3 Reviewer specialist prompt
-- [ ] 2.4 Git specialist prompt + remove wrapper direct PR creation
-- [ ] 2.5 Update captain + engineer prompts for full roster and review loop
-- [ ] 2.6 Done criteria, blocked state, notifications
-- [ ] 2.7 Phase 2 integration test + push
+- [x] 2.1 Scout specialist prompt + scouting phase in session manager
+- [x] 2.2 Tester specialist prompt
+- [x] 2.3 Reviewer specialist prompt
+- [x] 2.4 Git specialist prompt + remove wrapper direct PR creation
+- [x] 2.5 Update captain + engineer prompts for full roster and review loop
+- [x] 2.6 Done criteria, blocked state, notifications
+- [x] 2.7 Phase 2 integration test + push
 
 ---
 
