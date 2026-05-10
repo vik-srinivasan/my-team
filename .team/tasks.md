@@ -8,7 +8,7 @@
 
 ### Frontend foundations
 - [x] @engineer Create `packages/ui/src/lib/phase.ts` exporting `PHASE_DOT`, `PHASE_LABEL`, and any shared phase helpers. Replace the duplicated maps in `App.tsx` and `SessionList.tsx` with imports from this file.
-- [ ] @engineer Create `packages/ui/src/lib/attention.ts` exporting `getAttention(session, lastViewed) -> { critical: boolean, hasUpdate: boolean, reason: string | null }`. Add `attention.test.ts` covering: awaiting_approval, blocked, must_ask_count > 0, fresh `last_checkpoint`, all-clear.
+- [x] @engineer Create `packages/ui/src/lib/attention.ts` exporting `getAttention(session, lastViewed) -> { critical: boolean, hasUpdate: boolean, reason: string | null }`. Add `attention.test.ts` covering: awaiting_approval, blocked, must_ask_count > 0, fresh `last_checkpoint`, all-clear.
 
 ### Store / data plumbing
 - [ ] @engineer In `packages/ui/src/store.ts`: remove `teamFiles`, `diff`, `rightTab` slices. Add `lastViewed: Record<string,string>` with `markViewed(id)` action. Persist `lastViewed` to `localStorage` under `viktown.lastViewed.v1` (load on store init, save on update).
