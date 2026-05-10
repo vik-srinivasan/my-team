@@ -2,7 +2,7 @@
 
 import { motion, useReducedMotion } from 'motion/react';
 
-// Architecture diagram (round-4 layout):
+// Architecture diagram (round-5 layout):
 //   1. Infra strip (CLI → Wrapper daemon → sessions worktree) sits at the top —
 //      shorter than the rest but with the same accent-blue stroke as Captain
 //      so it reads as the boot path that produces the headline.
@@ -10,11 +10,10 @@ import { motion, useReducedMotion } from 'motion/react';
 //      separates infra from the headline.
 //   3. The Wrapper daemon spawns Captain via a downward dashed arrow.
 //   4. Captain sits centred underneath, the visual anchor.
-//   5. Five sub-agents fan out below Captain. Each agent has a solid accent
-//      dispatch curve from Captain's bottom edge AND a dim dashed return curve
-//      back to Captain — dispatch fans from the centre band of Captain's
-//      bottom edge, returns arrive at a wider outer band, so the two families
-//      read as parallel without tangling.
+//   5. Five sub-agents fan out below Captain. Each agent has a single
+//      bidirectional accent-blue arrow connecting it to Captain — the arrow
+//      reads as Captain ↔ agent (dispatch out, artifact back) without
+//      needing two separate curves.
 //
 // Reading order: infra strip → divider → Captain → agent fan-out.
 
@@ -130,7 +129,7 @@ export default function Architecture() {
               viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
               className="block min-w-[760px] w-full h-auto p-4"
               role="img"
-              aria-label="Architecture diagram (top to bottom): a three-box infra strip — team CLI, Wrapper daemon, sessions worktree — sits at the top with the same accent-blue stroke as Captain. The Wrapper daemon spawns the Captain below it. The Captain — the visual anchor — then dispatches five sub-agents that fan out beneath it via the Task tool: scout (produces context.md), engineer ×N parallel (commits to the session branch), tester (runs the suite and files bugs), reviewer (produces review.md), and git (pushes and opens the PR). Each sub-agent returns its artifact back to Captain via a dim dashed return curve."
+              aria-label="Architecture diagram (top to bottom): a three-box infra strip — team CLI, Wrapper daemon, sessions worktree — sits at the top with the same accent-blue stroke as Captain. The Wrapper daemon spawns the Captain below it. The Captain — the visual anchor — then connects to five sub-agents that fan out beneath it via the Task tool: scout (produces context.md), engineer ×N parallel (commits to the session branch), tester (runs the suite and files bugs), reviewer (produces review.md), and git (pushes and opens the PR). Each sub-agent is connected to Captain by a single bidirectional accent-blue arrow representing dispatch out and artifact back along the same line."
             >
               <defs>
                 <marker
@@ -152,6 +151,22 @@ export default function Architecture() {
                   markerWidth="6"
                   markerHeight="6"
                   orient="auto-start-reverse"
+                >
+                  <path d="M 0 0 L 10 5 L 0 10 z" fill="#22d3ee" />
+                </marker>
+                {/* Mirrored accent arrowhead used as marker-start so dispatch
+                    paths read as bidirectional Captain ↔ agent. Same fill /
+                    size as `arrow-accent`; orient="auto" (not
+                    auto-start-reverse) so it points back toward Captain when
+                    placed at the start of a path. */}
+                <marker
+                  id="arrow-accent-start"
+                  viewBox="0 0 10 10"
+                  refX="8"
+                  refY="5"
+                  markerWidth="6"
+                  markerHeight="6"
+                  orient="auto"
                 >
                   <path d="M 0 0 L 10 5 L 0 10 z" fill="#22d3ee" />
                 </marker>
@@ -365,16 +380,12 @@ export default function Architecture() {
 
               {/* ---------- 5. Captain ↔ Sub-agents (the headline) ----------
 
-                  Routing rules to keep the fan readable:
-                  - Dispatch curves leave Captain's BOTTOM edge from a tight
-                    INNER band (anchorSpan ≈ 120) and land on each agent's
-                    TOP-CENTRE. Solid accent.
-                  - Return curves leave each agent's TOP edge slightly to the
-                    RIGHT of centre and arrive at Captain's bottom edge in a
-                    wider OUTER band (anchorSpan ≈ 220). Dim dashed. The
-                    different anchor band + horizontal offset keeps dispatch
-                    and return reading as two parallel families instead of
-                    overlapping. */}
+                  Routing: a single bidirectional accent-blue curve per agent
+                  leaves Captain's BOTTOM edge from a tight INNER band
+                  (anchorSpan ≈ 120) and lands on each agent's TOP-CENTRE.
+                  Arrowheads at BOTH ends (marker-start at Captain, marker-end
+                  at the agent) make the line read as Captain ↔ agent —
+                  dispatch out, artifact back along the same line. */}
 
               {/* Task tool chip — sits ON the dispatch fan, just below Captain. */}
               {(() => {
@@ -409,14 +420,16 @@ export default function Architecture() {
               })()}
 
               {/* Dispatch curves — fan out from a tight INNER band of
-                  Captain's bottom edge to each agent top-centre. */}
+                  Captain's bottom edge to each agent top-centre. Each curve
+                  carries an arrowhead at BOTH ends (marker-start at Captain,
+                  marker-end at the agent) so it reads as a single
+                  bidirectional Captain ↔ agent line. */}
               {SUB_AGENTS.map((agent, i) => {
                 const ax = agentX(i);
                 const agentTopCx = ax + AGENT_W / 2;
                 const agentTop = AGENT_ROW_Y;
 
-                // Inner band: 120px wide, centred under Captain. Leaves room
-                // either side for the wider return-curve anchor band.
+                // Inner band: 120px wide, centred under Captain.
                 const dispatchAnchorSpan = 120;
                 const t = SUB_AGENTS.length === 1 ? 0.5 : i / (SUB_AGENTS.length - 1);
                 const dispatchStartX =
@@ -438,84 +451,11 @@ export default function Architecture() {
                     stroke="#22d3ee"
                     strokeOpacity={0.55}
                     strokeWidth={1.25}
+                    markerStart="url(#arrow-accent-start)"
                     markerEnd="url(#arrow-accent)"
                   />
                 );
               })}
-
-              {/* Per-agent return curves — each sub-agent returns its artifact
-                  to Captain via a dim dashed curve. Returns leave each agent's
-                  TOP edge offset to the right of centre, and arrive at a wider
-                  OUTER band of Captain's bottom edge so they read as a
-                  parallel family beside the dispatch fan, not overlapping it. */}
-              {SUB_AGENTS.map((agent, i) => {
-                const ax = agentX(i);
-                const agentTop = AGENT_ROW_Y;
-                // Return leaves slightly right of agent centre so it visually
-                // separates from the dispatch arrow landing at agent centre.
-                const returnStartX = ax + AGENT_W / 2 + 14;
-
-                // Outer band: 220px wide, wider than dispatch's 120px so
-                // returns land outside the dispatch anchors on Captain.
-                const returnAnchorSpan = 220;
-                const t = SUB_AGENTS.length === 1 ? 0.5 : i / (SUB_AGENTS.length - 1);
-                const returnEndX =
-                  captainCx - returnAnchorSpan / 2 + returnAnchorSpan * t;
-
-                // Lower midpoint than dispatch so the two families bow apart
-                // through the middle of the gap.
-                const midY =
-                  (captainBottom + agentTop) / 2 + 28;
-                const returnD =
-                  `M ${returnStartX} ${agentTop} ` +
-                  `C ${returnStartX} ${midY}, ` +
-                  `${returnEndX} ${midY}, ` +
-                  `${returnEndX} ${captainBottom}`;
-
-                return (
-                  <path
-                    key={`return-${agent.id}`}
-                    d={returnD}
-                    fill="none"
-                    stroke="#737373"
-                    strokeOpacity={0.55}
-                    strokeWidth={1}
-                    strokeDasharray="3 3"
-                    markerEnd="url(#arrow)"
-                  />
-                );
-              })}
-
-              {/* "→ artifacts" label sits to the right of the return-curve
-                  family so the family is named without cluttering the curves. */}
-              {(() => {
-                const lastAgentX = agentX(SUB_AGENTS.length - 1) + AGENT_W;
-                const labelX = lastAgentX + 26;
-                const labelY =
-                  (AGENT_ROW_Y + captainBottom) / 2 + 4;
-                return (
-                  <g>
-                    <rect
-                      x={labelX - 38}
-                      y={labelY - 11}
-                      width={76}
-                      height={18}
-                      fill="#0a0a0a"
-                      rx={3}
-                    />
-                    <text
-                      x={labelX}
-                      y={labelY + 2}
-                      textAnchor="middle"
-                      fontFamily="var(--font-mono)"
-                      fontSize={9}
-                      fill="#a3a3a3"
-                    >
-                      → artifacts
-                    </text>
-                  </g>
-                );
-              })()}
 
               {/* Sub-agent boxes (with engineer rendered as a stack). */}
               {SUB_AGENTS.map((agent, i) => {

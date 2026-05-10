@@ -55,13 +55,22 @@ describe('Architecture component', () => {
     expect(archContent).not.toContain('Web UI');
   });
 
-  it('renders dispatch and per-agent return paths showing agent communication', () => {
-    // Dispatch fan from Captain to agents (accent), and a per-agent return
-    // curve from each sub-agent back to Captain (dim dashed).
+  it('renders bidirectional dispatch arrows showing Captain ↔ agent communication', () => {
+    // Round 5: a single bidirectional accent-blue curve per agent (arrowheads
+    // at both ends) replaces the round-4 separate dispatch + return curves.
     expect(archContent).toContain('Dispatch curves');
-    expect(archContent).toContain('Per-agent return curves');
-    expect(archContent).toContain('return-${agent.id}');
     expect(archContent).toContain('Task tool');
+    // Each dispatch path must carry both marker-start and marker-end so it
+    // reads as Captain ↔ agent. React lower-cases marker attributes as
+    // markerStart / markerEnd in JSX.
+    expect(archContent).toContain('markerStart="url(#arrow-accent-start)"');
+    expect(archContent).toContain('markerEnd="url(#arrow-accent)"');
+    // The mirrored arrowhead marker must be defined.
+    expect(archContent).toContain('id="arrow-accent-start"');
+    // The round-4 per-agent return curves and "→ artifacts" label are gone.
+    expect(archContent).not.toContain('Per-agent return curves');
+    expect(archContent).not.toContain('return-${agent.id}');
+    expect(archContent).not.toContain('→ artifacts');
   });
 
   it('renders engineer with stack visual (×N parallel)', () => {
@@ -96,5 +105,7 @@ describe('Architecture component', () => {
     expect(archContent).toContain('aria-label');
     // aria-label should describe the new top-to-bottom order: infra → captain → agents
     expect(archContent).toMatch(/infra strip[\s\S]*Captain[\s\S]*sub-agents/);
+    // Round 5: aria-label calls out the bidirectional arrow per agent.
+    expect(archContent).toContain('bidirectional');
   });
 });

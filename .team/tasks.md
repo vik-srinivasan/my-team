@@ -80,3 +80,20 @@
 
 ### Git
 - [x] @git Push to PR #8. Brief comment with the new preview URL.
+
+---
+
+## Round 5 (current — fast path, no tester/reviewer)
+
+### Engineering
+- [x] @engineer In `Architecture.tsx`: revert the round-4 per-agent dim dashed return curves. Make the original single blue dispatch arrows bidirectional (arrowhead at BOTH ends — Captain end and agent end), keeping one accent-blue line per agent. Drop the now-unused "→ artifacts" label.
+- [x] @engineer Update the SVG aria-label to describe a bidirectional arrow per agent instead of separate dispatch + return curves.
+- [x] @engineer Update `Architecture.test.ts` so any assertions about return-curve count / "→ artifacts" label are replaced with bidirectional-arrow assertions.
+- [x] @engineer Run `pnpm --filter @my-team/landing build` and `pnpm --filter @my-team/landing test` and confirm both pass. (Landing tests: 21/21 pass; build OK. Pre-existing wrapper-package vitest failures unrelated.)
+- [x] @engineer Commit using Conventional Commits style.
+
+### Preview
+- [x] @engineer Vercel **production** deploy from `apps/landing/` using `vercel --prod --yes`. Verify the public alias `landing-eosin-mu.vercel.app` actually serves the new build (curl it and grep for a string only present in the new aria-label, e.g. "bidirectional"). Capture URL.
+
+### Git
+- [ ] @git Push to PR #8. Brief comment with the new preview URL.
