@@ -23,10 +23,10 @@ export function Chat() {
   const isAwaitingApproval = sessionState?.phase === 'awaiting_approval';
   const isActive = sessionState?.phase && !['done', 'cleaned', 'killed'].includes(sessionState.phase);
 
-  // Auto-scroll when pinned to bottom
+  // Auto-scroll when pinned to bottom — use instant to keep up with rapid updates
   useEffect(() => {
     if (autoScroll) {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      messagesEndRef.current?.scrollIntoView({ behavior: 'instant' });
     }
   }, [messages, autoScroll]);
 
