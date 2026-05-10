@@ -1,7 +1,6 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import WebSocket from 'ws';
-import { createInterface } from 'node:readline';
 
 import type { WsServerEvent } from '@viktown/shared';
 
@@ -9,7 +8,7 @@ const WS_BASE = 'ws://127.0.0.1:3001';
 
 export function attachCommand(): Command {
   return new Command('attach')
-    .description('Attach to a session chat')
+    .description('Attach to a session chat (raw terminal passthrough)')
     .argument('<id>', 'Session ID')
     .action(async (id: string) => {
       await attachToSession(id);
@@ -27,23 +26,58 @@ export function attachToSession(id: string): Promise<void> {
     });
 
     ws.on('open', () => {
-      // Set up stdin for sending messages
-      const rl = createInterface({
-        input: process.stdin,
-        terminal: false,
-      });
+      // Put terminal into raw mode for proper TUI passthrough
+      if (process.stdin.isTTY) {
+        process.stdin.setRawMode(true);
+      }
+      process.stdin.resume();
 
-      rl.on('line', (line) => {
-        ws.send(JSON.stringify({ type: 'input', text: line + '\n' }));
-      });
+      // Send initial terminal size
+      if (process.stdout.isTTY) {
+        ws.send(JSON.stringify({
+          type: 'resize',
+          cols: process.stdout.columns,
+          rows: process.stdout.rows,
+        }));
+      }
 
-      // Handle Ctrl+C to detach
-      process.on('SIGINT', () => {
-        console.log(chalk.dim('\nDetaching...'));
+      // Forward resize events
+      const onResize = (): void => {
+        if (process.stdout.isTTY && ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({
+            type: 'resize',
+            cols: process.stdout.columns,
+            rows: process.stdout.rows,
+          }));
+        }
+      };
+      process.stdout.on('resize', onResize);
+
+      // Forward raw keystrokes to the PTY
+      const onData = (data: Buffer): void => {
+        if (ws.readyState !== WebSocket.OPEN) return;
+
+        // Ctrl+] to detach (standard escape for terminal multiplexers)
+        if (data.length === 1 && data[0] === 0x1d) {
+          cleanup();
+          return;
+        }
+
+        ws.send(JSON.stringify({ type: 'input', text: data.toString() }));
+      };
+      process.stdin.on('data', onData);
+
+      const cleanup = (): void => {
+        process.stdin.removeListener('data', onData);
+        process.stdout.removeListener('resize', onResize);
+        if (process.stdin.isTTY) {
+          process.stdin.setRawMode(false);
+        }
+        process.stdin.pause();
         ws.close();
-        rl.close();
+        console.log(chalk.dim('\nDetached from session. (Ctrl+] to detach)'));
         resolve();
-      });
+      };
     });
 
     ws.on('message', (data) => {
@@ -52,23 +86,14 @@ export function attachToSession(id: string): Promise<void> {
 
         switch (event.type) {
           case 'output':
+            // Write raw PTY output directly — preserves Claude Code's TUI
             process.stdout.write(event.text);
             break;
           case 'state':
-            console.log(chalk.dim(`\n[state: ${event.state.phase}]`));
-            break;
           case 'specialist':
-            if (event.status === 'started') {
-              console.log(chalk.cyan(`\n[${event.name} started]`));
-            } else {
-              console.log(chalk.green(`\n[${event.name} finished]`));
-            }
-            break;
           case 'team_file':
-            // Silently ignore team file updates in CLI
-            break;
           case 'diff':
-            // Silently ignore diff updates in CLI
+            // Silently ignore non-output events in raw attach mode
             break;
         }
       } catch {
@@ -77,6 +102,10 @@ export function attachToSession(id: string): Promise<void> {
     });
 
     ws.on('close', () => {
+      if (process.stdin.isTTY && process.stdin.isRaw) {
+        process.stdin.setRawMode(false);
+      }
+      process.stdin.pause();
       console.log(chalk.dim('\nDisconnected from session.'));
       resolve();
     });

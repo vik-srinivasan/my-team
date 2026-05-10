@@ -245,6 +245,12 @@ export class SessionManager extends EventEmitter<SessionManagerEventMap> {
     managed.captain.write(text);
   }
 
+  resizeCaptain(id: string, cols: number, rows: number): void {
+    const managed = this.sessions.get(id);
+    if (!managed?.captain?.running) return;
+    managed.captain.resize(cols, rows);
+  }
+
   approveSession(id: string): void {
     this.sendInput(id, 'approved\n');
   }

@@ -97,7 +97,13 @@ export interface WsClientInputEvent {
   text: string;
 }
 
-export type WsClientEvent = WsClientInputEvent;
+export interface WsClientResizeEvent {
+  type: 'resize';
+  cols: number;
+  rows: number;
+}
+
+export type WsClientEvent = WsClientInputEvent | WsClientResizeEvent;
 
 // ── HTTP API types ──────────────────────────────────────────────────
 

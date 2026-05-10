@@ -56,6 +56,8 @@ export function setupWebSocket(
         const message = JSON.parse(data.toString()) as WsClientEvent;
         if (message.type === 'input') {
           sessionManager.sendInput(sessionId, message.text);
+        } else if (message.type === 'resize') {
+          sessionManager.resizeCaptain(sessionId, message.cols, message.rows);
         }
       } catch (err) {
         log.warn({ sessionId, err }, 'Invalid WebSocket message from client');

@@ -29,7 +29,7 @@ export function newCommand(): Command {
         console.log(`  Phase:    ${session.phase}`);
 
         if (options.attach) {
-          console.log(chalk.dim('\nAttaching to session... (use Ctrl+C to detach)'));
+          console.log(chalk.dim('\nAttaching to session... (Ctrl+] to detach)'));
           // Dynamic import to avoid loading ws unless needed
           const { attachToSession } = await import('./attach.js');
           await attachToSession(session.id);
