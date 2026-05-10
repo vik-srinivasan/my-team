@@ -56,6 +56,18 @@ export default function Hero() {
               from one command.
             </motion.p>
 
+            <motion.p
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ ...baseTransition, delay: reduced ? 0 : 0.16 }}
+              className="mt-5 max-w-2xl text-pretty text-[color:var(--color-muted)] leading-relaxed"
+            >
+              I built this because I wanted a more structured way to work with Claude Code — one
+              that felt like collaborating with a coworker engineer instead of pair-programming
+              with a single thread. It&apos;s now how I ship 95% of the time: hand a team a task,
+              approve the plan, walk away to a PR.
+            </motion.p>
+
             <motion.div
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
