@@ -7,7 +7,7 @@
 - [x] @engineer Update `listSessions()` in `packages/wrapper/src/session-manager.ts` to populate the two new fields from in-memory state. Add unit test if a `session-manager.test.ts` doesn't already exist for `listSessions`. (Extended existing lifecycle test in `server.test.ts` to assert the new fields.)
 
 ### Frontend foundations
-- [ ] @engineer Create `packages/ui/src/lib/phase.ts` exporting `PHASE_DOT`, `PHASE_LABEL`, and any shared phase helpers. Replace the duplicated maps in `App.tsx` and `SessionList.tsx` with imports from this file.
+- [x] @engineer Create `packages/ui/src/lib/phase.ts` exporting `PHASE_DOT`, `PHASE_LABEL`, and any shared phase helpers. Replace the duplicated maps in `App.tsx` and `SessionList.tsx` with imports from this file.
 - [ ] @engineer Create `packages/ui/src/lib/attention.ts` exporting `getAttention(session, lastViewed) -> { critical: boolean, hasUpdate: boolean, reason: string | null }`. Add `attention.test.ts` covering: awaiting_approval, blocked, must_ask_count > 0, fresh `last_checkpoint`, all-clear.
 
 ### Store / data plumbing

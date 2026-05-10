@@ -4,19 +4,7 @@ import { Plus } from 'lucide-react';
 import { useSessionStore } from '../store.js';
 import { NewSessionModal } from './NewSessionModal.js';
 import { api } from '../api.js';
-
-const PHASE_DOT: Record<string, string> = {
-  created: 'bg-zinc-400',
-  scouting: 'bg-cyan-400',
-  planning: 'bg-cyan-400',
-  awaiting_approval: 'bg-amber-400 animate-pulse',
-  executing: 'bg-blue-400 animate-pulse',
-  reviewing: 'bg-purple-400 animate-pulse',
-  done: 'bg-green-400',
-  blocked: 'bg-red-400 animate-pulse',
-  killed: 'bg-zinc-500',
-  cleaned: 'bg-zinc-600',
-};
+import { phaseDot } from '../lib/phase.js';
 
 function timeAgo(iso: string): string {
   const ms = Date.now() - new Date(iso).getTime();
@@ -37,13 +25,16 @@ export function SessionList() {
 
   const handleCreate = async (sourceRepo: string, title: string) => {
     const created = await api.sessions.create({ source_repo: sourceRepo, title });
+    const now = new Date().toISOString();
     addSession({
       id: created.id,
       title,
       source_repo: sourceRepo,
       phase: created.phase,
       active_specialist: null,
-      created_at: new Date().toISOString(),
+      created_at: now,
+      last_checkpoint: now,
+      must_ask_count: 0,
     });
     selectSession(created.id);
   };
@@ -77,7 +68,7 @@ export function SessionList() {
               }`}
             >
               <div className="flex items-center gap-2">
-                <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${PHASE_DOT[s.phase] ?? 'bg-zinc-500'}`} />
+                <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${phaseDot(s.phase)}`} />
                 <span className="truncate text-sm font-medium text-zinc-200">{s.title}</span>
                 <span className="ml-auto shrink-0 text-xs text-zinc-600">{timeAgo(s.created_at)}</span>
               </div>

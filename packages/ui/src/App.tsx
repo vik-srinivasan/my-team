@@ -7,32 +7,7 @@ import { RightPanel } from './components/RightPanel.js';
 import { NotificationBanner } from './components/NotificationBanner.js';
 import { useSession } from './hooks/useSession.js';
 import { useSessionStore } from './store.js';
-
-const PHASE_LABELS: Record<string, string> = {
-  created: 'Created',
-  scouting: 'Scouting',
-  planning: 'Planning',
-  awaiting_approval: 'Awaiting Approval',
-  executing: 'Executing',
-  reviewing: 'Reviewing',
-  done: 'Done',
-  blocked: 'Blocked',
-  killed: 'Killed',
-  cleaned: 'Cleaned',
-};
-
-const PHASE_DOT: Record<string, string> = {
-  created: 'bg-zinc-400',
-  scouting: 'bg-cyan-400',
-  planning: 'bg-cyan-400',
-  awaiting_approval: 'bg-amber-400 animate-pulse',
-  executing: 'bg-blue-400 animate-pulse',
-  reviewing: 'bg-purple-400 animate-pulse',
-  done: 'bg-green-400',
-  blocked: 'bg-red-400 animate-pulse',
-  killed: 'bg-zinc-500',
-  cleaned: 'bg-zinc-600',
-};
+import { phaseDot, phaseLabel } from './lib/phase.js';
 
 export function App() {
   useSession();
@@ -52,12 +27,12 @@ export function App() {
       {selectedId && selectedSession && (
         <div className="flex items-center gap-3 border-b border-zinc-800 bg-zinc-900/80 px-4 py-2">
           <div className="flex items-center gap-2">
-            <span className={`h-2 w-2 rounded-full ${PHASE_DOT[phase] ?? 'bg-zinc-500'}`} />
+            <span className={`h-2 w-2 rounded-full ${phaseDot(phase)}`} />
             <span className="text-sm font-medium text-zinc-200">
               {selectedSession.title}
             </span>
             <span className="text-xs text-zinc-500">
-              {PHASE_LABELS[phase] ?? phase}
+              {phaseLabel(phase)}
             </span>
           </div>
           <span className="text-xs text-zinc-600">{selectedSession.id}</span>
