@@ -6,6 +6,11 @@
 
 Added `WhyMyTeam` value-props section between `HowItWorks` and `Architecture`.
 
+## Round 3 goals
+
+1. **Move infra back to the top** of the Architecture diagram (above Captain). User reviewed the round-2 layout and prefers infra leading visually but still subordinate (smaller / dimmer than the agent fan-out).
+2. **Polish pass on the diagram.** Round-2 layout reads well but the curves crossing under Captain feel busy, the `spawn` / `Task tool` labels float awkwardly, and there's a stray dotted line bleeding from the agent area through the infra lane. Tighten alignment, clean up routing, improve label placement, ensure every line lands intentionally. No new libraries.
+
 ## Round 2 goals
 
 1. **Personal-story blurb under the hero header.** 2–3 sentences. Vibe: "this started because I wanted a more structured way to interact with Claude Code that felt like having a coworker engineer. It's now how I build 95% of the time. Give a team a task, approve the plan, walk away to a PR." Conversational, first-person, terse.

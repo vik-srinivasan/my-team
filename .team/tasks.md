@@ -53,13 +53,13 @@
 - [x] @engineer Commit using Conventional Commits style.
 
 ### Testing
-- [ ] @tester Light: confirm build passes; spot-check that infra lane is now above Captain in the SVG and existing tests still pass. Do not write new integration tests.
+- [x] @tester Light: confirm build passes; spot-check that infra lane is now above Captain in the SVG and existing tests still pass. Do not write new integration tests.
 
 ### Review
-- [ ] @reviewer Light single-pass review: visual hierarchy (infra → captain → agents), curve routing readability, no regressions in accessibility / TS strict.
+- [x] @reviewer Light single-pass review: visual hierarchy (infra → captain → agents), curve routing readability, no regressions in accessibility / TS strict.
 
 ### Preview
-- [ ] @engineer Vercel preview deploy. Capture URL for final report.
+- [x] @engineer Vercel preview deploy. Preview: https://landing-kx26xye0c-vikr4m-5448s-projects.vercel.app · Production alias: https://landing-eosin-mu.vercel.app
 
 ### Git
 - [ ] @git Push to the existing branch / PR #8. Comment on PR with the new preview URL.

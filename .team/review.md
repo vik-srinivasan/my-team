@@ -65,3 +65,59 @@ None.
 
 ## Verdict: Approved
 All acceptance criteria met. Hero blurb is 2 sentences, first-person, conversational, positioned correctly with proper styling. Architecture diagram successfully puts Captain + sub-agents at visual centre with clear produces labels and fan-out communication paths; infra lane is clearly demoted but not removed. SVG is accessible with role="img" and comprehensive aria-label. TypeScript strict (no `any`, readonly preserved throughout). `useReducedMotion` properly guards motion in both components. New tests are well-designed and non-brittle. No blockers. Ready for merge.
+
+---
+
+# Review pass 3 — 2026-05-10T23:45:00Z
+
+## Blocking
+None.
+
+## Suggestions
+None.
+
+## Approved
+
+### apps/landing/app/components/Architecture.tsx
+
+**Visual hierarchy — infra repositioned to top:**
+- `INFRA_ROW_Y = 60` (top of diagram, breathing room from viewBox edge)
+- `CAPTAIN_Y = 218` (centre-top of visual hierarchy)
+- `AGENT_ROW_Y = 510` (below Captain, clearly demoted sub-agents)
+- Reading order matches plan: infra strip → divider → Captain → agent fan-out
+- Aria-label updated to "top to bottom: a dim infra strip... spawns the Captain... dispatches five sub-agents...", correctly describing new reading order
+
+**Curve routing polished — no crossing, intentional separation:**
+- Dispatch curves: evenly-spaced anchor points across Captain's bottom edge (`anchorSpan = 180`, `t = i / (n-1)` for 5 agents). Smooth S-curves with midpoint control (`midY = (captainBottom + agentTop) / 2`). Curves don't cross; each lands vertically into its agent's top-centre.
+- Result return: single dashed arc to the RIGHT of all agents (`ctrl2X = endX + 90`), completely separate from dispatch fan. Clean visual metaphor: "artifacts loop back" on a dedicated return path. No tangling.
+
+**Label placement intentional — on their lines, not floating:**
+- `spawn` label: positioned at mid-point between wrapper and Captain (labelY = (wrapperBottom + captainTop) / 2) with background chip (rect 44×18 at x: captainCx - 22). Sits squarely on the spawn arrow.
+- `Task tool` label: positioned just below Captain (chipY = captainBottom + 14) with background chip (rect 78×20). Sits on the dispatch fan, just below the visual anchor.
+- `→ artifacts` label: positioned on the result arc with background chip (rect 76×18). All labels use chip-style rect + text for visibility and intentional placement.
+
+**No stray lines between layers:**
+- Infra connector lines (CLI→Wrapper, UI→Wrapper, Wrapper→worktree): all at `y = INFRA_ROW_Y + INFRA_H / 2 = 83`, strictly within infra strip. Thin, dim (#404040, 0.7 opacity), width 1.
+- Spawn arrow: dashed 2-4 pattern, drops from wrapper (y: 106) to Captain (y: 218). No bleeding into infra or agent rows.
+- Dispatch curves: anchor points spread across Captain's bottom (y: 304), land on agent tops (y: 510). No extraneous lines.
+- Result arc: separate from dispatch; no overlap with any other path.
+- Divider line: sits at y: 134 (between infra and Captain), with dim label "INFRA · HOW THE CAPTAIN GETS BOOTED". Intentional boundary.
+
+**ViewBox expanded for breathing room:**
+- `VIEW_W = 980`, `VIEW_H = 720` (up from 640 in round 2). New height accommodates infra at top without crowding.
+- Horizontal padding: infra row total width = 4 × 178 + 3 × 22 = 778px, centred in 980px → 101px margins left/right. Comfortable.
+- Agent row total width = 5 × 150 + 4 × 22 = 838px, centred in 980px → 71px margins left/right. Balanced.
+
+**No regressions in accessibility, TypeScript, or motion:**
+- `useReducedMotion()` still guards animation: `initial={reduced ? { opacity: 1 } : { opacity: 0, y: 24 }}`. Respects user preference.
+- TypeScript strict: interfaces `InfraNode` and `SubAgent` fully `readonly` on all fields. Arrays `INFRA` and `SUB_AGENTS` declared as `readonly`. Helper functions `infraX()` and `agentX()` properly typed `(index: number) => number`. No `any`.
+- SVG accessibility: `role="img"`, comprehensive aria-label describing the new top-to-bottom order in detail. Alt text reflects layout accurately.
+- `'use client'` directive present.
+
+**Test file updated correctly:**
+- Test `places infra strip above Captain above the agent fan-out` (lines 20–28) validates `INFRA_ROW_Y < CAPTAIN_Y < AGENT_ROW_Y`. New ordering passes.
+- All prior tests (`renders Captain centred`, `renders all five sub-agents`, `renders all four infra nodes`, `renders dispatch and result paths`, `renders engineer with stack visual`, `keeps the infra lane label above its divider`, `renders a downward spawn arrow`, `aligns all produces labels at a single y baseline`, `has proper SVG accessibility`) remain unbroken and still validate expected behavior.
+- No new brittle pixel assertions; structure and content checked via string matching.
+
+## Verdict: Approved
+All round-3 acceptance criteria met. Infra strip moved to top and visually subordinate (y:60, dim styling). Dispatch and result curves polished: evenly-spaced anchor points, smooth S-curves without crossing, result arc separated to the right. Labels (`spawn`, `Task tool`, `→ artifacts`) repositioned onto their lines with background chips — no floating text. No stray lines bleeding between layers. ViewBox expanded to 720 for breathing room. Accessibility aria-label updated to reflect new reading order (infra → Captain → agents). No regressions in TS strict, useReducedMotion, readonly, or test coverage. Build passes. Ready for merge.
