@@ -58,7 +58,7 @@ The CLI is a thin HTTP client. It calls the wrapper's API and prints output. It 
 
 The web UI is a React SPA served by the wrapper at `http://localhost:3001`. Talks to the same HTTP API plus a WebSocket per session for live chat and diff updates.
 
-Specialists are not separate processes. They are Claude Code subagents (`.claude/agents/*.md`) invoked by the captain via Claude Code's built-in Task tool. This means specialists run sequentially within the captain's process, share its token budget, and inherit its working directory (the worktree). This is intentional for v1 — true parallelism is out of scope.
+Specialists are not separate processes. They are Claude Code subagents (`.claude/agents/*.md`) invoked by the captain via Claude Code's built-in Task tool. Specialists share the captain's token budget and inherit its working directory (the worktree). The captain can dispatch multiple specialists in parallel by including multiple Task tool calls in a single message — e.g., scouting the codebase while chatting with the user, or running multiple engineers on independent tasks simultaneously.
 
 When the wrapper dies (crash or restart), the `claude` child processes also die. Recovery is manual for v1: the user can re-attach to the worktree's git state, but in-flight conversation is lost. The `.team/journal.md` makes resuming non-trivial-but-possible. Daemon resilience is a v1.5 concern.
 
@@ -283,16 +283,14 @@ The end-to-end happy path:
 - Spawns `claude` in the worktree with the captain system prompt appended
 - Prints the session ID and either drops the user into the captain's chat (CLI) or returns the ID to the UI
 
-**2. Scouting.** Captain dispatches scout via Task tool. Scout produces `context.md`. Captain reads it. State → `planning`.
+**2. Scouting + Planning.** Captain dispatches scout in the background and immediately begins chatting with the user (no waiting). Scout produces `context.md` which enriches the plan. Captain drafts `plan.md` and `tasks.md`. Captain identifies must-ask items and surfaces them in chat. State → `awaiting_approval`.
 
-**3. Planning.** Captain chats with user. User can paste docs, point at files, ask questions. Captain drafts `plan.md` and `tasks.md`. Captain identifies must-ask items (things that could go either way and the user should decide) and surfaces them in chat. State → `awaiting_approval`.
+**3. Approval.** User says some variant of "approved" / "go" / "ship it". Captain locks the plan (writes a note to `journal.md`) and transitions state → `executing`.
 
-**4. Approval.** User says some variant of "approved" / "go" / "ship it". Captain locks the plan (writes a note to `journal.md`) and transitions state → `executing`.
-
-**5. Execution.** Captain dispatches in order:
-- Engineer (implements all engineering tasks)
-- Tester (writes integration tests, runs suite)
-- Reviewer (produces `review.md`)
+**4. Execution.** Captain dispatches specialists, parallelizing where tasks are independent:
+- Engineers (multiple in parallel if tasks are independent; single if sequential)
+- Tester (can start once early engineering tasks are complete)
+- Reviewer (runs after all engineers and testers finish; produces `review.md`)
 
 If reviewer returns blockers, captain re-dispatches engineer with the `review.md` brief. Engineer addresses blockers, marks resolutions inline in `review.md`, commits. Captain re-dispatches reviewer for a follow-up pass. Loop until reviewer returns no blockers OR `review_iterations` hits `max_review_iterations` (default 8).
 
