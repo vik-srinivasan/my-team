@@ -6,16 +6,34 @@ import { dirname } from 'path';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
+const archPath = join(__dirname, 'Architecture.tsx');
+const archContent = readFileSync(archPath, 'utf-8');
+
+// Helper: pull the numeric value out of a `const NAME = <number>;` line.
+function constNumber(name: string): number {
+  const m = archContent.match(new RegExp(`${name}\\s*=\\s*(-?\\d+(?:\\.\\d+)?)`));
+  if (!m) throw new Error(`could not find numeric const ${name}`);
+  return Number(m[1]);
+}
+
 describe('Architecture component', () => {
-  it('renders Captain at the centre with sub-agents fanning out', () => {
-    const archPath = join(__dirname, 'Architecture.tsx');
-    const archContent = readFileSync(archPath, 'utf-8');
+  it('places infra strip above Captain above the agent fan-out', () => {
+    const infraY = constNumber('INFRA_ROW_Y');
+    const captainY = constNumber('CAPTAIN_Y');
+    const agentY = constNumber('AGENT_ROW_Y');
 
-    // Verify Captain is positioned at centre (x:360, y:90)
+    // Reading order: infra (top) → captain → agents (bottom)
+    expect(infraY).toBeLessThan(captainY);
+    expect(captainY).toBeLessThan(agentY);
+  });
+
+  it('renders Captain centred horizontally as the visual anchor', () => {
+    // Captain is still defined as a centred 260-wide box at x:360
     expect(archContent).toContain('x: 360');
-    expect(archContent).toContain('y: 90');
+    expect(archContent).toContain('w: 260');
+  });
 
-    // Verify all sub-agents are present with their produces labels
+  it('renders all five sub-agents with their produces labels', () => {
     expect(archContent).toContain('scout');
     expect(archContent).toContain('context.md');
     expect(archContent).toContain('engineer');
@@ -27,53 +45,53 @@ describe('Architecture component', () => {
     expect(archContent).toContain('git');
     expect(archContent).toContain('pushes');
     expect(archContent).toContain('opens PR');
+  });
 
-    // Verify agent row is at y:290
-    expect(archContent).toContain('AGENT_ROW_Y = 290');
-
-    // Verify infra elements are demoted at y:530
-    expect(archContent).toContain('INFRA_ROW_Y = 530');
+  it('renders all four infra nodes', () => {
     expect(archContent).toContain('team CLI');
     expect(archContent).toContain('Web UI');
     expect(archContent).toContain('Wrapper daemon');
+    expect(archContent).toContain('~/team/sessions/<id>/');
   });
 
   it('renders dispatch and result paths showing agent communication', () => {
-    const archPath = join(__dirname, 'Architecture.tsx');
-    const archContent = readFileSync(archPath, 'utf-8');
-
-    // Verify dispatch and result paths
-    expect(archContent).toContain('Dispatch: Captain bottom-centre');
-    expect(archContent).toContain('Result: agent top-right');
+    // Dispatch fan from Captain to agents (accent), result return arc back to Captain (dim dashed).
+    expect(archContent).toContain('Dispatch curves');
+    expect(archContent).toContain('Result arc');
     expect(archContent).toContain('Task tool');
   });
 
   it('renders engineer with stack visual (×N parallel)', () => {
-    const archPath = join(__dirname, 'Architecture.tsx');
-    const archContent = readFileSync(archPath, 'utf-8');
-
-    // Verify engineer stack rendering
     expect(archContent).toContain('STACK_COUNT');
     expect(archContent).toContain('agent.stack');
     expect(archContent).toContain('×N parallel');
   });
 
-  it('renders infra lane as secondary with dim styling', () => {
-    const archPath = join(__dirname, 'Architecture.tsx');
-    const archContent = readFileSync(archPath, 'utf-8');
-
-    // Verify infra lane label and dim styling
+  it('keeps the infra lane label above its divider', () => {
     expect(archContent).toContain('INFRA · HOW THE CAPTAIN GETS BOOTED');
-    expect(archContent).toContain('stroke="#262626"'); // dim colour for infra
+    // Infra boxes use the dim border colour
+    expect(archContent).toContain('stroke="#262626"');
   });
 
-  it('has proper SVG accessibility attributes', () => {
-    const archPath = join(__dirname, 'Architecture.tsx');
-    const archContent = readFileSync(archPath, 'utf-8');
+  it('renders a downward spawn arrow from infra to Captain', () => {
+    // Spawn label still present, and the arrow points down (wrapperBottom → captainTop).
+    expect(archContent).toContain('spawn');
+    expect(archContent).toContain('wrapperBottom');
+    expect(archContent).toContain('captainTop');
+  });
 
-    // Verify SVG has accessibility attributes
+  it('aligns all "→ produces" labels at a single y baseline', () => {
+    // Single shared constant means every produces label sits on the same line.
+    expect(archContent).toContain('PRODUCES_LABEL_Y');
+    // Every produces label should reference the shared constant (and not a
+    // per-agent calculation), so all labels share one y baseline.
+    expect(archContent).toContain('y={PRODUCES_LABEL_Y}');
+  });
+
+  it('has proper SVG accessibility attributes reflecting the new reading order', () => {
     expect(archContent).toContain('role="img"');
     expect(archContent).toContain('aria-label');
-    expect(archContent).toContain('Architecture diagram');
+    // aria-label should describe the new top-to-bottom order: infra → captain → agents
+    expect(archContent).toMatch(/infra strip[\s\S]*Captain[\s\S]*sub-agents/);
   });
 });

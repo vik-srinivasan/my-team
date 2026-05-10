@@ -2,19 +2,50 @@
 
 import { motion, useReducedMotion } from 'motion/react';
 
-// Architecture diagram: Captain at the centre with sub-agents fanning out.
-// Each sub-agent has a labelled "produces" edge showing what it returns to
-// Captain (context.md, commits, suite, review.md, PR). The CLI / Web UI /
-// Wrapper / sessions infra is rendered as a thin secondary lane below — real
-// but visually demoted, since the headline is the agent fan-out.
+// Architecture diagram (round-3 layout):
+//   1. Infra strip (CLI / Web UI / Wrapper daemon / sessions worktree) sits at
+//      the top — dim and shorter than the rest, so it reads as scaffolding.
+//   2. A dashed divider with the label "INFRA · HOW THE CAPTAIN GETS BOOTED"
+//      separates infra from the headline.
+//   3. The Wrapper daemon spawns Captain via a downward dashed arrow.
+//   4. Captain sits centred underneath, the visual anchor.
+//   5. Five sub-agents fan out below Captain, each with a "→ produces" label.
+//
+// Reading order: infra strip → divider → Captain → agent fan-out.
 
 const VIEW_W = 980;
-const VIEW_H = 640;
+const VIEW_H = 720;
 
-// ---------- Captain (centre stage) ----------
+// ---------- Infra lane (top, demoted) ----------
+interface InfraNode {
+  readonly id: string;
+  readonly title: string;
+  readonly subtitle?: string;
+}
+
+const INFRA: readonly InfraNode[] = [
+  { id: 'cli', title: 'team CLI', subtitle: 'commander + chalk' },
+  { id: 'ui', title: 'Web UI', subtitle: 'React 19 · WIP' },
+  { id: 'wrapper', title: 'Wrapper daemon', subtitle: 'HTTP · WS · node-pty' },
+  { id: 'worktree', title: '~/team/sessions/<id>/', subtitle: 'git worktree + .team/' },
+];
+
+const INFRA_ROW_Y = 60;
+const INFRA_W = 178;
+const INFRA_H = 46;
+const INFRA_GAP = 22;
+const INFRA_ROW_TOTAL_W = INFRA.length * INFRA_W + (INFRA.length - 1) * INFRA_GAP;
+const INFRA_ROW_X = (VIEW_W - INFRA_ROW_TOTAL_W) / 2;
+
+function infraX(index: number): number {
+  return INFRA_ROW_X + index * (INFRA_W + INFRA_GAP);
+}
+
+// ---------- Captain (centre stage, below infra) ----------
+const CAPTAIN_Y = 218;
 const CAPTAIN = {
   x: 360,
-  y: 90,
+  y: CAPTAIN_Y,
   w: 260,
   h: 86,
 } as const;
@@ -35,41 +66,17 @@ const SUB_AGENTS: readonly SubAgent[] = [
   { id: 'git', title: 'git', produces: 'pushes · opens PR' },
 ];
 
-// Layout for the agent row.
-const AGENT_ROW_Y = 290;
+// Layout for the agent row — pushed further down for breathing room.
+const AGENT_ROW_Y = 510;
 const AGENT_W = 150;
 const AGENT_H = 70;
 const AGENT_GAP = 22;
 const AGENT_ROW_TOTAL_W = SUB_AGENTS.length * AGENT_W + (SUB_AGENTS.length - 1) * AGENT_GAP;
 const AGENT_ROW_X = (VIEW_W - AGENT_ROW_TOTAL_W) / 2;
+const PRODUCES_LABEL_Y = AGENT_ROW_Y + AGENT_H + 22;
 
 function agentX(index: number): number {
   return AGENT_ROW_X + index * (AGENT_W + AGENT_GAP);
-}
-
-// ---------- Infra lane (demoted) ----------
-interface InfraNode {
-  readonly id: string;
-  readonly title: string;
-  readonly subtitle?: string;
-}
-
-const INFRA: readonly InfraNode[] = [
-  { id: 'cli', title: 'team CLI', subtitle: 'commander + chalk' },
-  { id: 'ui', title: 'Web UI', subtitle: 'React 19 · WIP' },
-  { id: 'wrapper', title: 'Wrapper daemon', subtitle: 'HTTP · WebSocket · node-pty' },
-  { id: 'worktree', title: '~/team/sessions/<id>/', subtitle: 'git worktree + .team/' },
-];
-
-const INFRA_ROW_Y = 530;
-const INFRA_W = 200;
-const INFRA_H = 56;
-const INFRA_GAP = 20;
-const INFRA_ROW_TOTAL_W = INFRA.length * INFRA_W + (INFRA.length - 1) * INFRA_GAP;
-const INFRA_ROW_X = (VIEW_W - INFRA_ROW_TOTAL_W) / 2;
-
-function infraX(index: number): number {
-  return INFRA_ROW_X + index * (INFRA_W + INFRA_GAP);
 }
 
 // Engineer stack visuals (×N parallel)
@@ -81,10 +88,11 @@ export default function Architecture() {
 
   // Captain anchor points.
   const captainCx = CAPTAIN.x + CAPTAIN.w / 2;
+  const captainTop = CAPTAIN.y;
   const captainBottom = CAPTAIN.y + CAPTAIN.h;
-  const captainLeft = CAPTAIN.x;
-  const captainRight = CAPTAIN.x + CAPTAIN.w;
-  const captainCy = CAPTAIN.y + CAPTAIN.h / 2;
+
+  // Infra divider y (dashed line + label sit just above it).
+  const dividerY = 134;
 
   return (
     <section className="relative py-24 md:py-32 border-t border-[color:var(--color-border)]">
@@ -101,8 +109,8 @@ export default function Architecture() {
             the built-in <code className="font-mono text-[color:var(--color-text)]">Task</code>{' '}
             tool and reads their artifacts back from the session&apos;s{' '}
             <code className="font-mono text-[color:var(--color-text)]">.team/</code> directory.
-            Same token budget, same working tree. The CLI, web UI, and wrapper daemon below are
-            how the captain gets booted.
+            Same token budget, same working tree. The infra strip up top — CLI, web UI, wrapper
+            daemon, worktree — is how the captain gets booted.
           </p>
         </div>
 
@@ -118,7 +126,7 @@ export default function Architecture() {
               viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
               className="block min-w-[760px] w-full h-auto p-4"
               role="img"
-              aria-label="Architecture diagram: the Captain sits at the centre and dispatches five sub-agents — scout (produces context.md), engineer ×N parallel (commits to the session branch), tester (runs the suite and files bugs), reviewer (produces review.md), and git (pushes and opens the PR). Each sub-agent returns its artifact back to Captain via the Task tool. Below the agent row, a thin infra lane shows the team CLI and Web UI feeding the wrapper daemon, which spawns Captain and manages the session worktree."
+              aria-label="Architecture diagram (top to bottom): a dim infra strip with the team CLI, Web UI, Wrapper daemon, and sessions worktree feeds the Wrapper daemon, which spawns the Captain below it. The Captain — the visual anchor — then dispatches five sub-agents that fan out beneath it via the Task tool: scout (produces context.md), engineer ×N parallel (commits to the session branch), tester (runs the suite and files bugs), reviewer (produces review.md), and git (pushes and opens the PR). Each sub-agent returns its artifact back to Captain."
             >
               <defs>
                 <marker
@@ -156,121 +164,163 @@ export default function Architecture() {
                 </marker>
               </defs>
 
-              {/* Header */}
-              <g>
-                <text
-                  x={VIEW_W / 2}
-                  y={42}
-                  textAnchor="middle"
-                  fontFamily="var(--font-mono)"
-                  fontSize={22}
-                  fontWeight={600}
-                  fill="#0e7490"
-                  letterSpacing="0.12em"
-                >
-                  MY-TEAM
-                </text>
-                <text
-                  x={VIEW_W / 2}
-                  y={62}
-                  textAnchor="middle"
-                  fontFamily="var(--font-mono)"
-                  fontSize={10}
-                  fill="#737373"
-                  letterSpacing="0.18em"
-                >
-                  captain · scout · engineer · tester · reviewer · git
-                </text>
-                <line
-                  x1={VIEW_W / 2 - 80}
-                  y1={74}
-                  x2={VIEW_W / 2 + 80}
-                  y2={74}
-                  stroke="#0e7490"
-                  strokeOpacity={0.4}
-                  strokeWidth={1}
-                />
-              </g>
+              {/* ---------- 1. Infra strip (top, demoted) ---------- */}
 
-              {/* ---------- Captain ↔ Sub-agents (the headline) ---------- */}
+              {/* Infra connector lines: cli/ui -> wrapper -> worktree.
+                  All thin, dim, and stay strictly inside the infra strip. */}
+              {(() => {
+                const cy = INFRA_ROW_Y + INFRA_H / 2;
+                const cliRightX = infraX(0) + INFRA_W;
+                const uiRightX = infraX(1) + INFRA_W;
+                const wrapperLeftX = infraX(2);
+                const wrapperRightX = infraX(2) + INFRA_W;
+                const worktreeLeftX = infraX(3);
 
-              {/* Dispatch + return paths between Captain and each sub-agent.
-                  Two parallel curves per agent: dispatch (accent, downward to
-                  agent top-left) and result (dim, upward from agent top-right
-                  back to Captain). */}
-              {SUB_AGENTS.map((agent, i) => {
-                const ax = agentX(i);
-                const agentTop = AGENT_ROW_Y;
-                const agentLeftX = ax + AGENT_W * 0.35;
-                const agentRightX = ax + AGENT_W * 0.65;
-
-                // Dispatch: Captain bottom-centre -> agent top-left
-                const dispatchStartX = captainCx - 30 + i * 12 - SUB_AGENTS.length * 6;
-                const dispatchD =
-                  `M ${dispatchStartX} ${captainBottom} ` +
-                  `C ${dispatchStartX} ${captainBottom + 60}, ` +
-                  `${agentLeftX} ${agentTop - 60}, ` +
-                  `${agentLeftX} ${agentTop}`;
-
-                // Result: agent top-right -> Captain bottom (slight offset right)
-                const resultEndX = captainCx + 30 - i * 12 + SUB_AGENTS.length * 6;
-                const resultD =
-                  `M ${agentRightX} ${agentTop} ` +
-                  `C ${agentRightX} ${agentTop - 60}, ` +
-                  `${resultEndX} ${captainBottom + 60}, ` +
-                  `${resultEndX} ${captainBottom}`;
+                const straight = (x1: number, x2: number) =>
+                  `M ${x1} ${cy} L ${x2} ${cy}`;
 
                 return (
-                  <g key={`flow-${agent.id}`}>
-                    {/* dispatch */}
+                  <g>
                     <path
-                      d={dispatchD}
+                      d={straight(cliRightX, wrapperLeftX)}
                       fill="none"
-                      stroke="#22d3ee"
-                      strokeOpacity={0.55}
-                      strokeWidth={1.25}
-                      markerEnd="url(#arrow-accent)"
-                    />
-                    {/* result */}
-                    <path
-                      d={resultD}
-                      fill="none"
-                      stroke="#525252"
-                      strokeOpacity={0.55}
+                      stroke="#404040"
+                      strokeOpacity={0.7}
                       strokeWidth={1}
-                      strokeDasharray="3 3"
-                      markerEnd="url(#arrow)"
+                      markerEnd="url(#arrow-dim)"
                     />
+                    <path
+                      d={straight(uiRightX, wrapperLeftX)}
+                      fill="none"
+                      stroke="#404040"
+                      strokeOpacity={0.7}
+                      strokeWidth={1}
+                      markerEnd="url(#arrow-dim)"
+                    />
+                    <path
+                      d={straight(wrapperRightX, worktreeLeftX)}
+                      fill="none"
+                      stroke="#404040"
+                      strokeOpacity={0.7}
+                      strokeWidth={1}
+                      markerEnd="url(#arrow-dim)"
+                    />
+                  </g>
+                );
+              })()}
+
+              {/* Infra boxes */}
+              {INFRA.map((node, i) => {
+                const x = infraX(i);
+                const y = INFRA_ROW_Y;
+                return (
+                  <g key={`infra-${node.id}`}>
+                    <rect
+                      x={x}
+                      y={y}
+                      width={INFRA_W}
+                      height={INFRA_H}
+                      rx={6}
+                      fill="#0a0a0a"
+                      stroke="#262626"
+                      strokeWidth={1}
+                    />
+                    <text
+                      x={x + INFRA_W / 2}
+                      y={y + 20}
+                      textAnchor="middle"
+                      fontFamily="var(--font-mono)"
+                      fontSize={11}
+                      fontWeight={500}
+                      fill="#a3a3a3"
+                    >
+                      {node.title}
+                    </text>
+                    {node.subtitle && (
+                      <text
+                        x={x + INFRA_W / 2}
+                        y={y + 35}
+                        textAnchor="middle"
+                        fontFamily="var(--font-mono)"
+                        fontSize={9}
+                        fill="#525252"
+                      >
+                        {node.subtitle}
+                      </text>
+                    )}
                   </g>
                 );
               })}
 
-              {/* "Task tool" label sitting on the dispatch fan, just below Captain. */}
-              <g>
-                <rect
-                  x={captainCx - 38}
-                  y={captainBottom + 18}
-                  width={76}
-                  height={20}
-                  fill="#0a0a0a"
-                  stroke="#0e7490"
-                  strokeOpacity={0.6}
-                  strokeWidth={1}
-                  rx={4}
-                />
-                <text
-                  x={captainCx}
-                  y={captainBottom + 32}
-                  textAnchor="middle"
-                  fontFamily="var(--font-mono)"
-                  fontSize={10}
-                  fill="#67e8f9"
-                >
-                  Task tool
-                </text>
-              </g>
+              {/* ---------- 2. Divider between infra and headline ---------- */}
+              <text
+                x={VIEW_W / 2}
+                y={dividerY - 10}
+                textAnchor="middle"
+                fontFamily="var(--font-mono)"
+                fontSize={9}
+                fill="#525252"
+                letterSpacing="0.18em"
+              >
+                INFRA · HOW THE CAPTAIN GETS BOOTED
+              </text>
+              <line
+                x1={60}
+                y1={dividerY}
+                x2={VIEW_W - 60}
+                y2={dividerY}
+                stroke="#262626"
+                strokeWidth={1}
+                strokeDasharray="4 6"
+              />
 
-              {/* Captain box */}
+              {/* ---------- 3. Spawn arrow from Wrapper down to Captain ---------- */}
+              {(() => {
+                const wrapperCx = infraX(2) + INFRA_W / 2;
+                const wrapperBottom = INFRA_ROW_Y + INFRA_H;
+                // Vertical drop from wrapper, slight curve into captain top.
+                const spawnD =
+                  `M ${wrapperCx} ${wrapperBottom} ` +
+                  `C ${wrapperCx} ${wrapperBottom + 60}, ` +
+                  `${captainCx} ${captainTop - 60}, ` +
+                  `${captainCx} ${captainTop - 2}`;
+
+                // Label sits ON the line, mid-way, with a bg chip.
+                const labelY = (wrapperBottom + captainTop) / 2;
+                return (
+                  <g>
+                    <path
+                      d={spawnD}
+                      fill="none"
+                      stroke="#404040"
+                      strokeOpacity={0.7}
+                      strokeWidth={1}
+                      strokeDasharray="2 4"
+                      markerEnd="url(#arrow-dim)"
+                    />
+                    <rect
+                      x={captainCx - 22}
+                      y={labelY - 10}
+                      width={44}
+                      height={18}
+                      fill="#0a0a0a"
+                      rx={3}
+                    />
+                    <text
+                      x={captainCx}
+                      y={labelY + 3}
+                      textAnchor="middle"
+                      fontFamily="var(--font-mono)"
+                      fontSize={9}
+                      fill="#737373"
+                    >
+                      spawn
+                    </text>
+                  </g>
+                );
+              })()}
+
+              {/* ---------- 4. Captain (the visual anchor) ---------- */}
               <g>
                 <rect
                   x={CAPTAIN.x}
@@ -315,6 +365,143 @@ export default function Architecture() {
                   claude (interactive)
                 </text>
               </g>
+
+              {/* ---------- 5. Captain ↔ Sub-agents (the headline) ----------
+
+                  Routing rules to keep the fan readable:
+                  - Dispatch curves leave Captain's BOTTOM edge at evenly-spaced
+                    x-offsets and land on each agent's TOP-CENTRE. Solid accent.
+                  - Result curves leave each agent's TOP edge slightly to the
+                    right and return to a separate region: Captain's RIGHT edge.
+                    Dashed dim. This keeps dispatch and result on different
+                    Captain edges so they don't tangle. */}
+
+              {/* Task tool chip — sits ON the dispatch fan, just below Captain. */}
+              {(() => {
+                const chipW = 78;
+                const chipH = 20;
+                const chipY = captainBottom + 14;
+                return (
+                  <g>
+                    <rect
+                      x={captainCx - chipW / 2}
+                      y={chipY}
+                      width={chipW}
+                      height={chipH}
+                      fill="#0a0a0a"
+                      stroke="#0e7490"
+                      strokeOpacity={0.6}
+                      strokeWidth={1}
+                      rx={4}
+                    />
+                    <text
+                      x={captainCx}
+                      y={chipY + chipH - 6}
+                      textAnchor="middle"
+                      fontFamily="var(--font-mono)"
+                      fontSize={10}
+                      fill="#67e8f9"
+                    >
+                      Task tool
+                    </text>
+                  </g>
+                );
+              })()}
+
+              {/* Dispatch curves — fan out from Captain bottom edge to each
+                  agent top-centre. Distinct, evenly spaced anchor points. */}
+              {SUB_AGENTS.map((agent, i) => {
+                const ax = agentX(i);
+                const agentTopCx = ax + AGENT_W / 2;
+                const agentTop = AGENT_ROW_Y;
+
+                // Spread anchor points evenly across Captain's bottom edge,
+                // centred. With 5 agents and 260px-wide Captain we use a
+                // 180px span so the anchors stay safely inside the rect.
+                const anchorSpan = 180;
+                const t = SUB_AGENTS.length === 1 ? 0.5 : i / (SUB_AGENTS.length - 1);
+                const dispatchStartX = captainCx - anchorSpan / 2 + anchorSpan * t;
+
+                // Smooth S-curve: vertical leave, vertical arrive at agent top.
+                const midY = (captainBottom + agentTop) / 2;
+                const dispatchD =
+                  `M ${dispatchStartX} ${captainBottom} ` +
+                  `C ${dispatchStartX} ${midY}, ` +
+                  `${agentTopCx} ${midY}, ` +
+                  `${agentTopCx} ${agentTop}`;
+
+                return (
+                  <path
+                    key={`dispatch-${agent.id}`}
+                    d={dispatchD}
+                    fill="none"
+                    stroke="#22d3ee"
+                    strokeOpacity={0.55}
+                    strokeWidth={1.25}
+                    markerEnd="url(#arrow-accent)"
+                  />
+                );
+              })}
+
+              {/* Result arc — single dashed dim arc that loops from the agent
+                  row's right side back up to Captain's RIGHT edge. Conceptually
+                  represents "agents return artifacts to Captain". Keeping it as
+                  one arc (rather than 5 overlapping return curves) is much
+                  cleaner visually; the produces labels under each box already
+                  carry the per-agent detail. */}
+              {(() => {
+                const lastAgentX = agentX(SUB_AGENTS.length - 1) + AGENT_W;
+                const startX = lastAgentX - 12;
+                const startY = AGENT_ROW_Y;
+                const endX = CAPTAIN.x + CAPTAIN.w;
+                const endY = CAPTAIN.y + CAPTAIN.h * 0.72;
+                // Wide arc to the right of everything — clearly separate from
+                // the dispatch fan beneath Captain.
+                const ctrl1X = lastAgentX + 60;
+                const ctrl1Y = (startY + endY) / 2;
+                const ctrl2X = endX + 90;
+                const ctrl2Y = endY;
+                const resultD =
+                  `M ${startX} ${startY} ` +
+                  `C ${ctrl1X} ${ctrl1Y}, ` +
+                  `${ctrl2X} ${ctrl2Y}, ` +
+                  `${endX + 2} ${endY}`;
+
+                // Label sits ON the arc, in the chip style.
+                const labelX = ctrl2X - 8;
+                const labelY = (startY + endY) / 2 + 6;
+                return (
+                  <g>
+                    <path
+                      d={resultD}
+                      fill="none"
+                      stroke="#525252"
+                      strokeOpacity={0.7}
+                      strokeWidth={1}
+                      strokeDasharray="3 3"
+                      markerEnd="url(#arrow)"
+                    />
+                    <rect
+                      x={labelX - 38}
+                      y={labelY - 11}
+                      width={76}
+                      height={18}
+                      fill="#0a0a0a"
+                      rx={3}
+                    />
+                    <text
+                      x={labelX}
+                      y={labelY + 2}
+                      textAnchor="middle"
+                      fontFamily="var(--font-mono)"
+                      fontSize={9}
+                      fill="#a3a3a3"
+                    >
+                      → artifacts
+                    </text>
+                  </g>
+                );
+              })()}
 
               {/* Sub-agent boxes (with engineer rendered as a stack). */}
               {SUB_AGENTS.map((agent, i) => {
@@ -379,10 +566,10 @@ export default function Architecture() {
                         ×N parallel
                       </text>
                     )}
-                    {/* Produces label sits just below the card */}
+                    {/* Produces label — all aligned at PRODUCES_LABEL_Y */}
                     <text
                       x={ax + AGENT_W / 2}
-                      y={ay + AGENT_H + 18}
+                      y={PRODUCES_LABEL_Y}
                       textAnchor="middle"
                       fontFamily="var(--font-mono)"
                       fontSize={10}
@@ -390,171 +577,6 @@ export default function Architecture() {
                     >
                       → {agent.produces}
                     </text>
-                  </g>
-                );
-              })}
-
-              {/* Divider between agent fan-out and the demoted infra lane */}
-              <line
-                x1={60}
-                y1={INFRA_ROW_Y - 50}
-                x2={VIEW_W - 60}
-                y2={INFRA_ROW_Y - 50}
-                stroke="#262626"
-                strokeWidth={1}
-                strokeDasharray="4 6"
-              />
-              <text
-                x={VIEW_W / 2}
-                y={INFRA_ROW_Y - 32}
-                textAnchor="middle"
-                fontFamily="var(--font-mono)"
-                fontSize={9}
-                fill="#525252"
-                letterSpacing="0.18em"
-              >
-                INFRA · HOW THE CAPTAIN GETS BOOTED
-              </text>
-
-              {/* ---------- Infra lane (demoted) ---------- */}
-
-              {/* Infra connector lines: cli/ui -> wrapper -> worktree, plus
-                  wrapper -> Captain (the spawn). All thin and dim. */}
-              {(() => {
-                const cliY = INFRA_ROW_Y + INFRA_H / 2;
-                const cliRightX = infraX(0) + INFRA_W;
-                const uiRightX = infraX(1) + INFRA_W;
-                const wrapperLeftX = infraX(2);
-                const wrapperRightX = infraX(2) + INFRA_W;
-                const wrapperCx = infraX(2) + INFRA_W / 2;
-                const wrapperTop = INFRA_ROW_Y;
-                const worktreeLeftX = infraX(3);
-
-                // cli -> wrapper (short straight-ish curve)
-                const cliToWrapper =
-                  `M ${cliRightX} ${cliY} ` +
-                  `C ${(cliRightX + wrapperLeftX) / 2} ${cliY}, ` +
-                  `${(cliRightX + wrapperLeftX) / 2} ${cliY}, ` +
-                  `${wrapperLeftX} ${cliY}`;
-                // ui -> wrapper
-                const uiToWrapper =
-                  `M ${uiRightX} ${cliY} ` +
-                  `C ${(uiRightX + wrapperLeftX) / 2} ${cliY}, ` +
-                  `${(uiRightX + wrapperLeftX) / 2} ${cliY}, ` +
-                  `${wrapperLeftX} ${cliY}`;
-                // wrapper -> worktree
-                const wrapperToWorktree =
-                  `M ${wrapperRightX} ${cliY} ` +
-                  `C ${(wrapperRightX + worktreeLeftX) / 2} ${cliY}, ` +
-                  `${(wrapperRightX + worktreeLeftX) / 2} ${cliY}, ` +
-                  `${worktreeLeftX} ${cliY}`;
-                // wrapper -> Captain (spawn) — long upward curve from wrapper top to Captain bottom-left/right
-                const spawnD =
-                  `M ${wrapperCx} ${wrapperTop} ` +
-                  `C ${wrapperCx} ${wrapperTop - 80}, ` +
-                  `${captainLeft - 20} ${captainBottom + 80}, ` +
-                  `${captainLeft} ${captainBottom - 14}`;
-
-                return (
-                  <g>
-                    <path
-                      d={cliToWrapper}
-                      fill="none"
-                      stroke="#404040"
-                      strokeOpacity={0.7}
-                      strokeWidth={1}
-                      markerEnd="url(#arrow-dim)"
-                    />
-                    <path
-                      d={uiToWrapper}
-                      fill="none"
-                      stroke="#404040"
-                      strokeOpacity={0.7}
-                      strokeWidth={1}
-                      markerEnd="url(#arrow-dim)"
-                    />
-                    <path
-                      d={wrapperToWorktree}
-                      fill="none"
-                      stroke="#404040"
-                      strokeOpacity={0.7}
-                      strokeWidth={1}
-                      markerEnd="url(#arrow-dim)"
-                    />
-                    {/* spawn arrow up to Captain */}
-                    <path
-                      d={spawnD}
-                      fill="none"
-                      stroke="#404040"
-                      strokeOpacity={0.55}
-                      strokeWidth={1}
-                      strokeDasharray="2 4"
-                      markerEnd="url(#arrow-dim)"
-                    />
-                    {/* spawn label */}
-                    <g>
-                      <rect
-                        x={captainLeft - 60}
-                        y={captainCy - 9}
-                        width={48}
-                        height={18}
-                        fill="#0a0a0a"
-                        rx={3}
-                      />
-                      <text
-                        x={captainLeft - 36}
-                        y={captainCy + 4}
-                        textAnchor="middle"
-                        fontFamily="var(--font-mono)"
-                        fontSize={9}
-                        fill="#737373"
-                      >
-                        spawn
-                      </text>
-                    </g>
-                  </g>
-                );
-              })()}
-
-              {/* Infra boxes */}
-              {INFRA.map((node, i) => {
-                const x = infraX(i);
-                const y = INFRA_ROW_Y;
-                return (
-                  <g key={`infra-${node.id}`}>
-                    <rect
-                      x={x}
-                      y={y}
-                      width={INFRA_W}
-                      height={INFRA_H}
-                      rx={6}
-                      fill="#0a0a0a"
-                      stroke="#262626"
-                      strokeWidth={1}
-                    />
-                    <text
-                      x={x + INFRA_W / 2}
-                      y={y + (node.subtitle ? 24 : INFRA_H / 2 + 4)}
-                      textAnchor="middle"
-                      fontFamily="var(--font-mono)"
-                      fontSize={12}
-                      fontWeight={500}
-                      fill="#a3a3a3"
-                    >
-                      {node.title}
-                    </text>
-                    {node.subtitle && (
-                      <text
-                        x={x + INFRA_W / 2}
-                        y={y + 42}
-                        textAnchor="middle"
-                        fontFamily="var(--font-mono)"
-                        fontSize={9}
-                        fill="#525252"
-                      >
-                        {node.subtitle}
-                      </text>
-                    )}
                   </g>
                 );
               })}

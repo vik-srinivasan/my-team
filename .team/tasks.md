@@ -41,3 +41,25 @@
 
 ### Git
 - [x] @git Push branch (it's the same `my-team/clear-ash-84` branch, so the existing PR #8 picks up the new commits automatically). Comment on PR #8 with the new preview URL.
+
+---
+
+## Round 3 (current)
+
+### Engineering
+- [x] @engineer Move the infra lane (CLI / Web UI / Wrapper daemon / sessions worktree) back to the **top** of the Architecture diagram, above Captain. Keep it visually subordinate — smaller, dimmer, in a thin row — so Captain + sub-agent fan-out remains the focal point.
+- [x] @engineer Polish the diagram: clean up dispatch / result curve routing under Captain (round-2 looks busy), reposition the `spawn` and `Task tool` labels so they sit intentionally on their lines, remove any stray dotted lines bleeding between layers, tighten vertical / horizontal alignment of agent boxes and labels.
+- [x] @engineer Run `pnpm --filter @my-team/landing build` and confirm it passes.
+- [x] @engineer Commit using Conventional Commits style.
+
+### Testing
+- [ ] @tester Light: confirm build passes; spot-check that infra lane is now above Captain in the SVG and existing tests still pass. Do not write new integration tests.
+
+### Review
+- [ ] @reviewer Light single-pass review: visual hierarchy (infra → captain → agents), curve routing readability, no regressions in accessibility / TS strict.
+
+### Preview
+- [ ] @engineer Vercel preview deploy. Capture URL for final report.
+
+### Git
+- [ ] @git Push to the existing branch / PR #8. Comment on PR with the new preview URL.
