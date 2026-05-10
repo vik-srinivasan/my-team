@@ -1,55 +1,56 @@
-## 2026-05-10T19:35:00Z — captain
-Session started. Title: "UI-changes". User wants to simplify the my-team dashboard webapp: drop heavy per-session detail (terminal chat already covers that), keep a multi-session overview surfacing captain output and flagging sessions needing attention. Dispatching scout to map current UI code.
+## 2026-05-10T21:47:00Z — captain
+Action: Session started. User wants to add three value props to the landing page (full-team code quality from spec'd instructions, lower token usage from targeted scope, hands-off after brainstorm until full PR with tests/review/preview). Dispatching scout to map the landing app.
 
-## 2026-05-10T19:48:00Z — captain
-Plan approved by user ("go"). Beginning execution. Dispatching engineer to work through tasks.md in order: backend types -> foundations -> store -> components. Single engineer because the tasks are tightly coupled across shared types and component files (parallel engineers would step on App.tsx and store.ts).
+## 2026-05-10T21:50:00Z — captain
+Action: Scout returned. User approved with "sure but not as many words, make sure to generate a preview for me after you write it". Plan locked in: light effort, new WhyMyTeam.tsx component inserted between HowItWorks and Architecture, terse copy, Vercel preview deploy required. Dispatching engineer.
 
-## 2026-05-10T20:00:00Z — engineer
-Completed: All @engineer tasks (backend types, frontend foundations, store/data plumbing, layout + components).
-Created: packages/ui/src/lib/phase.ts, packages/ui/src/lib/attention.ts, packages/ui/src/lib/attention.test.ts, packages/ui/src/components/OutputLog.tsx (renamed from Chat.tsx), packages/ui/src/dev-seed.ts.
-Modified: packages/shared/src/types.ts, packages/wrapper/src/session-manager.ts, packages/wrapper/src/server.test.ts, packages/ui/src/store.ts, packages/ui/src/hooks/useSession.ts, packages/ui/src/hooks/useWebSocket.ts, packages/ui/src/App.tsx, packages/ui/src/components/SessionList.tsx, packages/ui/src/main.tsx.
-Deleted: packages/ui/src/components/RightPanel.tsx (and its rightTab / teamFiles / diff store slices, ws handlers, and useSession fetches).
-Commits: 55098fb feat(shared) SessionSummary fields; ba73b37 feat(wrapper) listSessions populates fields; 565a379 refactor(ui) extract phase lib; 430f1ee feat(ui) attention lib + tests; 8303e25 feat(ui) lastViewed slice; 2c13dc8 refactor(ui) useSession; 03354fe refactor(ui) useWebSocket; 7a0b351 feat(ui) two-column layout + OutputLog; 0cce1ba feat(ui) sidebar attention badges; 63600b3 feat(ui) dev-seed; 772f3ec fix(ui) vite/client reference.
-Build/test status: pnpm -C packages/ui build green, pnpm -C packages/wrapper build green, full repo test suite (47 tests) all passing including the new attention tests. Pre-existing CLI build error and root pnpm lint failure unchanged from base.
-Preview: cd packages/ui && pnpm dev, then open http://localhost:5173/?seed=1 to see the new dashboard with mock sessions exercising every attention path.
+## 2026-05-10T22:08:00Z — engineer
+Completed: WhyMyTeam value-props section + Vercel preview deploy
+Created: apps/landing/app/components/WhyMyTeam.tsx
+Modified: apps/landing/app/page.tsx, .team/tasks.md, .gitignore
+Build: pnpm --filter @my-team/landing build — passed (Next 16.2.6, 3 static routes)
+Commit: 83bdb6f feat(landing): add why-my-team value props section
+Preview URL: https://landing-eosin-mu.vercel.app (also https://landing-6k981la2o-vikr4m-5448s-projects.vercel.app)
+Notes: First repo-root `vercel --yes` attempt failed due to outputDirectory mismatch in vercel.json (project root was set differently). Switched to deploying from apps/landing/ directly — see decisions.md.
 
-## 2026-05-10T20:15:00Z — tester
-Completed: Build verification and test suite run for the dashboard UI rewrite. All four @tester tasks completed.
-Tests written: No new test files needed — attention.test.ts (8 tests) already covers all required cases; existing wrapper suite covers the new listSessions fields.
-Tests passed: 47 (all)
-Tests failed: 0 (one timing-flaky test in server.test.ts observed on first run under load, passed on subsequent runs — pre-existing issue)
-Bugs filed: 1 non-blocking concern (api.ts dead methods), 1 pre-existing flaky test noted
+## 2026-05-10T22:10:00Z — tester
+Completed: Light smoke test of WhyMyTeam landing section
+Tests written: none (presentational component, no integration tests needed)
+Tests passed: N/A
+Tests failed: 0
+Bugs filed: none
+Verification:
+  1. pnpm --filter @my-team/landing build — PASS (Next.js compiled successfully, 3 static routes)
+  2. WhyMyTeam import and render — PASS (correctly positioned between HowItWorks and Architecture in page.tsx)
+Notes: Component follows existing patterns (useReducedMotion, motion/react cards, Tailwind var() tokens, aria-hidden on icons). Copy is terse. No issues found.
 
-## 2026-05-10T20:30:00Z — reviewer
+## 2026-05-10T22:15:00Z — reviewer
 Completed: Review pass 1
-Blockers: 2
-Suggestions: 2
-Verdict: Blockers remain
-
-## 2026-05-10T20:10:00Z — captain
-Tester green; reviewer Blocking with two items: (1) dead `api.diff()/team()/teamFile()` methods + `DiffResponse`/`TeamFiles` imports left in `packages/ui/src/api.ts` after RightPanel deletion, (2) missing tests for `lastViewed` localStorage persistence. Re-dispatching engineer (review iteration 1).
-
-## 2026-05-10T20:25:00Z — engineer
-Completed: Both reviewer blockers + the suggestion about completing the attention priority matrix.
-Created: packages/ui/src/lib/last-viewed.ts (extracted helpers from store.ts so they're unit-testable without jsdom), packages/ui/src/lib/last-viewed.test.ts (13 cases: missing key, malformed JSON, array / null / non-string filtering, SSR guard, getItem/setItem error swallow, round-trip).
-Modified: packages/ui/src/api.ts (dropped dead diff/team/teamFile methods + DiffResponse/TeamFiles imports — verified no callers remain in `packages/ui/src`; shared types stay because wrapper + cli still consume them), packages/ui/src/store.ts (now imports the extracted helpers instead of inlining them), packages/ui/src/lib/attention.test.ts (added "prefers blocked reason over must_ask" symmetrical priority case), .team/tasks.md, .team/review.md (resolved/skipped notes inline).
-Commits: 684bc45 refactor(ui): drop unused diff/team/teamFile API methods; f2adb73 test(ui): cover lastViewed localStorage persistence.
-Build/test status: `pnpm -C packages/ui build` green; `pnpm test` 61/61 across 8 files (was 47 / 7 — added the new last-viewed.test.ts file with 13 cases plus 1 new attention case).
-Suggestion skipped: removing `WsTeamFileEvent` / `WsDiffEvent` from `WsServerEvent` (out of scope; reviewer themselves marked "not urgent" and it would touch shared types still consumed by the wrapper + cli).
-
-## 2026-05-10T21:00:00Z — reviewer
-Completed: Review pass 2
 Blockers: 0
 Suggestions: 0
 Verdict: Approved
+Notes: Code is clean, fully accessible with proper reduced-motion guards and aria-hidden attributes. Copy is terse across all three value-prop cards. Visual styling and motion patterns consistent with HowItWorks and Architecture sections. TypeScript strict mode maintained throughout. Ready for merge.
 
-## 2026-05-10T20:25:00Z — captain
-Reviewer signed off on fix-up commits (684bc45, f2adb73). 14 total commits on branch. All tests green (61/61), all builds green. Dispatching git to push branch and open PR.
-
-## 2026-05-10T21:15:00Z — git
+## 2026-05-10T22:20:00Z — git
 Action: Pushed branch and opened PR
-Branch: viktown/rich-shade-12 (15 commits, +780-451)
-PR: https://github.com/vik-srinivasan/viktown/pull/4
-Title: UI: lightweight multi-session dashboard
-Summary: Simplified dashboard with two-column layout (sidebar + output log), dropped right panel, added attention badges (critical/unread), lastViewed localStorage persistence.
-All 61 tests passing. Ready for merge.
+Commits: 3d51d07 (chore: add .vercel to gitignore), 83bdb6f (feat: add why-my-team value props section)
+PR: https://github.com/vik-srinivasan/my-team/pull/8
+Status: Branch my-team/clear-ash-84 pushed to origin. PR #8 opened against main with summary of landing page changes, key improvements, and preview URL.
+
+## 2026-05-10T22:21:00Z — captain
+Action: Session complete. Light effort run: scout → engineer → tester+reviewer (parallel) → git, no review iterations. Final report sent to user.
+
+## 2026-05-10T22:25:00Z — captain
+Action: Round 2. User wants two more changes on the same branch / PR #8: (1) personal-story paragraph under hero, (2) restructure Architecture diagram to centre Captain + sub-agents fan-out, demote infra. Same light effort. Plan + tasks updated, dispatching engineer.
+
+## 2026-05-10T22:45:00Z — engineer
+Completed: Round 2 — hero personal-story paragraph + Architecture diagram restructure
+Modified: apps/landing/app/components/Hero.tsx, apps/landing/app/components/Architecture.tsx, .team/tasks.md
+Commits: fb88ed7 (feat(landing): add personal-story paragraph to hero), a0a8dda (refactor(landing): restructure architecture diagram around captain + sub-agents)
+Build: pnpm --filter @my-team/landing build — PASS (Next 16.2.6, 3 static routes, TypeScript clean)
+Preview URL: https://landing-19gwazpyo-vikr4m-5448s-projects.vercel.app
+Production alias (also updated): https://landing-eosin-mu.vercel.app
+Notes:
+  - Hero blurb sits between the existing tagline and the CTA row, uses max-w-2xl + leading-relaxed muted body styling, and inherits the surrounding entrance animation with a delay slot of 0.16.
+  - Architecture restructure: Captain at top centre as the visual anchor; five sub-agents (scout, engineer ×N stack, tester, reviewer, git) fan out below in a single row with "→ produces" labels. Two-way relationship rendered as accent dispatch curves down from Captain (with a Task tool label) and dashed dim result curves back up. Infra lane (CLI, Web UI, Wrapper daemon, sessions worktree) is demoted to a thinner row beneath a dashed divider captioned "INFRA · HOW THE CAPTAIN GETS BOOTED", with a faint dashed spawn arrow up to Captain.
+  - Same useReducedMotion guard, same color tokens, no new libraries. ViewBox grew slightly (540 → 640 height) to accommodate the vertical stack; svg still scales responsively with min-w-[760px].
