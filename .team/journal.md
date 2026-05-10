@@ -54,3 +54,22 @@ Preview: N/A (no visual surface in my scope). To inspect rename end-to-end after
   `pnpm --filter @my-team/landing dev`        # http://localhost:3000 — branded landing
   `pnpm --filter @my-team/wrapper dev`        # wrapper daemon, listens on 127.0.0.1:3001
   `pnpm --filter @my-team/cli build && node packages/cli/dist/index.js help`   # blocked by pre-existing cli build error noted above
+
+## 2026-05-10T20:30:00Z — engineer (C)
+Completed: Engineer C scope — top-level docs + agent-prompts rebrand Viktown -> my-team.
+Modified:
+- SPEC.md (heading + branch prefix references + monorepo tree label; ViktownError already covered by Engineer A's commit 410a0b2 which incidentally swept SPEC.md too)
+- README.md (heading + clone URL + cd target)
+- CLAUDE.md (heading + ViktownError reference + GitHub repo path)
+- SETUP.md (heading + ~/.viktown -> ~/.my-team paths + clone URL + customize section + pnpm --filter scope + branch prefix + general prose mentions)
+- implementation_plan.md (heading + ViktownError + @viktown/shared + branch prefix in worktree steps + @viktown/cli filter + "What is Viktown" + "developing viktown" prose)
+- tasks.md (heading only — one occurrence)
+- agent-prompts/captain.md, scout.md, engineer.md, tester.md, reviewer.md, git.md (identity lines + git.md PR-body footer)
+Commits:
+- dacd1cb docs(rename): viktown -> my-team in SETUP, implementation_plan, tasks
+- 3571c69 chore(prompts): rebrand agent prompts from Viktown to my-team
+Notes:
+- SPEC.md, README.md, CLAUDE.md edits landed under Engineer A's parallel commits (410a0b2, bf30a46) because Engineer A used `git add -A` and swept my unstaged hunks; effect is identical and the result is correct.
+- My first pass on SETUP.md / implementation_plan.md / tasks.md got reverted by something in the parallel pipeline (likely `pnpm install` or build); I re-did them and committed immediately to lock them in.
+- `grep -ni viktown` returns zero hits across all six Engineer C target paths.
+Preview: N/A (docs only; no visual surface).

@@ -28,18 +28,18 @@
 - [x] @engineer Verify `pnpm --filter @my-team/landing build` succeeds — build green
 
 ### Engineer C — docs + agent prompts
-- [ ] @engineer Update `SPEC.md` (replace viktown → my-team; update any URLs/paths)
-- [ ] @engineer Update `README.md`
-- [ ] @engineer Update `CLAUDE.md`
-- [ ] @engineer Update `SETUP.md`
-- [ ] @engineer Update `implementation_plan.md`
-- [ ] @engineer Update repo-root `tasks.md` (NOT this `.team/tasks.md`)
-- [ ] @engineer Update `agent-prompts/captain.md`
-- [ ] @engineer Update `agent-prompts/scout.md`
-- [ ] @engineer Update `agent-prompts/engineer.md`
-- [ ] @engineer Update `agent-prompts/tester.md`
-- [ ] @engineer Update `agent-prompts/reviewer.md`
-- [ ] @engineer Update `agent-prompts/git.md` (identity line + PR-body footer)
+- [x] @engineer Update `SPEC.md` (replace viktown → my-team; update any URLs/paths)
+- [x] @engineer Update `README.md`
+- [x] @engineer Update `CLAUDE.md`
+- [x] @engineer Update `SETUP.md`
+- [x] @engineer Update `implementation_plan.md`
+- [x] @engineer Update repo-root `tasks.md` (NOT this `.team/tasks.md`)
+- [x] @engineer Update `agent-prompts/captain.md`
+- [x] @engineer Update `agent-prompts/scout.md`
+- [x] @engineer Update `agent-prompts/engineer.md`
+- [x] @engineer Update `agent-prompts/tester.md`
+- [x] @engineer Update `agent-prompts/reviewer.md`
+- [x] @engineer Update `agent-prompts/git.md` (identity line + PR-body footer)
 
 ## Testing
 - [ ] @tester Run full suite: `pnpm -r test` — all packages pass
