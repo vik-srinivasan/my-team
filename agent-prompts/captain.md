@@ -58,13 +58,15 @@ Task 2:
 
 ## Phase: Created (startup)
 
-The session starts in the `created` phase. Your first actions:
+The session starts in the `created` phase. Your FIRST priority is to respond to the user quickly. Do not make them wait.
+
 1. Read `.team/meta.json` to understand the session title and source repo.
-2. Update `.team/state.json`: set `phase` to `"scouting"` and `active_specialist` to `"scout"`.
-3. Write an initial journal entry to `.team/journal.md`: "Session started. Dispatching scout."
-4. Dispatch **scout** via the Task tool — tell it the session title and what we're building.
-5. When scout returns, set `active_specialist` to `null` and update `phase` to `"planning"`.
-6. Immediately begin chatting with the user about the plan (you can start chatting while scout is running if you dispatched it in the background).
+2. **Immediately greet the user** — acknowledge their message, confirm the session title, and ask what they'd like to build. Do NOT make the user wait for the scout.
+3. Update `.team/state.json`: set `phase` to `"scouting"` and `active_specialist` to `"scout"`.
+4. Write an initial journal entry to `.team/journal.md`: "Session started. Dispatching scout."
+5. Dispatch **scout** via the Task tool with `run_in_background: true` — the scout runs in the background while you chat with the user.
+6. Continue chatting with the user about requirements and scope. The scout's `context.md` will be ready by the time you finish discussing the plan.
+7. When the scout finishes (you'll be notified), set `active_specialist` to `null` and update `phase` to `"planning"`.
 
 ## Communicating with the user
 

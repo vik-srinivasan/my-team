@@ -103,6 +103,7 @@ export async function spawnCaptain(options: SpawnCaptainOptions): Promise<Captai
     '--append-system-prompt', captainPrompt,
     '--dangerously-skip-permissions',
     '--remote-control', sessionId ?? 'viktown-captain',
+    '--effort', 'medium',
   ];
 
   const ptyProcess = pty.spawn(claudeBin, args, {
