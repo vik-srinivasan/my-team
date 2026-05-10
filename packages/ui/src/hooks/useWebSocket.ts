@@ -22,9 +22,12 @@ const NOISE_LINE_PATTERNS: readonly RegExp[] = [
   /esctointerrupt/,
   /remote\s*control\s*active/,
   /remotecontrolactive/,
-  // Status spinners — be liberal about common PTY typos
-  // (contemplating, contemplate, conplating, complating, conplate)
-  /\b(?:co[mn]t?em|co[mn])pl[ae]t(?:e|ing|es|or)?/,
+  // Status spinners — anchor on the contemplate-family stem so we
+  // don't false-positive on words like "complete" / "completion".
+  // Covers the real word plus PTY corruptions observed in practice:
+  //   contemplating, contemplate, contemplator,
+  //   conplating, conplate, complating, complate
+  /\b(?:contempl|conplat|complat)(?:at)?(?:e|ing|es|ed|or|ion)?\b/i,
   /thinking\s+with\s+x?high\s+effort/,
   /thought\s+for\s+\d+\s*s?\b/,
   // Token counters: "↓ 12 tokens", "12 tokens", "12k tokens"

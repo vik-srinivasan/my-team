@@ -106,6 +106,25 @@ describe('cleanCaptainOutput preserves real content', () => {
     const md = '# Plan\n\nFirst we will scout the repo, then we plan.';
     expect(pipeline(md)).toBe(md);
   });
+
+  // Regression: the contemplating-spinner regex used to match "complete"
+  // and related "compl*" words, silently dropping legitimate captain output.
+  // See review pass 1 — these must always pass through the filter.
+  it.each([
+    'complete',
+    'completed',
+    'completing',
+    'completes',
+    'completion',
+    'The implementation is complete.',
+    'All tasks are now completed.',
+    'We are completing the final task.',
+    'This is a template literal in TypeScript.',
+    'The feature is fully implemented.',
+    'Use a compatible Node version.',
+  ])('does NOT drop legitimate word: %j', (line) => {
+    expect(pipeline(line)).toBe(line);
+  });
 });
 
 describe('isMeaningfulText', () => {
