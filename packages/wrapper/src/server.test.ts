@@ -1,0 +1,179 @@
+import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach, vi } from 'vitest';
+import request from 'supertest';
+import { mkdtemp, rm, readdir, readFile } from 'node:fs/promises';
+import { join } from 'node:path';
+import { tmpdir, homedir } from 'node:os';
+import { execSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
+import { realpath } from 'node:fs/promises';
+import pino from 'pino';
+
+import { SessionManager } from './session-manager.js';
+import { createServer } from './server.js';
+import { getWorktreePath } from './worktree.js';
+
+// Mock claude process so tests don't actually spawn claude
+vi.mock('./claude-process.js', () => {
+  const { EventEmitter } = require('node:events');
+
+  class MockCaptainProcess extends EventEmitter {
+    pid = 99999;
+    running = true;
+
+    write = vi.fn();
+    kill = vi.fn(() => {
+      this.running = false;
+    });
+    resize = vi.fn();
+  }
+
+  return {
+    CaptainProcess: MockCaptainProcess,
+    spawnCaptain: vi.fn(async () => new MockCaptainProcess()),
+  };
+});
+
+describe('HTTP API integration', () => {
+  let tempRepo: string;
+  let sessionManager: SessionManager;
+  let app: ReturnType<typeof createServer>['app'];
+  let captainPromptPath: string;
+
+  beforeAll(async () => {
+    // Create a temp git repo
+    tempRepo = await realpath(await mkdtemp(join(tmpdir(), 'viktown-e2e-')));
+    execSync('git init', { cwd: tempRepo });
+    execSync('git checkout -b main', { cwd: tempRepo });
+    execSync('echo "hello" > test.txt', { cwd: tempRepo });
+    execSync('git add .', { cwd: tempRepo });
+    execSync('git commit -m "init"', { cwd: tempRepo });
+
+    // Use a temp captain prompt
+    captainPromptPath = join(tempRepo, 'captain.md');
+    execSync(`echo "# Captain" > "${captainPromptPath}"`, { cwd: tempRepo });
+  });
+
+  afterAll(async () => {
+    await rm(tempRepo, { recursive: true, force: true });
+  });
+
+  beforeEach(() => {
+    const log = pino({ level: 'silent' });
+    sessionManager = new SessionManager(log, captainPromptPath);
+    const server = createServer({ sessionManager, log });
+    app = server.app;
+  });
+
+  afterEach(async () => {
+    // Clean up sessions
+    await sessionManager.shutdownAll();
+  });
+
+  it('GET /api/health returns ok', async () => {
+    const res = await request(app).get('/api/health');
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe('ok');
+  });
+
+  it('GET /api/sessions returns empty list initially', async () => {
+    const res = await request(app).get('/api/sessions');
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual([]);
+  });
+
+  it('POST /api/sessions creates a session with correct structure', async () => {
+    const res = await request(app)
+      .post('/api/sessions')
+      .send({ source_repo: tempRepo, title: 'Test Feature' });
+
+    expect(res.status).toBe(201);
+    expect(res.body.id).toBeTruthy();
+    expect(res.body.title).toBe('Test Feature');
+    expect(res.body.worktree_path).toBeTruthy();
+    expect(res.body.phase).toBe('created');
+
+    // Verify worktree was created
+    const worktreePath = res.body.worktree_path;
+    expect(existsSync(worktreePath)).toBe(true);
+
+    // Verify .team/ structure
+    const teamDir = join(worktreePath, '.team');
+    const teamFiles = await readdir(teamDir);
+    expect(teamFiles.sort()).toEqual([
+      'context.md', 'decisions.md', 'journal.md',
+      'meta.json', 'plan.md', 'review.md', 'state.json', 'tasks.md',
+    ]);
+
+    // Verify meta.json content
+    const meta = JSON.parse(await readFile(join(teamDir, 'meta.json'), 'utf-8'));
+    expect(meta.title).toBe('Test Feature');
+    expect(meta.source_repo).toBe(tempRepo);
+
+    // Clean up the worktree
+    const sessionId = res.body.id;
+    await sessionManager.killSession(sessionId);
+    try {
+      execSync(`git worktree remove "${worktreePath}" --force`, { cwd: tempRepo });
+      execSync(`git branch -D viktown/${sessionId}`, { cwd: tempRepo });
+    } catch {
+      // Best effort
+    }
+  });
+
+  it('POST /api/sessions validates request body', async () => {
+    const res = await request(app)
+      .post('/api/sessions')
+      .send({ title: 'Missing repo' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('VALIDATION_ERROR');
+  });
+
+  it('GET /api/sessions/:id returns 404 for unknown session', async () => {
+    const res = await request(app).get('/api/sessions/nonexistent');
+    expect(res.status).toBe(404);
+    expect(res.body.code).toBe('SESSION_NOT_FOUND');
+  });
+
+  it('POST /api/sessions/:id/kill returns 404 for unknown session', async () => {
+    const res = await request(app).post('/api/sessions/nonexistent/kill');
+    expect(res.status).toBe(404);
+  });
+
+  it('full lifecycle: create → list → status → kill', async () => {
+    // Create
+    const createRes = await request(app)
+      .post('/api/sessions')
+      .send({ source_repo: tempRepo, title: 'Lifecycle Test' });
+    expect(createRes.status).toBe(201);
+    const sessionId = createRes.body.id;
+
+    // List
+    const listRes = await request(app).get('/api/sessions');
+    expect(listRes.status).toBe(200);
+    expect(listRes.body.length).toBe(1);
+    expect(listRes.body[0].id).toBe(sessionId);
+
+    // Status
+    const statusRes = await request(app).get(`/api/sessions/${sessionId}`);
+    expect(statusRes.status).toBe(200);
+    expect(statusRes.body.meta.title).toBe('Lifecycle Test');
+
+    // Kill
+    const killRes = await request(app).post(`/api/sessions/${sessionId}/kill`);
+    expect(killRes.status).toBe(202);
+
+    // Verify killed state
+    const afterKill = await request(app).get(`/api/sessions/${sessionId}`);
+    expect(afterKill.body.state.phase).toBe('killed');
+
+    // Clean up worktree
+    const worktreePath = getWorktreePath(sessionId);
+    try {
+      execSync(`git worktree remove "${worktreePath}" --force`, { cwd: tempRepo });
+      execSync(`git branch -D viktown/${sessionId}`, { cwd: tempRepo });
+    } catch {
+      // Best effort
+    }
+  });
+});
