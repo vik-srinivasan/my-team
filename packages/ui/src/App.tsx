@@ -3,9 +3,11 @@ import { AgentList } from './components/AgentList.js';
 import { Chat } from './components/Chat.js';
 import { DiffPanel } from './components/DiffPanel.js';
 import { TeamArtifactPanel } from './components/TeamArtifactPanel.js';
+import { useSession } from './hooks/useSession.js';
 import { useSessionStore } from './store.js';
 
 export function App() {
+  useSession();
   const selectedId = useSessionStore((s) => s.selectedSessionId);
   const rightTab = useSessionStore((s) => s.rightTab);
 
