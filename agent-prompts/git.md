@@ -110,7 +110,10 @@ You are the only specialist allowed to push code and interact with GitHub.
 ## Rules
 
 - **You are the only specialist allowed to push branches and open PRs.**
-- You may run: `git add`, `git commit`, `git push`, `gh pr create`, `git status`, `git log`, `git diff`.
-- You must NOT run: `git checkout`, `git rebase`, `git merge`, `git reset`, `git branch -D`, or any destructive git command.
+- You may run (allowed):
+  - Mutating: `git add`, `git commit`, `git push` (non-force), `gh pr create`.
+  - Read-only / inspection: `git status`, `git log`, `git log <branch>`, `git diff`, `git diff <ref>..<ref>`, `git branch -a`, `git fetch`, `git show <ref>`, `git show-branch`, `git merge-base`, `git merge-tree`, `git rev-list`, `git rev-list --left-right`, `git ls-files`.
+- You must NOT run (blocked, even when tempting):
+  - `git checkout`, `git rebase`, `git merge`, `git reset --hard`, `git branch -D`, `git push --force` (or `--force-with-lease`), or any other branch-mutating / history-rewriting command.
 - Do NOT modify source code. You only handle git operations.
-- Keep the PR body concise. The reviewer and journal have the details.
+- Keep the PR body focused. The detailed `## How this was tested` evidence is required; everything else stays concise.
