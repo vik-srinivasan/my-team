@@ -37,7 +37,28 @@ pnpm --filter @viktown/ui exec vite build 2>/dev/null || echo "Warning: UI build
 # Make CLI globally available
 echo ""
 echo "Linking 'team' command globally..."
-pnpm link --global --filter @viktown/cli
+
+CLI_ENTRY="$(cd "$(dirname "$0")" && pwd)/packages/cli/dist/index.js"
+chmod +x "$CLI_ENTRY"
+
+# Find a writable bin directory on PATH
+LINK_DIR=""
+for dir in /usr/local/bin "$HOME/.local/bin" "$HOME/bin"; do
+  if [ -d "$dir" ] && echo "$PATH" | grep -q "$dir"; then
+    LINK_DIR="$dir"
+    break
+  fi
+done
+
+if [ -z "$LINK_DIR" ]; then
+  LINK_DIR="$HOME/.local/bin"
+  mkdir -p "$LINK_DIR"
+  echo "  Adding $LINK_DIR to PATH in ~/.zshrc"
+  echo "export PATH=\"$LINK_DIR:\$PATH\"" >> "$HOME/.zshrc"
+  export PATH="$LINK_DIR:$PATH"
+fi
+
+ln -sf "$CLI_ENTRY" "$LINK_DIR/team"
 
 # Create required directories
 mkdir -p ~/team/sessions ~/team/archives ~/team/notifications
@@ -53,7 +74,6 @@ if command -v team >/dev/null 2>&1; then
   echo "  3. team new \"title\"    # Create a session"
   echo "  4. Open http://localhost:3001 for the web UI"
 else
-  echo "Warning: 'team' command not found in PATH after linking."
-  echo "You may need to add pnpm's global bin to your PATH:"
-  echo "  export PATH=\"\$(pnpm bin -g):\$PATH\""
+  echo "Symlink created at $LINK_DIR/team"
+  echo "You may need to restart your shell or run: source ~/.zshrc"
 fi
