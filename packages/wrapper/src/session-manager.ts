@@ -227,6 +227,8 @@ export class SessionManager extends EventEmitter<SessionManagerEventMap> {
       phase: session.state.phase,
       active_specialist: session.state.active_specialist,
       created_at: session.meta.created_at,
+      last_checkpoint: session.state.last_checkpoint,
+      must_ask_count: session.state.must_ask_pending.length,
     }));
   }
 

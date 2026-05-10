@@ -4,7 +4,7 @@
 
 ### Backend / shared types
 - [x] @engineer Extend `SessionSummary` in `packages/shared/src/types.ts` with `last_checkpoint: string` and `must_ask_count: number`.
-- [ ] @engineer Update `listSessions()` in `packages/wrapper/src/session-manager.ts` to populate the two new fields from in-memory state. Add unit test if a `session-manager.test.ts` doesn't already exist for `listSessions`.
+- [x] @engineer Update `listSessions()` in `packages/wrapper/src/session-manager.ts` to populate the two new fields from in-memory state. Add unit test if a `session-manager.test.ts` doesn't already exist for `listSessions`. (Extended existing lifecycle test in `server.test.ts` to assert the new fields.)
 
 ### Frontend foundations
 - [ ] @engineer Create `packages/ui/src/lib/phase.ts` exporting `PHASE_DOT`, `PHASE_LABEL`, and any shared phase helpers. Replace the duplicated maps in `App.tsx` and `SessionList.tsx` with imports from this file.
