@@ -62,17 +62,12 @@ Checked off as completed. See `implementation_plan.md` for detailed steps.
 
 ## Phase 4 — Ship It
 
-### Critical (won't work without these)
-- [ ] 4.1 Captain Task tool dispatch — explicit invocation syntax + examples in captain.md
-- [ ] 4.2 Live diff events — WebSocket emission with 500ms debounce
-- [ ] 4.3 Auto-cleanup on done — archive worktree + remove after grace period
-
-### Important (degraded experience without these)
-- [ ] 4.4 Global CLI installation — `team` command works from anywhere via setup.sh
-- [ ] 4.5 Notification surface — API endpoint + UI banner + `team notifications` CLI command
-- [ ] 4.6 Diff panel file tree + per-file view — M/A/D indicators, click to focus
-- [ ] 4.7 Error messaging & recovery — structured errors, helpful CLI messages, crash handling
-- [ ] 4.8 README & setup guide — clone-to-running instructions, no raw node paths
-
-### Validation
-- [ ] 4.9 End-to-end smoke test + push
+- [x] 4.1 Captain Task tool dispatch + scouting phase fix — explicit invocation syntax + examples in captain.md, correct `scouting` → `planning` phase transitions, set `active_specialist: "scout"`
+- [x] 4.2 Live diff events + PTY output accumulation — WebSocket diff emission with 500ms debounce, buffer PTY chunks into coherent messages instead of one-bubble-per-chunk
+- [x] 4.3 Auto-cleanup on done + kill state persistence — archive worktree + remove after grace period, write `killed` phase to `state.json` on disk + journal entry
+- [x] 4.4 Global CLI installation — `team` command works from anywhere via setup.sh
+- [x] 4.5 Notification surface — API endpoint + UI banner + `team notifications` CLI command
+- [x] 4.6 Diff panel file tree + per-file view + reactive tab switching — M/A/D indicators, click to focus, auto-switch right tab on phase changes via WebSocket
+- [x] 4.7 Error messaging & recovery + UI polish — structured errors, helpful CLI messages, crash handling, fix `sendInput` wrong error on dead captain, `rehype-highlight` in Chat, human-readable system event messages, approve error feedback
+- [x] 4.8 README & setup guide — clone-to-running instructions, no raw node paths
+- [x] 4.9 End-to-end smoke test + push
