@@ -1,6 +1,6 @@
 # Viktown Setup Guide
 
-How to set up Viktown and use it with any git repository.
+**One-time setup.** You clone the repo once, run the install script, and then use `team` from anywhere forever. You never need to touch the viktown directory again after setup.
 
 ## Prerequisites
 
@@ -31,11 +31,13 @@ brew install gh
 gh auth login
 ```
 
-## Installation
+## Installation (one time)
+
+Pick a permanent location for the viktown repo (e.g., `~/.viktown` or `~/tools/viktown`). This is where it lives — you won't need to `cd` here again.
 
 ```bash
-git clone https://github.com/vik-srinivasan/viktown.git
-cd viktown
+git clone https://github.com/vik-srinivasan/viktown.git ~/.viktown
+cd ~/.viktown
 ./setup.sh
 ```
 
@@ -43,7 +45,7 @@ cd viktown
 1. Verify all prerequisites
 2. Install dependencies (`pnpm install`)
 3. Build all packages (shared, wrapper, cli, ui)
-4. Link the `team` CLI globally via `pnpm link`
+4. Link the `team` CLI globally via `pnpm link` (creates a symlink, so the repo must stay in place)
 5. Create `~/team/sessions/`, `~/team/archives/`, `~/team/notifications/`
 
 Verify the install:
@@ -55,10 +57,11 @@ team --help
 If `team` is not found, add pnpm's global bin to your PATH:
 
 ```bash
-export PATH="$(pnpm bin -g):$PATH"
+echo 'export PATH="$(pnpm bin -g):$PATH"' >> ~/.zshrc
+source ~/.zshrc
 ```
 
-Add that line to your `~/.zshrc` or `~/.bashrc` to make it permanent.
+**That's it. You're done with the viktown directory.** Everything below runs from your own projects.
 
 ## Usage
 
