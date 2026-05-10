@@ -4,7 +4,7 @@ import type {
   SessionSummary,
   SessionState,
   SessionPhase,
-} from '@viktown/shared';
+} from '@my-team/shared';
 
 import { loadLastViewed, persistLastViewed } from './lib/last-viewed.js';
 

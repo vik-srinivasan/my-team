@@ -23,7 +23,7 @@ interface Box {
 
 const BOXES: readonly Box[] = [
   { id: 'cli', x: 40, y: 100, w: 200, h: 70, title: 'team CLI', subtitle: 'commander + chalk' },
-  { id: 'ui', x: 40, y: 190, w: 200, h: 70, title: 'Web UI', subtitle: 'React 19 + Vite' },
+  { id: 'ui', x: 40, y: 190, w: 200, h: 70, title: 'Web UI', subtitle: 'React 19 + Vite · WIP' },
   {
     id: 'wrapper',
     x: 360,
@@ -225,7 +225,7 @@ export default function Architecture() {
                 </marker>
               </defs>
 
-              {/* Viktown header */}
+              {/* my-team header */}
               <g>
                 <text
                   x={VIEW_W / 2}
@@ -237,7 +237,7 @@ export default function Architecture() {
                   fill="#0e7490"
                   letterSpacing="0.12em"
                 >
-                  VIKTOWN
+                  MY-TEAM
                 </text>
                 <text
                   x={VIEW_W / 2}

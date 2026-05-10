@@ -1,6 +1,6 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
-import { readRegistry } from '@viktown/shared';
+import { readRegistry } from '@my-team/shared';
 
 function formatRelative(isoDate: string): string {
   const diffMs = Date.now() - new Date(isoDate).getTime();

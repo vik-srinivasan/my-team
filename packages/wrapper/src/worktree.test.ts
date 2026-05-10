@@ -12,7 +12,7 @@ describe('worktree', () => {
 
   beforeEach(async () => {
     // Create a real temp git repo for testing
-    tempRepo = await realpath(await mkdtemp(join(tmpdir(), 'viktown-test-')));
+    tempRepo = await realpath(await mkdtemp(join(tmpdir(), 'my-team-test-')));
     execSync('git init', { cwd: tempRepo });
     execSync('git checkout -b main', { cwd: tempRepo });
     execSync('echo "hello" > test.txt', { cwd: tempRepo });
@@ -32,7 +32,7 @@ describe('worktree', () => {
     });
 
     it('throws NotAGitRepoError for non-repo', async () => {
-      const nonRepo = await realpath(await mkdtemp(join(tmpdir(), 'viktown-nonrepo-')));
+      const nonRepo = await realpath(await mkdtemp(join(tmpdir(), 'my-team-nonrepo-')));
       await expect(resolveRepoRoot(nonRepo)).rejects.toThrow('Not a git repository');
       await rm(nonRepo, { recursive: true, force: true });
     });
@@ -61,7 +61,7 @@ describe('worktree', () => {
           // Best effort cleanup
         }
         try {
-          execSync(`git branch -D viktown/${sessionId}`, { cwd: tempRepo });
+          execSync(`git branch -D my-team/${sessionId}`, { cwd: tempRepo });
         } catch {
           // Best effort cleanup
         }
@@ -93,7 +93,7 @@ describe('worktree', () => {
       expect(metaContent.id).toBe(sessionId);
       expect(metaContent.title).toBe('Test Session');
       expect(metaContent.source_repo).toBe(tempRepo);
-      expect(metaContent.session_branch).toBe(`viktown/${sessionId}`);
+      expect(metaContent.session_branch).toBe(`my-team/${sessionId}`);
 
       // state.json starts at 'created'
       const stateContent = JSON.parse(await readFile(join(teamDir, 'state.json'), 'utf-8'));

@@ -60,7 +60,7 @@ importers:
 
   packages/cli:
     dependencies:
-      '@viktown/shared':
+      '@my-team/shared':
         specifier: workspace:*
         version: link:../shared
       chalk:
@@ -94,7 +94,7 @@ importers:
 
   packages/ui:
     dependencies:
-      '@viktown/shared':
+      '@my-team/shared':
         specifier: workspace:*
         version: link:../shared
       lucide-react:
@@ -146,7 +146,7 @@ importers:
 
   packages/wrapper:
     dependencies:
-      '@viktown/shared':
+      '@my-team/shared':
         specifier: workspace:*
         version: link:../shared
       chokidar:

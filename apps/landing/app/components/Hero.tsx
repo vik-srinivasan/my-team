@@ -4,7 +4,7 @@ import { motion, useReducedMotion } from 'motion/react';
 import { ArrowRight, Github } from 'lucide-react';
 import AgentFlow from './AgentFlow';
 
-const GITHUB_URL = 'https://github.com/vik-srinivasan/viktown';
+const GITHUB_URL = 'https://github.com/vik-srinivasan/my-team';
 
 export default function Hero() {
   const reduced = useReducedMotion();
@@ -41,7 +41,7 @@ export default function Hero() {
               transition={{ ...baseTransition, delay: reduced ? 0 : 0.05 }}
               className="mt-6 text-balance text-[clamp(2.6rem,6vw,4.5rem)] font-semibold leading-[1.05] tracking-tight"
             >
-              <span className="gradient-text">Multi-agent orchestration</span>
+              <span className="gradient-text">my-team: Multi-Agent orchestration</span>
               <br />
               <span className="text-[color:var(--color-text)]">for Claude Code.</span>
             </motion.h1>
@@ -114,12 +114,12 @@ export default function Hero() {
             <div className="relative rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)]/40 p-6 backdrop-blur">
               <div className="mb-4 flex items-center justify-between font-mono text-[10px] uppercase tracking-[0.18em] text-[color:var(--color-dim)]">
                 <span>session.dispatch.loop</span>
-                <span className="flex items-center gap-1.5">
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-400/40 bg-amber-400/10 px-2 py-0.5 text-amber-300">
                   <span
-                    className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400"
+                    className="inline-block h-1.5 w-1.5 rounded-full bg-amber-400"
                     aria-hidden="true"
                   />
-                  live
+                  work in progress
                 </span>
               </div>
               <AgentFlow />

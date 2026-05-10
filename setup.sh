@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-echo "=== Viktown Setup ==="
+echo "=== my-team Setup ==="
 echo ""
 
 # Check prerequisites
@@ -25,14 +25,14 @@ pnpm install
 
 echo ""
 echo "Building packages..."
-pnpm --filter @viktown/shared build
-pnpm --filter @viktown/wrapper build
-pnpm --filter @viktown/cli build
+pnpm --filter @my-team/shared build
+pnpm --filter @my-team/wrapper build
+pnpm --filter @my-team/cli build
 
 # Build UI (may fail on type check but vite build succeeds)
 echo ""
 echo "Building UI..."
-pnpm --filter @viktown/ui exec vite build 2>/dev/null || echo "Warning: UI build skipped (run 'cd packages/ui && npx vite build' manually if needed)"
+pnpm --filter @my-team/ui exec vite build 2>/dev/null || echo "Warning: UI build skipped (run 'cd packages/ui && npx vite build' manually if needed)"
 
 # Make CLI globally available
 echo ""

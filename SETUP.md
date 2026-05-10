@@ -1,6 +1,6 @@
-# Viktown Setup Guide
+# my-team Setup Guide
 
-**One-time setup.** You clone the repo once, run the install script, and then use `team` from anywhere forever. You never need to touch the viktown directory again after setup.
+**One-time setup.** You clone the repo once, run the install script, and then use `team` from anywhere forever. You never need to touch the my-team directory again after setup.
 
 ## Prerequisites
 
@@ -33,11 +33,11 @@ gh auth login
 
 ## Installation (one time)
 
-Pick a permanent location for the viktown repo (e.g., `~/.viktown` or `~/tools/viktown`). This is where it lives — you won't need to `cd` here again.
+Pick a permanent location for the my-team repo (e.g., `~/.my-team` or `~/tools/my-team`). This is where it lives — you won't need to `cd` here again.
 
 ```bash
-git clone https://github.com/vik-srinivasan/viktown.git ~/.viktown
-cd ~/.viktown
+git clone https://github.com/vik-srinivasan/my-team.git ~/.my-team
+cd ~/.my-team
 ./setup.sh
 ```
 
@@ -61,7 +61,7 @@ echo 'export PATH="$(pnpm bin -g):$PATH"' >> ~/.zshrc
 source ~/.zshrc
 ```
 
-**That's it. You're done with the viktown directory.** Everything below runs from your own projects.
+**That's it. You're done with the my-team directory.** Everything below runs from your own projects.
 
 ## Usage
 
@@ -166,14 +166,14 @@ After running, your filesystem looks like:
 
 ## Customizing Agent Prompts
 
-Viktown's agent prompts live in `viktown/agent-prompts/`. You can override them per-repo:
+my-team's agent prompts live in `my-team/agent-prompts/`. You can override them per-repo:
 
 1. Create `.claude/agents/` in your source repo
 2. Add any specialist file (e.g., `engineer.md`) with your custom prompt
-3. Your repo's prompts take priority over Viktown's defaults
+3. Your repo's prompts take priority over my-team's defaults
 
 Priority order (last wins):
-1. Viktown built-in (`viktown/agent-prompts/`)
+1. my-team built-in (`my-team/agent-prompts/`)
 2. Global (`~/.claude/agents/`)
 3. Source repo (`.claude/agents/` in the repo you run `team new` from)
 
@@ -205,16 +205,16 @@ team new "same task title"
 ### Build failures
 ```bash
 # Rebuild everything
-cd /path/to/viktown
+cd /path/to/my-team
 pnpm install
-pnpm --filter @viktown/shared build
-pnpm --filter @viktown/wrapper build
-pnpm --filter @viktown/cli build
+pnpm --filter @my-team/shared build
+pnpm --filter @my-team/wrapper build
+pnpm --filter @my-team/cli build
 ```
 
 ### Tests
 ```bash
-cd /path/to/viktown
+cd /path/to/my-team
 pnpm test
 ```
 
@@ -224,5 +224,5 @@ pnpm test
 2. **Captain** is a `claude` CLI process spawned with `--append-system-prompt` via `node-pty`
 3. **Specialists** are Claude Code subagents (`.claude/agents/*.md`) invoked by the captain via the Task tool
 4. **Communication** is file-based: agents read/write `.team/` files, the wrapper watches with `chokidar` and streams changes
-5. **Isolation**: Each session gets its own git worktree on a `viktown/<id>` branch — your main branch is never touched
+5. **Isolation**: Each session gets its own git worktree on a `my-team/<id>` branch — your main branch is never touched
 6. **Cleanup**: When a session finishes, the worktree is archived and removed after a 30-second grace period

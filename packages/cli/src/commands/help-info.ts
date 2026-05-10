@@ -3,10 +3,10 @@ import { api, ApiError } from '../api-client.js';
 
 export function helpInfoCommand(): Command {
   return new Command('help')
-    .description('Show helpful info about Viktown commands and workflow')
+    .description('Show helpful info about my-team commands and workflow')
     .action(async () => {
       console.log(`
-\x1b[1mViktown — Multi-agent orchestrator for Claude Code\x1b[0m
+\x1b[1mmy-team — Multi-agent orchestrator for Claude Code\x1b[0m
 
 \x1b[36m── Workflow ──\x1b[0m
 

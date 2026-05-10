@@ -12,14 +12,14 @@ import type {
   SessionDetail,
   TeamFiles,
   WsServerEvent,
-} from '@viktown/shared';
+} from '@my-team/shared';
 import {
   generateSessionId,
   recordSessionStart,
   SessionNotFoundError,
   SessionActiveError,
   SessionProcessDeadError,
-} from '@viktown/shared';
+} from '@my-team/shared';
 
 import {
   createWorktree,

@@ -1,4 +1,4 @@
-# Viktown — Project Conventions
+# my-team — Project Conventions
 
 This file is read at the start of every Claude Code session in this repo. Treat it as standing orders.
 
@@ -18,7 +18,7 @@ This file is read at the start of every Claude Code session in this repo. Treat 
 - TypeScript strict mode. No `any`. If you must escape the type system, use `unknown` and narrow.
 - ESM modules everywhere (`"type": "module"` in package.json, `.js` extensions in imports).
 - Functional over class-based unless there's a reason. Hooks for React state, plain functions in the wrapper.
-- Errors: throw typed errors that extend a base `ViktownError` class. Catch at API boundaries, log with `pino`, return structured error responses.
+- Errors: throw typed errors that extend a base `MyTeamError` class. Catch at API boundaries, log with `pino`, return structured error responses.
 - No console.log in committed code. Use `pino` in the wrapper, `console.error` for fatal CLI errors only.
 - Async/await over `.then`. No callback-style code unless interfacing with a library that requires it (and even then, wrap in `promisify`).
 - Top-level imports first, then types, then code. No mid-file imports.
@@ -71,5 +71,5 @@ Better to surface a problem at line 100 than discover it at line 5000.
 
 - **Node**: v22 (required by pnpm 11)
 - **pnpm**: v11 (installed via homebrew)
-- **GitHub**: `gh` authenticated as `vik-srinivasan`, repo at `vik-srinivasan/viktown`
+- **GitHub**: `gh` authenticated as `vik-srinivasan`, repo at `vik-srinivasan/my-team`
 - **Session IDs**: human-readable format (`adjective-noun-number`)

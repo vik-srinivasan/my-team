@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import type { SessionSummary } from '@viktown/shared';
+import type { SessionSummary } from '@my-team/shared';
 
 import { getAttention } from './attention.js';
 

@@ -3,7 +3,7 @@ import type {
   CreateSessionResponse,
   SessionSummary,
   SessionDetail,
-} from '@viktown/shared';
+} from '@my-team/shared';
 
 const BASE = '/api';
 

@@ -4,19 +4,19 @@ import { GeistMono } from 'geist/font/mono';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Viktown — Multi-agent orchestration for Claude Code',
+  title: 'my-team — Multi-agent orchestration for Claude Code',
   description:
     'Spin up a team of AI specialists that plan, code, test, review, and ship a PR — all from one command.',
-  metadataBase: new URL('https://viktown.dev'),
+  metadataBase: new URL('https://my-team.dev'),
   openGraph: {
-    title: 'Viktown — Multi-agent orchestration for Claude Code',
+    title: 'my-team — Multi-agent orchestration for Claude Code',
     description:
       'Spin up a team of AI specialists that plan, code, test, review, and ship a PR — all from one command.',
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Viktown — Multi-agent orchestration for Claude Code',
+    title: 'my-team — Multi-agent orchestration for Claude Code',
     description:
       'Spin up a team of AI specialists that plan, code, test, review, and ship a PR — all from one command.',
   },

@@ -2,7 +2,7 @@ import { join, basename } from 'node:path';
 import { readFile, writeFile } from 'node:fs/promises';
 import { watch } from 'chokidar';
 
-import type { SessionMeta, SessionState, TeamFiles } from '@viktown/shared';
+import type { SessionMeta, SessionState, TeamFiles } from '@my-team/shared';
 
 const TEAM_DIR = '.team';
 

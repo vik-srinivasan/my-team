@@ -1,4 +1,4 @@
-import type { SessionSummary } from '@viktown/shared';
+import type { SessionSummary } from '@my-team/shared';
 import { useSessionStore } from './store.js';
 
 /**

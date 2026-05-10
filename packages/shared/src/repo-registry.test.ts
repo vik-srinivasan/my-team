@@ -13,7 +13,7 @@ function makeMeta(overrides: Partial<SessionMeta> = {}): SessionMeta {
     title: 'Test session',
     source_repo: '/tmp/example/foo',
     source_branch: 'main',
-    session_branch: 'viktown/bold-bear-12',
+    session_branch: 'my-team/bold-bear-12',
     created_at: new Date().toISOString(),
     ...overrides,
   };
@@ -24,7 +24,7 @@ describe('repo-registry', () => {
   let registryPath: string;
 
   beforeEach(async () => {
-    tmpDir = await mkdtemp(join(tmpdir(), 'viktown-registry-'));
+    tmpDir = await mkdtemp(join(tmpdir(), 'my-team-registry-'));
     registryPath = join(tmpDir, 'recents.json');
   });
 

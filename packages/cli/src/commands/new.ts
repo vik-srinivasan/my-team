@@ -5,7 +5,7 @@ import { execSync, spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { readdir, mkdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { resolveShortcut, EmptyProjectInitError } from '@viktown/shared';
+import { resolveShortcut, EmptyProjectInitError } from '@my-team/shared';
 import { api, ApiError } from '../api-client.js';
 
 interface NewOptions {

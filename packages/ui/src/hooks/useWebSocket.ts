@@ -1,6 +1,6 @@
 import { useEffect, useRef, useCallback } from 'react';
 
-import type { WsServerEvent, WsClientEvent } from '@viktown/shared';
+import type { WsServerEvent, WsClientEvent } from '@my-team/shared';
 import { useSessionStore } from '../store.js';
 
 const RECONNECT_DELAY = 2000;

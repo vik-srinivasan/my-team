@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { Plus, AlertCircle } from 'lucide-react';
 
-import type { SessionSummary } from '@viktown/shared';
+import type { SessionSummary } from '@my-team/shared';
 import { useSessionStore } from '../store.js';
 import { NewSessionModal } from './NewSessionModal.js';
 import { api } from '../api.js';

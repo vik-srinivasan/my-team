@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
 import { readTeamFile, readTeamState, readTeamMeta, readAllTeamFiles, teamDir } from './team-files.js';
-import type { SessionMeta, SessionState } from '@viktown/shared';
+import type { SessionMeta, SessionState } from '@my-team/shared';
 
 describe('team-files', () => {
   let worktreePath: string;
@@ -14,7 +14,7 @@ describe('team-files', () => {
     title: 'Test Session',
     source_repo: '/tmp/repo',
     source_branch: 'main',
-    session_branch: 'viktown/test-session-42',
+    session_branch: 'my-team/test-session-42',
     created_at: '2026-05-09T10:00:00Z',
   };
 
@@ -29,7 +29,7 @@ describe('team-files', () => {
   };
 
   beforeEach(async () => {
-    worktreePath = await mkdtemp(join(tmpdir(), 'viktown-teamfiles-'));
+    worktreePath = await mkdtemp(join(tmpdir(), 'my-team-teamfiles-'));
     const dir = teamDir(worktreePath);
     await mkdir(dir, { recursive: true });
     await Promise.all([

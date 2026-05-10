@@ -7,8 +7,8 @@ import type {
   SessionSummary,
   DiffResponse,
   ErrorResponse,
-} from '@viktown/shared';
-import { ViktownError } from '@viktown/shared';
+} from '@my-team/shared';
+import { MyTeamError } from '@my-team/shared';
 
 import type { SessionManager } from '../session-manager.js';
 
@@ -38,7 +38,7 @@ function handleError(res: Response, err: unknown, log: Logger): void {
     return;
   }
 
-  if (err instanceof ViktownError) {
+  if (err instanceof MyTeamError) {
     const statusCode = err.code === 'SESSION_NOT_FOUND' ? 404
       : err.code === 'SESSION_ACTIVE' ? 409
       : err.code === 'SESSION_PROCESS_DEAD' ? 409

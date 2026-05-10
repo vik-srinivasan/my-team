@@ -3,7 +3,7 @@ import { EventEmitter } from 'node:events';
 import { readFile } from 'node:fs/promises';
 import { execSync } from 'node:child_process';
 
-import { ClaudeProcessError } from '@viktown/shared';
+import { ClaudeProcessError } from '@my-team/shared';
 
 interface CaptainProcessEventMap {
   data: [text: string];
@@ -102,7 +102,7 @@ export async function spawnCaptain(options: SpawnCaptainOptions): Promise<Captai
   const args = [
     '--append-system-prompt', captainPrompt,
     '--dangerously-skip-permissions',
-    '--remote-control', sessionId ?? 'viktown-captain',
+    '--remote-control', sessionId ?? 'my-team-captain',
     '--effort', 'xhigh',
   ];
 

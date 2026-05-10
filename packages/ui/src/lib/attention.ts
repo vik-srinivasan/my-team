@@ -1,4 +1,4 @@
-import type { SessionSummary } from '@viktown/shared';
+import type { SessionSummary } from '@my-team/shared';
 
 export interface Attention {
   /** True when the session needs the user's eyes right now. */

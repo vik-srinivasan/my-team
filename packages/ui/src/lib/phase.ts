@@ -1,4 +1,4 @@
-import type { SessionPhase } from '@viktown/shared';
+import type { SessionPhase } from '@my-team/shared';
 
 /**
  * Tailwind class names for the small status dot rendered next to a session.

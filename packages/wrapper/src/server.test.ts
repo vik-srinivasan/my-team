@@ -7,7 +7,7 @@ import { execSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { realpath } from 'node:fs/promises';
 import pino from 'pino';
-import type { WsServerEvent } from '@viktown/shared';
+import type { WsServerEvent } from '@my-team/shared';
 
 import { SessionManager } from './session-manager.js';
 import { createServer } from './server.js';
@@ -44,7 +44,7 @@ describe('HTTP API integration', () => {
 
   beforeAll(async () => {
     // Create a temp git repo
-    tempRepo = await realpath(await mkdtemp(join(tmpdir(), 'viktown-e2e-')));
+    tempRepo = await realpath(await mkdtemp(join(tmpdir(), 'my-team-e2e-')));
     execSync('git init', { cwd: tempRepo });
     execSync('git checkout -b main', { cwd: tempRepo });
     execSync('echo "hello" > test.txt', { cwd: tempRepo });
@@ -56,7 +56,7 @@ describe('HTTP API integration', () => {
     execSync(`echo "# Captain" > "${captainPromptPath}"`, { cwd: tempRepo });
 
     // Isolate the recents registry so tests don't touch the real ~/team/recents.json
-    registryDir = await mkdtemp(join(tmpdir(), 'viktown-registry-'));
+    registryDir = await mkdtemp(join(tmpdir(), 'my-team-registry-'));
     registryPath = join(registryDir, 'recents.json');
     process.env['VIKTOWN_REGISTRY_PATH'] = registryPath;
   });
@@ -124,7 +124,7 @@ describe('HTTP API integration', () => {
     await sessionManager.killSession(sessionId);
     try {
       execSync(`git worktree remove "${worktreePath}" --force`, { cwd: tempRepo });
-      execSync(`git branch -D viktown/${sessionId}`, { cwd: tempRepo });
+      execSync(`git branch -D my-team/${sessionId}`, { cwd: tempRepo });
     } catch {
       // Best effort
     }
@@ -154,7 +154,7 @@ describe('HTTP API integration', () => {
     await sessionManager.killSession(sessionId);
     try {
       execSync(`git worktree remove "${worktreePath}" --force`, { cwd: tempRepo });
-      execSync(`git branch -D viktown/${sessionId}`, { cwd: tempRepo });
+      execSync(`git branch -D my-team/${sessionId}`, { cwd: tempRepo });
     } catch {
       // Best effort
     }
@@ -225,7 +225,7 @@ describe('HTTP API integration', () => {
     await sessionManager.killSession(sessionId);
     try {
       execSync(`git worktree remove "${worktreePath}" --force`, { cwd: tempRepo });
-      execSync(`git branch -D viktown/${sessionId}`, { cwd: tempRepo });
+      execSync(`git branch -D my-team/${sessionId}`, { cwd: tempRepo });
     } catch {
       // Best effort
     }
@@ -273,7 +273,7 @@ describe('HTTP API integration', () => {
     await sessionManager.killSession(sessionId);
     try {
       execSync(`git worktree remove "${worktreePath}" --force`, { cwd: tempRepo });
-      execSync(`git branch -D viktown/${sessionId}`, { cwd: tempRepo });
+      execSync(`git branch -D my-team/${sessionId}`, { cwd: tempRepo });
     } catch {
       // Best effort
     }
@@ -314,7 +314,7 @@ describe('HTTP API integration', () => {
     const worktreePath = getWorktreePath(sessionId);
     try {
       execSync(`git worktree remove "${worktreePath}" --force`, { cwd: tempRepo });
-      execSync(`git branch -D viktown/${sessionId}`, { cwd: tempRepo });
+      execSync(`git branch -D my-team/${sessionId}`, { cwd: tempRepo });
     } catch {
       // Best effort
     }
