@@ -9,6 +9,7 @@ import { useSessionStore } from '../store.js';
 const TABS: { id: RightTab; label: string }[] = [
   { id: 'diff', label: 'Diff' },
   { id: 'plan', label: 'Plan' },
+  { id: 'tasks', label: 'Tasks' },
   { id: 'review', label: 'Review' },
   { id: 'journal', label: 'Journal' },
   { id: 'decisions', label: 'Decisions' },
@@ -16,6 +17,7 @@ const TABS: { id: RightTab; label: string }[] = [
 
 const TAB_FILE_MAP: Record<string, string> = {
   plan: 'plan.md',
+  tasks: 'tasks.md',
   review: 'review.md',
   journal: 'journal.md',
   decisions: 'decisions.md',
