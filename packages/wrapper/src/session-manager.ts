@@ -1,6 +1,6 @@
 import { EventEmitter } from 'node:events';
 import { resolve, join } from 'node:path';
-import { mkdir, writeFile, appendFile } from 'node:fs/promises';
+import { mkdir, writeFile, readFile, appendFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import type { Logger } from 'pino';
 
@@ -82,6 +82,9 @@ export class SessionManager extends EventEmitter<SessionManagerEventMap> {
       pid: null,
       started_at: new Date().toISOString(),
     };
+
+    // Pre-trust the worktree directory so Claude Code skips the interactive trust dialog
+    await this.preTrustDirectory(worktreePath);
 
     // Spawn captain
     const captain = await spawnCaptain({
@@ -419,6 +422,27 @@ export class SessionManager extends EventEmitter<SessionManagerEventMap> {
 
   private emitEvent(sessionId: string, event: WsServerEvent): void {
     this.emit('event', sessionId, event);
+  }
+
+  private async preTrustDirectory(dirPath: string): Promise<void> {
+    const configPath = join(homedir(), '.claude.json');
+    let config: Record<string, unknown> = {};
+    try {
+      const raw = await readFile(configPath, 'utf-8');
+      config = JSON.parse(raw) as Record<string, unknown>;
+    } catch {
+      // File doesn't exist or isn't valid JSON — start fresh
+    }
+
+    const projects = (config['projects'] ?? {}) as Record<string, Record<string, unknown>>;
+    const entry = projects[dirPath] ?? {};
+    entry['hasTrustDialogAccepted'] = true;
+    entry['hasTrustDialogHooksAccepted'] = true;
+    projects[dirPath] = entry;
+    config['projects'] = projects;
+
+    await writeFile(configPath, JSON.stringify(config, null, 2));
+    this.log.debug({ dirPath }, 'Pre-trusted worktree directory in ~/.claude.json');
   }
 
   private async writeNotification(
