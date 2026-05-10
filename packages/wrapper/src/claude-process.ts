@@ -84,6 +84,7 @@ export async function spawnCaptain(options: SpawnCaptainOptions): Promise<Captai
 
   const ptyProcess = pty.spawn(claudeBin, [
     '--append-system-prompt', captainPrompt,
+    '--dangerously-skip-permissions',
   ], {
     name: 'xterm-256color',
     cols,
