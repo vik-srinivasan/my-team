@@ -79,4 +79,4 @@
 - [x] @engineer Vercel preview deploy from `apps/landing/`. Preview: https://landing-bxisplu5f-vikr4m-5448s-projects.vercel.app
 
 ### Git
-- [ ] @git Push to PR #8. Brief comment with the new preview URL.
+- [x] @git Push to PR #8. Brief comment with the new preview URL.

@@ -136,3 +136,10 @@ Tests: pnpm exec vitest run apps/landing — 21/21 passed (10 Architecture tests
 Commit: 58b5a44 refactor(landing): per-agent return curves + trim infra to CLI→wrapper→.team/
 Preview URL: https://landing-bxisplu5f-vikr4m-5448s-projects.vercel.app
 Visual change: Removed the Web UI box from the infra strip — final boot path is CLI → Wrapper daemon → ~/team/sessions/<id>/, three boxes only. Those three boxes now use Captain's accent-blue stroke (#0e7490) so the boot path visually belongs to the same family as the orchestrator. Replaced the single right-side artifact arc with five dim dashed return curves, one per sub-agent. Dispatch curves leave Captain's bottom edge from a tight 120px inner band; return curves arrive at a wider 220px outer band — the two families bow apart through the middle of the gap so they read as parallel rather than tangled.
+
+## 2026-05-10T23:55:00Z — git
+Action: Pushed branch and added PR #8 comment
+Commits: 58b5a44 (refactor: per-agent return curves + trim infra), d6b6617 (chore: update round 4 tracking files)
+PR: https://github.com/vik-srinivasan/my-team/pull/8
+Comment: https://github.com/vik-srinivasan/my-team/pull/8#issuecomment-4416632945
+Status: All round-4 changes pushed to origin/my-team/clear-ash-84. PR #8 now includes per-agent return curves, Web UI removal, infra accent-blue styling, and updated tracking files. Fast path — tester/reviewer not run. Ready to merge.
