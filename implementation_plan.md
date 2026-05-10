@@ -454,12 +454,213 @@ When this plan and `SPEC.md` conflict, `SPEC.md` wins. Update this plan to match
 
 ---
 
-## Phase 4 — Polish
+## Phase 4 — Ship It
 
-### Stage 4.1 — Error Messaging & Recovery
-### Stage 4.2 — Notification Surface for Blocked Sessions
-### Stage 4.3 — README, Demo, Final Cleanup
-### Stage 4.4 — Final Push
+**Goal**: Fix every gap that would prevent a user from cloning this repo, installing, running `team new "title"` in a different repo, and having the full orchestrator work end-to-end.
+
+### Stage 4.1 — Captain Task Tool Dispatch (CRITICAL)
+
+**Problem**: The captain prompt says "dispatch scout" but never shows the actual Claude Code Task tool syntax. The captain won't know how to invoke subagents.
+
+**Deliverable**: Updated `agent-prompts/captain.md` with explicit Task tool invocation examples.
+
+**Steps**:
+1. Add a `## How to dispatch specialists` section to captain.md with:
+   - The exact Task tool syntax Claude Code expects: `subagent_type` must match the agent filename (e.g., `"scout"` maps to `.claude/agents/scout.md`)
+   - A concrete example showing how to dispatch scout with instructions
+   - A concrete example showing parallel dispatch (multiple Task calls in one message)
+2. Ensure agent names in the prompt exactly match the filenames in `agent-prompts/` (scout, engineer, tester, reviewer, git)
+3. Verify each specialist prompt has a `description` field in its YAML frontmatter that Claude Code can display
+
+**Acceptance**: Captain prompt contains unambiguous Task tool dispatch instructions that Claude Code can act on.
+
+**Commit**: `fix(prompts): add explicit Task tool dispatch syntax to captain`
+
+---
+
+### Stage 4.2 — Live Diff Events
+
+**Problem**: Wrapper only serves diffs on HTTP GET. Spec says diffs should stream over WebSocket, debounced at 500ms.
+
+**Deliverable**: Session manager emits `diff` WsServerEvents when files change in the worktree.
+
+**Steps**:
+1. In `session-manager.ts`, add a diff polling mechanism:
+   - When any team file changes (file watcher fires), schedule a debounced diff recalculation (500ms)
+   - Run `git diff source_branch...HEAD` and compare with last emitted diff
+   - If changed, emit `{ type: 'diff', diff }` WsServerEvent
+2. Store the last emitted diff per session to avoid sending duplicates
+3. Test: modify a file in a test worktree, verify diff event is emitted after debounce
+
+**Acceptance**: UI receives live diff updates without polling.
+
+**Commit**: `feat(wrapper): emit live diff events over WebSocket with 500ms debounce`
+
+---
+
+### Stage 4.3 — Auto-Cleanup on Done
+
+**Problem**: Spec section 6 says wrapper should auto-archive and remove worktree when phase hits `done`, after a grace period. Currently sessions stay in memory forever.
+
+**Deliverable**: Session manager reacts to `done` phase transition by archiving and cleaning up.
+
+**Steps**:
+1. In the state.json watcher (session-manager.ts), detect transition to `done`
+2. After a 30-second grace period (to let the user see the final state):
+   - Run `archiveSession(id)` to save `.team/` to `~/team/archives/<id>/`
+   - Run worktree removal
+   - Remove session from in-memory registry
+   - Emit a final state event with phase `cleaned`
+3. If the captain process is still running when `done` fires, wait for it to exit first
+4. Test: write state.json with `done` phase, verify archive created and session cleaned after grace period
+
+**Acceptance**: Done sessions auto-clean. User can still find archived `.team/` files at `~/team/archives/<id>/`.
+
+**Commit**: `feat(wrapper): auto-archive and cleanup on done state`
+
+---
+
+### Stage 4.4 — Global CLI Installation
+
+**Problem**: Users have to run `node packages/cli/dist/index.js` instead of `team`. Need proper global installation.
+
+**Deliverable**: `team` command works globally after install.
+
+**Steps**:
+1. Add shebang `#!/usr/bin/env node` to `packages/cli/src/index.ts` (must survive compilation)
+2. Ensure `packages/cli/package.json` has correct `"bin": { "team": "./dist/index.js" }`
+3. Add a root-level `setup.sh` script that:
+   - Runs `pnpm install && pnpm -r build`
+   - Runs `pnpm link --global --filter @viktown/cli` to make `team` available globally
+   - Verifies `team --help` works
+4. Test: run setup.sh, then run `team list` from a random directory — should connect to wrapper
+
+**Acceptance**: After running `setup.sh`, `team` is available globally in any terminal.
+
+**Commit**: `feat(cli): global installation via pnpm link`
+
+---
+
+### Stage 4.5 — Notification Surface
+
+**Problem**: Wrapper writes `~/team/notifications/<id>.json` when sessions block, but nothing reads them.
+
+**Deliverable**: Notifications endpoint in wrapper + notification display in UI + CLI notification check.
+
+**Steps**:
+1. **Wrapper**: Add `GET /api/notifications` endpoint:
+   - Reads `~/team/notifications/*.json`
+   - Returns array of notification objects sorted by timestamp (newest first)
+   - Add `DELETE /api/notifications/:id` to dismiss
+2. **UI**: Add `NotificationBanner.tsx` component:
+   - Polls `/api/notifications` every 10s
+   - Shows a dismissible banner at the top of the screen for each blocked session
+   - Banner includes session title, reason, and a "Go to session" button that selects it
+   - Amber/warning color to match the `blocked` phase badge
+3. **CLI**: Add `team notifications` command:
+   - Lists all pending notifications with session ID, title, and reason
+   - `team notifications --clear` removes all notification files
+4. Add notification API routes, wire UI component into App.tsx
+
+**Acceptance**: When a session blocks, user sees it in both UI (banner) and CLI (`team notifications`).
+
+**Commit**: `feat: notification surface for blocked sessions (API + UI + CLI)`
+
+---
+
+### Stage 4.6 — Diff Panel: File Tree + Side-by-Side
+
+**Problem**: Spec section 9.4 says "file list with M/A/D indicators, click to focus" and "side-by-side diff". Currently just colored text.
+
+**Deliverable**: DiffPanel with file tree and per-file diff view.
+
+**Steps**:
+1. Parse the unified diff string to extract individual files with their status (M/A/D) and hunks
+2. Create a `DiffFileTree.tsx` component:
+   - Lists changed files with status badges (green A, yellow M, red D)
+   - Click a file to focus its diff below
+   - Highlight the selected file
+3. Update `DiffPanel.tsx`:
+   - Top section: file tree
+   - Bottom section: focused file's diff with +/- coloring (keep current coloring approach, just scoped to one file)
+   - When no file is selected, show full diff
+4. Install `react-diff-viewer-continued` if side-by-side is feasible without excessive bundle size, otherwise keep the current inline diff but scoped per file
+
+**Acceptance**: User can see which files changed (M/A/D), click one, and see its diff. Works with live WebSocket updates.
+
+**Commit**: `feat(ui): diff panel with file tree and per-file view`
+
+---
+
+### Stage 4.7 — Error Messaging & Recovery
+
+**Problem**: CLI doesn't gracefully handle wrapper-not-running, bad session IDs, network errors, etc. Wrapper returns raw errors.
+
+**Deliverable**: Structured error handling throughout CLI and wrapper.
+
+**Steps**:
+1. **CLI**: Improve error messages in `api-client.ts`:
+   - Connection refused → "Wrapper not running. Start it with: team start"
+   - 404 → "Session '<id>' not found. Run 'team list' to see active sessions."
+   - 409 → "Session '<id>' is still active. Kill it first with: team kill <id>"
+   - Timeout → "Wrapper not responding. Check if it's running."
+2. **CLI**: Add `--json` flag to all commands for scriptable output
+3. **Wrapper**: Ensure all error responses use the `ErrorResponse` type from shared types
+4. **Wrapper**: Handle captain process crashes gracefully — set phase to `blocked` with reason "Captain process crashed"
+5. Test error paths: bad session ID, wrapper not running, active session operations
+
+**Acceptance**: Every CLI error produces a helpful, actionable message. No raw stack traces shown to users.
+
+**Commit**: `fix: structured error handling across CLI and wrapper`
+
+---
+
+### Stage 4.8 — README & Setup Guide
+
+**Problem**: README shows `node packages/cli/dist/index.js` paths. Needs real install/usage instructions for someone who wants to use this on their own repo.
+
+**Deliverable**: README that takes a user from clone to running `team new` in their own project.
+
+**Steps**:
+1. Rewrite README with sections:
+   - **What is Viktown**: 2-sentence overview
+   - **Prerequisites**: Node 22+, pnpm 11+, `claude` CLI authenticated, `gh` CLI authenticated
+   - **Install**: `git clone`, `./setup.sh` (from stage 4.4), verify with `team --help`
+   - **Quick start**: `team start` in one terminal, `team new "title"` in another (from inside any git repo), open `http://localhost:3001` for web UI
+   - **Commands**: table of all `team` commands with one-line descriptions
+   - **How it works**: brief description of the captain→specialist flow, link to SPEC.md for details
+   - **Web UI**: screenshot placeholder, description of three-column layout
+   - **Architecture**: package overview (keep existing, clean up)
+2. Remove all `node packages/cli/dist/index.js` paths — everything should use `team` command
+3. Add a `CONTRIBUTING.md` or dev section for developing viktown itself
+
+**Acceptance**: A developer can follow the README from scratch and have `team` working in under 5 minutes.
+
+**Commit**: `docs: rewrite README with install and quick start guide`
+
+---
+
+### Stage 4.9 — End-to-End Smoke Test & Push
+
+**Deliverable**: Verify the full flow works, push Phase 4.
+
+**Steps**:
+1. From a test repo, run the full flow:
+   - `team start` — wrapper starts
+   - `team new "Add hello world endpoint"` — session created, captain starts chatting
+   - Verify captain dispatches scout via Task tool
+   - Verify captain plans and asks for approval
+   - Verify UI shows session at `http://localhost:3001`
+   - Approve plan, verify engineers dispatch
+   - Check `team notifications` works
+   - Check `team list`, `team status`, `team logs` all work
+2. Fix any issues found during smoke test
+3. All tasks checked off in tasks.md
+4. Final push
+
+**Acceptance**: Full end-to-end flow works from `team new` to PR opened.
+
+**Commit**: `chore: Phase 4 complete — full orchestrator ready`
 
 ---
 
