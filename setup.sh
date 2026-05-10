@@ -60,6 +60,10 @@ fi
 
 ln -sf "$CLI_ENTRY" "$LINK_DIR/team"
 
+# Fix node-pty spawn-helper permissions (pnpm may strip +x on install)
+SPAWN_HELPER="$(cd "$(dirname "$0")" && pwd)/node_modules/.pnpm/node-pty@*/node_modules/node-pty/prebuilds/darwin-arm64/spawn-helper"
+chmod +x $SPAWN_HELPER 2>/dev/null || true
+
 # Create required directories
 mkdir -p ~/team/sessions ~/team/archives ~/team/notifications
 
