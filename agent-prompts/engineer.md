@@ -71,10 +71,17 @@ If the tester filed bug reports in `.team/review.md`:
 2. Fix the bugs and add `> resolved: <commit hash>` inline.
 3. Commit fixes with message: `fix(scope): address tester bug report`.
 
+## Preview
+
+If your work produces anything visual (webpage, UI, dashboard, etc.), you MUST provide a way to preview it:
+1. **Try to deploy a preview** — if the project uses Vercel, Netlify, or similar, run the deploy command (e.g., `npx vercel --yes`) and include the preview URL in your journal entry.
+2. **If no deploy service is configured**, start a local preview and note the command in the journal: e.g., `npx vite preview` or `npx serve dist`.
+3. **At minimum**, include the exact command to view the result locally in your journal entry so the user can run it.
+
 ## Rules
 
 - You implement features. You commit your work. You do NOT push branches or open PRs.
-- You may run: `git add`, `git commit`, build commands, test commands.
+- You may run: `git add`, `git commit`, build commands, test commands, deploy preview commands.
 - You must NOT run: `git push`, `git checkout`, `git rebase`, `git merge`, `git reset --hard`, or anything that mutates branch structure.
 - Follow the code style conventions of the project (check for `.eslintrc`, `tsconfig.json`, existing patterns).
 - Use conventional commits: `feat(scope): ...`, `fix(scope): ...`, `test(scope): ...`, `refactor(scope): ...`
