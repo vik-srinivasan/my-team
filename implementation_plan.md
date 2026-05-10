@@ -1,4 +1,4 @@
-# Viktown — Implementation Plan
+# my-team — Implementation Plan
 
 This document is the authoritative build plan derived from `SPEC.md`, which is the source of truth for all architecture, data model, and behavioral decisions. Every stage has a clear deliverable and acceptance criteria. Tasks are tracked in `tasks.md`. Commits happen after every major stage; pushes happen after every phase.
 
@@ -43,10 +43,10 @@ When this plan and `SPEC.md` conflict, `SPEC.md` wins. Update this plan to match
 5. Define `TeamFiles` type (contents of all `.team/` files)
 6. Define WebSocket event types: `WsServerEvent` (output, state, team_file, diff, specialist) and `WsClientEvent` (input)
 7. Define HTTP request/response types for each API endpoint
-8. Define `ViktownError` base error class in `packages/shared/src/errors.ts`
+8. Define `MyTeamError` base error class in `packages/shared/src/errors.ts`
 9. Export everything from `packages/shared/src/index.ts`
 
-**Acceptance**: Types compile, are importable from `@viktown/shared` in wrapper and cli packages.
+**Acceptance**: Types compile, are importable from `@my-team/shared` in wrapper and cli packages.
 
 **Commit**: `feat(shared): define core types for sessions, state, events, and errors`
 
@@ -78,13 +78,13 @@ When this plan and `SPEC.md` conflict, `SPEC.md` wins. Update this plan to match
    - Resolves source repo root via `git rev-parse --show-toplevel`
    - Detects default branch via `git symbolic-ref refs/remotes/origin/HEAD` (fallback: `main`)
    - Creates `~/team/sessions/<sessionId>/` directory
-   - Runs `git worktree add ~/team/sessions/<sessionId> -b viktown/<sessionId>` from source repo
+   - Runs `git worktree add ~/team/sessions/<sessionId> -b my-team/<sessionId>` from source repo
    - Initializes `.team/` directory with empty files and `meta.json` + initial `state.json`
    - Copies agent prompts: global `~/.claude/agents/*.md`, then source repo `.claude/agents/*.md` (overrides), into worktree `.claude/agents/`
    - Returns worktree path
 3. `removeWorktree(sourceRepo: string, sessionId: string)`:
    - Runs `git worktree remove ~/team/sessions/<sessionId>`
-   - Cleans up branch `viktown/<sessionId>`
+   - Cleans up branch `my-team/<sessionId>`
 4. `archiveSession(sessionId: string)`:
    - Copies `.team/` to `~/team/archives/<sessionId>/`
 5. Unit tests: mock `simple-git`, verify correct commands issued, verify `.team/` structure
@@ -178,7 +178,7 @@ When this plan and `SPEC.md` conflict, `SPEC.md` wins. Update this plan to match
    - `GET /api/sessions/:id/diff` — runs `git diff` and returns result
    - `GET /api/sessions/:id/team` — returns all `.team/` file contents
    - `GET /api/sessions/:id/team/:file` — returns single `.team/` file
-4. Structured error responses using `ViktownError`
+4. Structured error responses using `MyTeamError`
 5. Integration tests with `supertest`: test each endpoint with mocked session manager
 
 **Acceptance**: All endpoint tests pass. Error cases return proper status codes.
@@ -531,7 +531,7 @@ When this plan and `SPEC.md` conflict, `SPEC.md` wins. Update this plan to match
 2. Ensure `packages/cli/package.json` has correct `"bin": { "team": "./dist/index.js" }`
 3. Add a root-level `setup.sh` script that:
    - Runs `pnpm install && pnpm -r build`
-   - Runs `pnpm link --global --filter @viktown/cli` to make `team` available globally
+   - Runs `pnpm link --global --filter @my-team/cli` to make `team` available globally
    - Verifies `team --help` works
 4. Test: run setup.sh, then run `team list` from a random directory — should connect to wrapper
 
@@ -623,7 +623,7 @@ When this plan and `SPEC.md` conflict, `SPEC.md` wins. Update this plan to match
 
 **Steps**:
 1. Rewrite README with sections:
-   - **What is Viktown**: 2-sentence overview
+   - **What is my-team**: 2-sentence overview
    - **Prerequisites**: Node 22+, pnpm 11+, `claude` CLI authenticated, `gh` CLI authenticated
    - **Install**: `git clone`, `./setup.sh` (from stage 4.4), verify with `team --help`
    - **Quick start**: `team start` in one terminal, `team new "title"` in another (from inside any git repo), open `http://localhost:3001` for web UI
@@ -632,7 +632,7 @@ When this plan and `SPEC.md` conflict, `SPEC.md` wins. Update this plan to match
    - **Web UI**: screenshot placeholder, description of three-column layout
    - **Architecture**: package overview (keep existing, clean up)
 2. Remove all `node packages/cli/dist/index.js` paths — everything should use `team` command
-3. Add a `CONTRIBUTING.md` or dev section for developing viktown itself
+3. Add a `CONTRIBUTING.md` or dev section for developing my-team itself
 
 **Acceptance**: A developer can follow the README from scratch and have `team` working in under 5 minutes.
 

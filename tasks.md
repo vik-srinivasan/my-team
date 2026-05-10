@@ -1,4 +1,4 @@
-# Viktown — Build Tasks
+# my-team — Build Tasks
 
 Checked off as completed. See `implementation_plan.md` for detailed steps.
 
