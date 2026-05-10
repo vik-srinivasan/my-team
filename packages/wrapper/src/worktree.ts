@@ -1,5 +1,6 @@
 import { homedir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { mkdir, writeFile, readdir, copyFile, cp, realpath } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { simpleGit } from 'simple-git';
@@ -7,9 +8,11 @@ import { simpleGit } from 'simple-git';
 import type { SessionMeta, SessionState } from '@viktown/shared';
 import { NotAGitRepoError, WorktreeError } from '@viktown/shared';
 
+const __dirname = dirname(fileURLToPath(import.meta.url));
 const SESSIONS_DIR = join(homedir(), 'team', 'sessions');
 const ARCHIVES_DIR = join(homedir(), 'team', 'archives');
 const GLOBAL_AGENTS_DIR = join(homedir(), '.claude', 'agents');
+const VIKTOWN_AGENTS_DIR = resolve(__dirname, '..', '..', '..', 'agent-prompts');
 
 export async function resolveRepoRoot(path: string): Promise<string> {
   const resolved = await realpath(path);
@@ -111,6 +114,20 @@ export async function createWorktree(
   return { worktreePath, meta };
 }
 
+async function copyMdFiles(srcDir: string, destDir: string): Promise<void> {
+  if (!existsSync(srcDir)) return;
+  try {
+    const files = await readdir(srcDir);
+    for (const file of files) {
+      if (file.endsWith('.md')) {
+        await copyFile(join(srcDir, file), join(destDir, file));
+      }
+    }
+  } catch {
+    // Directory might not exist or be unreadable — that's fine
+  }
+}
+
 async function copyAgentPrompts(
   worktreePath: string,
   sourceRepo: string,
@@ -118,34 +135,10 @@ async function copyAgentPrompts(
   const destDir = join(worktreePath, '.claude', 'agents');
   await mkdir(destDir, { recursive: true });
 
-  // Copy global agents first
-  if (existsSync(GLOBAL_AGENTS_DIR)) {
-    try {
-      const files = await readdir(GLOBAL_AGENTS_DIR);
-      for (const file of files) {
-        if (file.endsWith('.md')) {
-          await copyFile(join(GLOBAL_AGENTS_DIR, file), join(destDir, file));
-        }
-      }
-    } catch {
-      // Global agents dir might not exist or be unreadable — that's fine
-    }
-  }
-
-  // Override with source repo agents
-  const repoAgentsDir = join(sourceRepo, '.claude', 'agents');
-  if (existsSync(repoAgentsDir)) {
-    try {
-      const files = await readdir(repoAgentsDir);
-      for (const file of files) {
-        if (file.endsWith('.md')) {
-          await copyFile(join(repoAgentsDir, file), join(destDir, file));
-        }
-      }
-    } catch {
-      // Repo agents dir might not exist or be unreadable — that's fine
-    }
-  }
+  // Priority order (last wins): Viktown built-in → global → source repo
+  await copyMdFiles(VIKTOWN_AGENTS_DIR, destDir);
+  await copyMdFiles(GLOBAL_AGENTS_DIR, destDir);
+  await copyMdFiles(join(sourceRepo, '.claude', 'agents'), destDir);
 }
 
 export async function removeWorktree(
