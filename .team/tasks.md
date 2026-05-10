@@ -14,4 +14,4 @@
 - [x] @reviewer Confirm `purge.ts` matches the conventions of `kill.ts` / `clean.ts`, help text additions are accurate, and README table covers every command in `index.ts`.
 
 ## Git
-- [ ] @git Push branch `my-team/gold-dew-22` and open a PR titled "feat(cli): add `team purge` command and refresh help text".
+- [x] @git Push branch `my-team/gold-dew-22` and open a PR titled "feat(cli): add `team purge` command and refresh help text".
