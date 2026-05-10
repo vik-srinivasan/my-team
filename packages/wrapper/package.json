@@ -1,5 +1,5 @@
 {
-  "name": "@viktown/wrapper",
+  "name": "@my-team/wrapper",
   "version": "0.1.0",
   "type": "module",
   "main": "./dist/index.js",
@@ -10,7 +10,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@viktown/shared": "workspace:*",
+    "@my-team/shared": "workspace:*",
     "chokidar": "^5.0.0",
     "express": "^5.2.1",
     "node-pty": "^1.1.0",
