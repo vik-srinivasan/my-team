@@ -1,0 +1,10 @@
+{
+  "name": "@viktown/ui",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "build": "echo 'UI build skipped — Phase 3'",
+    "test": "echo 'UI tests skipped — Phase 3'"
+  }
+}
