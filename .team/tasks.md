@@ -16,10 +16,10 @@
 - [x] @engineer In `packages/ui/src/hooks/useWebSocket.ts`: drop `team_file` and `diff` event handlers. Leave `output`, `state`, `specialist`, `remote_url` intact.
 
 ### Layout + components
-- [ ] @engineer Rewrite `packages/ui/src/App.tsx` into a two-column layout: sidebar (~320px) + main pane (flex-1). Drop the right column entirely. Header bar simplified to title + remoteUrl link.
+- [x] @engineer Rewrite `packages/ui/src/App.tsx` into a two-column layout: sidebar (~320px) + main pane (flex-1). Drop the right column entirely. Header bar simplified to title + remoteUrl link.
 - [ ] @engineer Rework `packages/ui/src/components/SessionList.tsx`: wider rows (~320px), show title + phase label + age (from `last_checkpoint`), critical badge with icon + tooltip reason, unread dot. Sort: critical -> hasUpdate -> recency.
-- [ ] @engineer Rename `packages/ui/src/components/Chat.tsx` -> `OutputLog.tsx`. Remove input box, draft state, send button. Keep streaming markdown messages, auto-scroll, approve button (when `phase === 'awaiting_approval'`). Update `App.tsx` import.
-- [ ] @engineer Delete `packages/ui/src/components/RightPanel.tsx` and any imports/references to it.
+- [x] @engineer Rename `packages/ui/src/components/Chat.tsx` -> `OutputLog.tsx`. Remove input box, draft state, send button. Keep streaming markdown messages, auto-scroll, approve button (when `phase === 'awaiting_approval'`). Update `App.tsx` import.
+- [x] @engineer Delete `packages/ui/src/components/RightPanel.tsx` and any imports/references to it.
 - [ ] @engineer Update `packages/ui/src/dev-seed.ts` with 4-5 mock sessions across varied phases (executing, awaiting_approval, blocked, done) and simulate `last_checkpoint` so unread/critical badges are exercisable.
 
 ## Testing
