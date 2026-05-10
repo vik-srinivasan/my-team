@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/store.ts","./src/components/agentlist.tsx","./src/components/chat.tsx","./src/components/diffpanel.tsx","./src/components/newsessionmodal.tsx","./src/components/sessionlist.tsx","./src/components/teamartifactpanel.tsx"],"version":"5.9.3"}
