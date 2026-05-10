@@ -12,7 +12,7 @@
 
 ### Store / data plumbing
 - [x] @engineer In `packages/ui/src/store.ts`: remove `teamFiles`, `diff`, `rightTab` slices. Add `lastViewed: Record<string,string>` with `markViewed(id)` action. Persist `lastViewed` to `localStorage` under `viktown.lastViewed.v1` (load on store init, save on update).
-- [ ] @engineer In `packages/ui/src/hooks/useSession.ts`: drop diff fetching and team-files syncing. Call `markViewed(selectedSessionId)` whenever a session is selected.
+- [x] @engineer In `packages/ui/src/hooks/useSession.ts`: drop diff fetching and team-files syncing. Call `markViewed(selectedSessionId)` whenever a session is selected.
 - [ ] @engineer In `packages/ui/src/hooks/useWebSocket.ts`: drop `team_file` and `diff` event handlers. Leave `output`, `state`, `specialist`, `remote_url` intact.
 
 ### Layout + components
