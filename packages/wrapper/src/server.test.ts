@@ -170,8 +170,8 @@ describe('HTTP API integration', () => {
       JSON.stringify(stateWithSpecialist, null, 2),
     );
 
-    // Wait for chokidar debounce
-    await new Promise((resolve) => setTimeout(resolve, 600));
+    // Wait for chokidar debounce + diff debounce
+    await new Promise((resolve) => setTimeout(resolve, 1000));
 
     // Should have specialist started + state event
     const specialistEvents = events.filter((e) => e.type === 'specialist');

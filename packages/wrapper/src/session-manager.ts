@@ -1,6 +1,6 @@
 import { EventEmitter } from 'node:events';
 import { resolve, join } from 'node:path';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, writeFile, appendFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import type { Logger } from 'pino';
 
@@ -160,6 +160,11 @@ export class SessionManager extends EventEmitter<SessionManagerEventMap> {
               this.writeNotification(sessionId, managed.session.meta.title, newState.blockers);
             }
 
+            // Handle done state — auto-cleanup after grace period
+            if (oldState.phase !== 'done' && newState.phase === 'done') {
+              this.scheduleCleanup(sessionId);
+            }
+
             managed.session.state = newState;
             this.emitEvent(sessionId, { type: 'state', state: newState });
           }
@@ -248,9 +253,25 @@ export class SessionManager extends EventEmitter<SessionManagerEventMap> {
       managed.watcher = null;
     }
 
-    // Update state
+    // Update state in memory
     managed.session.state.phase = 'killed';
     managed.session.pid = null;
+
+    // Persist killed state to disk
+    const teamDir = join(managed.session.worktree_path, '.team');
+    const timestamp = new Date().toISOString();
+    try {
+      await writeFile(
+        join(teamDir, 'state.json'),
+        JSON.stringify({ ...managed.session.state }, null, 2),
+      );
+      await appendFile(
+        join(teamDir, 'journal.md'),
+        `\n## ${timestamp} — wrapper\nSession killed by user.\n`,
+      );
+    } catch (err) {
+      this.log.warn({ id, err }, 'Failed to persist killed state to disk');
+    }
   }
 
   async cleanSession(id: string): Promise<void> {
@@ -321,6 +342,33 @@ export class SessionManager extends EventEmitter<SessionManagerEventMap> {
     }
     await Promise.all(promises);
     this.sessions.clear();
+  }
+
+  private scheduleCleanup(sessionId: string): void {
+    const GRACE_PERIOD = 30_000; // 30 seconds
+    this.log.info({ sessionId, gracePeriodMs: GRACE_PERIOD }, 'Scheduling auto-cleanup for done session');
+
+    setTimeout(async () => {
+      const managed = this.sessions.get(sessionId);
+      if (!managed) return;
+
+      // Wait for captain to exit if still running
+      if (managed.captain?.running) {
+        this.log.info({ sessionId }, 'Waiting for captain to exit before cleanup');
+        await new Promise<void>((resolve) => {
+          managed.captain!.on('exit', () => resolve());
+          // Safety timeout — don't wait forever
+          setTimeout(resolve, 10_000);
+        });
+      }
+
+      try {
+        await this.cleanSession(sessionId);
+        this.log.info({ sessionId }, 'Auto-cleanup completed for done session');
+      } catch (err) {
+        this.log.error({ sessionId, err }, 'Auto-cleanup failed');
+      }
+    }, GRACE_PERIOD);
   }
 
   private flushOutput(sessionId: string): void {
