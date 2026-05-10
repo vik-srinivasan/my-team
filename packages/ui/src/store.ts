@@ -6,7 +6,7 @@ import type {
   SessionPhase,
 } from '@viktown/shared';
 
-export type RightTab = 'diff' | 'plan' | 'tasks' | 'review' | 'journal' | 'decisions';
+import { loadLastViewed, persistLastViewed } from './lib/last-viewed.js';
 
 export interface ChatMessage {
   id: string;
@@ -30,28 +30,19 @@ export interface SessionStore {
   sessionState: SessionState | null;
   setSessionState: (state: SessionState) => void;
 
-  // Chat messages (for selected session)
+  // Captain output messages (for selected session)
   messages: ChatMessage[];
   addMessage: (msg: ChatMessage) => void;
   appendToMessage: (id: string, text: string) => void;
   clearMessages: () => void;
 
-  // Team files (for selected session)
-  teamFiles: Record<string, string>;
-  setTeamFile: (file: string, content: string) => void;
-  setTeamFiles: (files: Record<string, string>) => void;
-
-  // Diff (for selected session)
-  diff: string;
-  setDiff: (diff: string) => void;
-
-  // Right column tab
-  rightTab: RightTab;
-  setRightTab: (tab: RightTab) => void;
-
   // Remote control URL
   remoteUrl: string | null;
   setRemoteUrl: (url: string) => void;
+
+  // Last-viewed timestamps per session, persisted to localStorage.
+  lastViewed: Record<string, string>;
+  markViewed: (id: string) => void;
 }
 
 export const useSessionStore = create<SessionStore>((set) => ({
@@ -71,8 +62,6 @@ export const useSessionStore = create<SessionStore>((set) => ({
     set({
       selectedSessionId: id,
       messages: [],
-      teamFiles: {},
-      diff: '',
       sessionState: null,
       remoteUrl: null,
     }),
@@ -83,7 +72,13 @@ export const useSessionStore = create<SessionStore>((set) => ({
       // Also update the session list entry
       const sessions = s.sessions.map((sess) =>
         sess.id === s.selectedSessionId
-          ? { ...sess, phase: state.phase, active_specialist: state.active_specialist }
+          ? {
+              ...sess,
+              phase: state.phase,
+              active_specialist: state.active_specialist,
+              last_checkpoint: state.last_checkpoint,
+              must_ask_count: state.must_ask_pending.length,
+            }
           : sess,
       );
       return { sessionState: state, sessions };
@@ -99,17 +94,14 @@ export const useSessionStore = create<SessionStore>((set) => ({
     })),
   clearMessages: () => set({ messages: [] }),
 
-  teamFiles: {},
-  setTeamFile: (file, content) =>
-    set((s) => ({ teamFiles: { ...s.teamFiles, [file]: content } })),
-  setTeamFiles: (files) => set({ teamFiles: files }),
-
-  diff: '',
-  setDiff: (diff) => set({ diff }),
-
-  rightTab: 'diff',
-  setRightTab: (tab) => set({ rightTab: tab }),
-
   remoteUrl: null,
   setRemoteUrl: (url) => set({ remoteUrl: url }),
+
+  lastViewed: loadLastViewed(),
+  markViewed: (id) =>
+    set((s) => {
+      const next = { ...s.lastViewed, [id]: new Date().toISOString() };
+      persistLastViewed(next);
+      return { lastViewed: next };
+    }),
 }));

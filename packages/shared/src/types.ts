@@ -136,6 +136,8 @@ export interface SessionSummary {
   phase: SessionPhase;
   active_specialist: string | null;
   created_at: string;
+  last_checkpoint: string;
+  must_ask_count: number;
 }
 
 export interface SessionDetail extends Session {

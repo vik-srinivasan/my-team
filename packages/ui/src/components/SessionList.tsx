@@ -1,25 +1,17 @@
-import { useState } from 'react';
-import { Plus } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { Plus, AlertCircle } from 'lucide-react';
 
+import type { SessionSummary } from '@viktown/shared';
 import { useSessionStore } from '../store.js';
 import { NewSessionModal } from './NewSessionModal.js';
 import { api } from '../api.js';
-
-const PHASE_DOT: Record<string, string> = {
-  created: 'bg-zinc-400',
-  scouting: 'bg-cyan-400',
-  planning: 'bg-cyan-400',
-  awaiting_approval: 'bg-amber-400 animate-pulse',
-  executing: 'bg-blue-400 animate-pulse',
-  reviewing: 'bg-purple-400 animate-pulse',
-  done: 'bg-green-400',
-  blocked: 'bg-red-400 animate-pulse',
-  killed: 'bg-zinc-500',
-  cleaned: 'bg-zinc-600',
-};
+import { phaseDot, phaseLabel } from '../lib/phase.js';
+import { getAttention, type Attention } from '../lib/attention.js';
 
 function timeAgo(iso: string): string {
+  if (!iso) return '';
   const ms = Date.now() - new Date(iso).getTime();
+  if (Number.isNaN(ms)) return '';
   const mins = Math.floor(ms / 60000);
   if (mins < 1) return 'now';
   if (mins < 60) return `${mins}m`;
@@ -28,22 +20,55 @@ function timeAgo(iso: string): string {
   return `${Math.floor(hrs / 24)}d`;
 }
 
+interface DecoratedSession {
+  session: SessionSummary;
+  attention: Attention;
+}
+
+/** Sort: critical first, then unread updates, then most recent activity. */
+function sortSessions(decorated: DecoratedSession[]): DecoratedSession[] {
+  return [...decorated].sort((a, b) => {
+    if (a.attention.critical !== b.attention.critical) {
+      return a.attention.critical ? -1 : 1;
+    }
+    if (a.attention.hasUpdate !== b.attention.hasUpdate) {
+      return a.attention.hasUpdate ? -1 : 1;
+    }
+    // Recency: most recent activity first. Fall back to created_at.
+    const aTime = a.session.last_checkpoint || a.session.created_at;
+    const bTime = b.session.last_checkpoint || b.session.created_at;
+    return bTime.localeCompare(aTime);
+  });
+}
+
 export function SessionList() {
   const sessions = useSessionStore((s) => s.sessions);
   const selectedId = useSessionStore((s) => s.selectedSessionId);
   const selectSession = useSessionStore((s) => s.selectSession);
   const addSession = useSessionStore((s) => s.addSession);
+  const lastViewed = useSessionStore((s) => s.lastViewed);
   const [modalOpen, setModalOpen] = useState(false);
+
+  const decorated = useMemo<DecoratedSession[]>(() => {
+    const annotated = sessions.map((session) => ({
+      session,
+      attention: getAttention(session, lastViewed),
+    }));
+    return sortSessions(annotated);
+  }, [sessions, lastViewed]);
 
   const handleCreate = async (sourceRepo: string, title: string) => {
     const created = await api.sessions.create({ source_repo: sourceRepo, title });
+    const now = new Date().toISOString();
     addSession({
       id: created.id,
       title,
       source_repo: sourceRepo,
       phase: created.phase,
       active_specialist: null,
-      created_at: new Date().toISOString(),
+      created_at: now,
+      last_checkpoint: now,
+      must_ask_count: 0,
     });
     selectSession(created.id);
   };
@@ -63,32 +88,53 @@ export function SessionList() {
         </button>
       </div>
       <div className="flex-1 overflow-y-auto">
-        {sessions.length === 0 ? (
+        {decorated.length === 0 ? (
           <p className="px-3 py-4 text-xs text-zinc-600">No sessions yet</p>
         ) : (
-          sessions.map((s) => (
-            <button
-              key={s.id}
-              onClick={() => selectSession(s.id)}
-              className={`w-full px-3 py-2 text-left transition-colors ${
-                selectedId === s.id
-                  ? 'bg-zinc-800 border-l-2 border-blue-500'
-                  : 'border-l-2 border-transparent hover:bg-zinc-800/50'
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${PHASE_DOT[s.phase] ?? 'bg-zinc-500'}`} />
-                <span className="truncate text-sm font-medium text-zinc-200">{s.title}</span>
-                <span className="ml-auto shrink-0 text-xs text-zinc-600">{timeAgo(s.created_at)}</span>
-              </div>
-              <div className="mt-0.5 ml-3.5 flex items-center gap-2 text-xs text-zinc-500">
-                <span>{s.phase.replace('_', ' ')}</span>
-                {s.active_specialist && (
-                  <span className="text-cyan-500">{s.active_specialist}</span>
-                )}
-              </div>
-            </button>
-          ))
+          decorated.map(({ session: s, attention }) => {
+            const isSelected = selectedId === s.id;
+            const ageSource = s.last_checkpoint || s.created_at;
+            return (
+              <button
+                key={s.id}
+                onClick={() => selectSession(s.id)}
+                className={`w-full px-3 py-2.5 text-left transition-colors ${
+                  isSelected
+                    ? 'bg-zinc-800 border-l-2 border-blue-500'
+                    : 'border-l-2 border-transparent hover:bg-zinc-800/50'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${phaseDot(s.phase)}`} />
+                  <span className="truncate text-sm font-medium text-zinc-200">{s.title}</span>
+                  {attention.hasUpdate && !isSelected && (
+                    <span
+                      className="h-1.5 w-1.5 shrink-0 rounded-full bg-blue-400"
+                      title="New captain output since you last looked"
+                    />
+                  )}
+                  <span className="ml-auto shrink-0 text-xs text-zinc-600">
+                    {timeAgo(ageSource)}
+                  </span>
+                </div>
+                <div className="mt-1 ml-3.5 flex items-center gap-2 text-xs text-zinc-500">
+                  <span>{phaseLabel(s.phase)}</span>
+                  {s.active_specialist && (
+                    <span className="text-cyan-500">{s.active_specialist}</span>
+                  )}
+                  {attention.critical && attention.reason && (
+                    <span
+                      className="ml-auto flex items-center gap-1 rounded-full border border-red-700/50 bg-red-900/40 px-1.5 py-0.5 text-[10px] font-medium text-red-300"
+                      title={attention.reason}
+                    >
+                      <AlertCircle size={10} />
+                      {attention.reason}
+                    </span>
+                  )}
+                </div>
+              </button>
+            );
+          })
         )}
       </div>
       <NewSessionModal

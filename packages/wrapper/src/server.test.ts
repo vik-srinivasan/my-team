@@ -292,6 +292,10 @@ describe('HTTP API integration', () => {
     expect(listRes.status).toBe(200);
     expect(listRes.body.length).toBe(1);
     expect(listRes.body[0].id).toBe(sessionId);
+    // Summary should include the new fields used by the dashboard
+    expect(typeof listRes.body[0].last_checkpoint).toBe('string');
+    expect(listRes.body[0].last_checkpoint.length).toBeGreaterThan(0);
+    expect(listRes.body[0].must_ask_count).toBe(0);
 
     // Status
     const statusRes = await request(app).get(`/api/sessions/${sessionId}`);
