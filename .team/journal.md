@@ -73,3 +73,10 @@ Blockers: 0
 Suggestions: 0
 Verdict: Approved
 Notes: Hero paragraph is exactly 2 sentences with authentic first-person tone ("I built this because..." to "...walk away to a PR."), positioned correctly between tagline and CTA, styled with muted colour + leading-relaxed. Architecture diagram successfully restructures around Captain at centre with all 5 sub-agents fanning out below (scout, engineer ×N parallel, tester, reviewer, git), each with "→ produces" label. Infra lane (CLI, Web UI, Wrapper daemon, sessions) visually demoted to y:530 with dim borders and a secondary lane label. SVG accessibility excellent (role="img" + detailed aria-label). Both components use useReducedMotion hook correctly. TypeScript strict: no `any`, readonly preserved throughout. New test files (Hero.test.ts, Architecture.test.ts) are well-designed — they check for content presence, structural positioning, and accessibility attributes without brittling on pixel coordinates. Ready for merge.
+
+## 2026-05-10T23:35:00Z — git
+Action: Pushed branch and added PR #8 comment
+Commits: 8613774 (test(landing): add tests for hero blurb and architecture diagram), bbccc90 (chore(team): update round 2 tracking files)
+PR: https://github.com/vik-srinivasan/my-team/pull/8
+Comment: https://github.com/vik-srinivasan/my-team/pull/8#issuecomment-4416592001
+Status: All changes pushed to origin/my-team/clear-ash-84. PR #8 now includes round-2 hero + architecture + tests. Existing PR auto-updated with 4 new commits total. Comment summarizes new preview URLs and test coverage for reviewers. Ready to merge.

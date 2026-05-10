@@ -40,4 +40,4 @@
 - [x] @engineer Vercel preview deploy. Preview: https://landing-19gwazpyo-vikr4m-5448s-projects.vercel.app · Production alias updated: https://landing-eosin-mu.vercel.app
 
 ### Git
-- [ ] @git Push branch (it's the same `my-team/clear-ash-84` branch, so the existing PR #8 picks up the new commits automatically). Comment on PR #8 with the new preview URL.
+- [x] @git Push branch (it's the same `my-team/clear-ash-84` branch, so the existing PR #8 picks up the new commits automatically). Comment on PR #8 with the new preview URL.
