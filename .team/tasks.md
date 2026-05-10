@@ -24,14 +24,15 @@
 
 ## Testing
 
-- [ ] @tester Run `pnpm install` if needed, then `pnpm -C packages/ui build` — must succeed with no type errors.
-- [ ] @tester Run `pnpm -C packages/wrapper build` (or repo-wide `pnpm build`) — must succeed.
-- [ ] @tester Run `pnpm -C packages/ui test` and `pnpm -C packages/wrapper test` — all green, including the new `attention.test.ts`.
-- [ ] @tester Start dev (`pnpm dev`) with seed data, smoke-test: dashboard renders two-column layout, sessions sort correctly, clicking a session clears its unread dot, approve button appears for `awaiting_approval`, NotificationBanner still shows blocked sessions. Report any visual regressions.
+- [x] @tester Run `pnpm install` if needed, then `pnpm -C packages/ui build` — must succeed with no type errors.
+- [x] @tester Run `pnpm -C packages/wrapper build` (or repo-wide `pnpm build`) — must succeed.
+- [x] @tester Run `pnpm -C packages/ui test` and `pnpm -C packages/wrapper test` — all green, including the new `attention.test.ts`.
+- [x] @tester Start dev (`pnpm dev`) with seed data, smoke-test: dashboard renders two-column layout, sessions sort correctly, clicking a session clears its unread dot, approve button appears for `awaiting_approval`, NotificationBanner still shows blocked sessions. Report any visual regressions.
+- [x] @engineer Add `packages/ui/src/lib/last-viewed.test.ts` covering load/persist round-trip, malformed JSON, missing key, non-string filtering, SSR guard, and quota-error swallow. (Added during review-fix pass; helpers extracted to `lib/last-viewed.ts`.)
 
 ## Review
 
-- [ ] @reviewer Code review pass. Produce `.team/review.md` with Blocking / Suggestion / Approved findings. Pay attention to: removed code is fully removed (no dangling imports/types), localStorage persistence handles SSR/first-load gracefully, attention derivation has no off-by-one on `last_checkpoint` comparisons.
+- [x] @reviewer Code review pass. Produce `.team/review.md` with Blocking / Suggestion / Approved findings. Pay attention to: removed code is fully removed (no dangling imports/types), localStorage persistence handles SSR/first-load gracefully, attention derivation has no off-by-one on `last_checkpoint` comparisons.
 
 ## Git
 
