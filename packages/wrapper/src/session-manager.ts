@@ -1,5 +1,7 @@
 import { EventEmitter } from 'node:events';
 import { resolve, join } from 'node:path';
+import { mkdir, writeFile } from 'node:fs/promises';
+import { homedir } from 'node:os';
 import type { Logger } from 'pino';
 
 import type {
@@ -31,6 +33,8 @@ import {
   watchTeamFiles,
   type TeamFileWatcher,
 } from './team-files.js';
+
+const NOTIFICATIONS_DIR = join(homedir(), 'team', 'notifications');
 
 interface SessionManagerEventMap {
   event: [sessionId: string, event: WsServerEvent];
@@ -103,12 +107,37 @@ export class SessionManager extends EventEmitter<SessionManagerEventMap> {
       // Emit team_file event
       this.emitEvent(sessionId, { type: 'team_file', file: filename, content });
 
-      // If state.json changed, update in-memory state
+      // If state.json changed, update in-memory state and emit events
       if (filename === 'state.json') {
         try {
           const newState = JSON.parse(content) as SessionState;
           const managed = this.sessions.get(sessionId);
           if (managed) {
+            const oldState = managed.session.state;
+
+            // Detect specialist changes and emit specialist events
+            if (oldState.active_specialist !== newState.active_specialist) {
+              if (oldState.active_specialist) {
+                this.emitEvent(sessionId, {
+                  type: 'specialist',
+                  name: oldState.active_specialist,
+                  status: 'finished',
+                });
+              }
+              if (newState.active_specialist) {
+                this.emitEvent(sessionId, {
+                  type: 'specialist',
+                  name: newState.active_specialist,
+                  status: 'started',
+                });
+              }
+            }
+
+            // Handle blocked state — write notification
+            if (oldState.phase !== 'blocked' && newState.phase === 'blocked') {
+              this.writeNotification(sessionId, managed.session.meta.title, newState.blockers);
+            }
+
             managed.session.state = newState;
             this.emitEvent(sessionId, { type: 'state', state: newState });
           }
@@ -266,5 +295,28 @@ export class SessionManager extends EventEmitter<SessionManagerEventMap> {
 
   private emitEvent(sessionId: string, event: WsServerEvent): void {
     this.emit('event', sessionId, event);
+  }
+
+  private async writeNotification(
+    sessionId: string,
+    title: string,
+    blockers: string[],
+  ): Promise<void> {
+    try {
+      await mkdir(NOTIFICATIONS_DIR, { recursive: true });
+      const notification = {
+        session_id: sessionId,
+        title,
+        reason: blockers.join('; ') || 'Session blocked',
+        timestamp: new Date().toISOString(),
+      };
+      await writeFile(
+        join(NOTIFICATIONS_DIR, `${sessionId}.json`),
+        JSON.stringify(notification, null, 2),
+      );
+      this.log.info({ sessionId }, 'Notification written for blocked session');
+    } catch (err) {
+      this.log.error({ sessionId, err }, 'Failed to write notification');
+    }
   }
 }
