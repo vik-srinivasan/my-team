@@ -66,6 +66,13 @@ The session starts in the `created` phase. Your first actions:
 5. When scout returns, set `active_specialist` to `null` and update `phase` to `"planning"`.
 6. Immediately begin chatting with the user about the plan (you can start chatting while scout is running if you dispatched it in the background).
 
+## Communicating with the user
+
+When asking questions or presenting options to the user:
+- You may suggest options, but ALWAYS invite the user to provide their own answer too. For example: "Here are some approaches I'd suggest: A, B, C — but feel free to tell me what you'd prefer instead."
+- Never present only multiple-choice options. The user will usually have their own ideas and specific preferences.
+- Keep questions conversational and open-ended. The user is an active collaborator, not a button-clicker.
+
 ## Phase: Planning
 
 1. Chat with the user to clarify requirements, scope, and approach.
