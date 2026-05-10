@@ -1,12 +1,13 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach, vi } from 'vitest';
 import request from 'supertest';
-import { mkdtemp, rm, readdir, readFile } from 'node:fs/promises';
+import { mkdtemp, rm, readdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir, homedir } from 'node:os';
 import { execSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { realpath } from 'node:fs/promises';
 import pino from 'pino';
+import type { WsServerEvent } from '@viktown/shared';
 
 import { SessionManager } from './session-manager.js';
 import { createServer } from './server.js';
@@ -138,6 +139,105 @@ describe('HTTP API integration', () => {
   it('POST /api/sessions/:id/kill returns 404 for unknown session', async () => {
     const res = await request(app).post('/api/sessions/nonexistent/kill');
     expect(res.status).toBe(404);
+  });
+
+  it('emits specialist events when active_specialist changes in state.json', async () => {
+    const createRes = await request(app)
+      .post('/api/sessions')
+      .send({ source_repo: tempRepo, title: 'Specialist Event Test' });
+    expect(createRes.status).toBe(201);
+    const sessionId = createRes.body.id;
+    const worktreePath = createRes.body.worktree_path;
+
+    // Collect emitted events
+    const events: WsServerEvent[] = [];
+    sessionManager.on('event', (_id, event) => {
+      events.push(event);
+    });
+
+    // Simulate state.json change with active_specialist
+    const stateWithSpecialist = {
+      phase: 'executing',
+      active_specialist: 'engineer',
+      review_iterations: 0,
+      max_review_iterations: 8,
+      last_checkpoint: new Date().toISOString(),
+      blockers: [],
+      must_ask_pending: [],
+    };
+    await writeFile(
+      join(worktreePath, '.team', 'state.json'),
+      JSON.stringify(stateWithSpecialist, null, 2),
+    );
+
+    // Wait for chokidar debounce
+    await new Promise((resolve) => setTimeout(resolve, 600));
+
+    // Should have specialist started + state event
+    const specialistEvents = events.filter((e) => e.type === 'specialist');
+    expect(specialistEvents.length).toBeGreaterThanOrEqual(1);
+    expect(specialistEvents[0]).toEqual({
+      type: 'specialist',
+      name: 'engineer',
+      status: 'started',
+    });
+
+    // Clean up
+    await sessionManager.killSession(sessionId);
+    try {
+      execSync(`git worktree remove "${worktreePath}" --force`, { cwd: tempRepo });
+      execSync(`git branch -D viktown/${sessionId}`, { cwd: tempRepo });
+    } catch {
+      // Best effort
+    }
+  });
+
+  it('writes notification file when session enters blocked state', async () => {
+    const createRes = await request(app)
+      .post('/api/sessions')
+      .send({ source_repo: tempRepo, title: 'Blocked Notification Test' });
+    expect(createRes.status).toBe(201);
+    const sessionId = createRes.body.id;
+    const worktreePath = createRes.body.worktree_path;
+
+    // Simulate state.json change to blocked
+    const blockedState = {
+      phase: 'blocked',
+      active_specialist: null,
+      review_iterations: 8,
+      max_review_iterations: 8,
+      last_checkpoint: new Date().toISOString(),
+      blockers: ['Max review iterations reached'],
+      must_ask_pending: [],
+    };
+    await writeFile(
+      join(worktreePath, '.team', 'state.json'),
+      JSON.stringify(blockedState, null, 2),
+    );
+
+    // Wait for chokidar debounce + notification write
+    await new Promise((resolve) => setTimeout(resolve, 800));
+
+    // Check notification file was created
+    const notificationPath = join(homedir(), 'team', 'notifications', `${sessionId}.json`);
+    expect(existsSync(notificationPath)).toBe(true);
+
+    const notification = JSON.parse(await readFile(notificationPath, 'utf-8'));
+    expect(notification.session_id).toBe(sessionId);
+    expect(notification.title).toBe('Blocked Notification Test');
+    expect(notification.reason).toContain('Max review iterations');
+
+    // Clean up notification
+    await rm(notificationPath, { force: true });
+
+    // Clean up session
+    await sessionManager.killSession(sessionId);
+    try {
+      execSync(`git worktree remove "${worktreePath}" --force`, { cwd: tempRepo });
+      execSync(`git branch -D viktown/${sessionId}`, { cwd: tempRepo });
+    } catch {
+      // Best effort
+    }
   });
 
   it('full lifecycle: create → list → status → kill', async () => {
