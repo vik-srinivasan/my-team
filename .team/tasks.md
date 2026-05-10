@@ -36,4 +36,4 @@
 
 ## Git
 
-- [ ] @git Push the session branch and open a PR against `main` with the session title.
+- [x] @git Push the session branch and open a PR against `main` with the session title.
