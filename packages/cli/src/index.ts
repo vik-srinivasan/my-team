@@ -10,6 +10,7 @@ import { killCommand } from './commands/kill.js';
 import { cleanCommand } from './commands/clean.js';
 import { archiveCommand } from './commands/archive.js';
 import { logsCommand } from './commands/logs.js';
+import { notificationsCommand } from './commands/notifications.js';
 
 const program = new Command();
 
@@ -27,5 +28,6 @@ program.addCommand(killCommand());
 program.addCommand(cleanCommand());
 program.addCommand(archiveCommand());
 program.addCommand(logsCommand());
+program.addCommand(notificationsCommand());
 
 program.parse();

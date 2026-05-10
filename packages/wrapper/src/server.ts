@@ -8,6 +8,7 @@ import type { Logger } from 'pino';
 
 import type { SessionManager } from './session-manager.js';
 import { createSessionsRouter } from './api/sessions.js';
+import { createNotificationsRouter } from './api/notifications.js';
 
 export interface ServerOptions {
   sessionManager: SessionManager;
@@ -33,6 +34,7 @@ export function createServer(options: ServerOptions): {
 
   // Routes
   app.use('/api/sessions', createSessionsRouter(sessionManager, log));
+  app.use('/api/notifications', createNotificationsRouter(log));
 
   // Health check
   app.get('/api/health', (_req, res) => {

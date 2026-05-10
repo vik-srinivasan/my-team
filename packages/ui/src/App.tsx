@@ -3,6 +3,7 @@ import { AgentList } from './components/AgentList.js';
 import { Chat } from './components/Chat.js';
 import { DiffPanel } from './components/DiffPanel.js';
 import { TeamArtifactPanel } from './components/TeamArtifactPanel.js';
+import { NotificationBanner } from './components/NotificationBanner.js';
 import { useSession } from './hooks/useSession.js';
 import { useSessionStore } from './store.js';
 
@@ -12,7 +13,9 @@ export function App() {
   const rightTab = useSessionStore((s) => s.rightTab);
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden">
+    <div className="flex h-screen w-screen flex-col overflow-hidden">
+      <NotificationBanner />
+      <div className="flex min-h-0 flex-1">
       {/* Left column */}
       <div className="flex w-64 shrink-0 flex-col border-r border-zinc-800 bg-zinc-900">
         <SessionList />
@@ -43,6 +46,7 @@ export function App() {
             No session selected
           </div>
         )}
+      </div>
       </div>
     </div>
   );

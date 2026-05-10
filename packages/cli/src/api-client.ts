@@ -71,4 +71,13 @@ export const api = {
 
   getTeamFile: (id: string, file: string) =>
     request<string>('GET', `/api/sessions/${id}/team/${file}`),
+
+  getNotifications: () =>
+    request<Array<{ session_id: string; title: string; reason: string; timestamp: string }>>('GET', '/api/notifications'),
+
+  clearNotifications: () =>
+    request<{ ok: boolean; cleared: number }>('DELETE', '/api/notifications'),
+
+  dismissNotification: (id: string) =>
+    request<{ ok: boolean }>('DELETE', `/api/notifications/${id}`),
 };
