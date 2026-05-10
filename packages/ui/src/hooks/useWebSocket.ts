@@ -53,9 +53,6 @@ export function useWebSocket(sessionId: string | null) {
   const addMessage = useSessionStore((s) => s.addMessage);
   const appendToMessage = useSessionStore((s) => s.appendToMessage);
   const setSessionState = useSessionStore((s) => s.setSessionState);
-  const setTeamFile = useSessionStore((s) => s.setTeamFile);
-  const setDiff = useSessionStore((s) => s.setDiff);
-  const setRightTab = useSessionStore((s) => s.setRightTab);
   const setRemoteUrl = useSessionStore((s) => s.setRemoteUrl);
 
   const finalizeStream = useCallback(() => {
@@ -109,20 +106,6 @@ export function useWebSocket(sessionId: string | null) {
         case 'state':
           finalizeStream();
           setSessionState(event.state);
-          // Auto-switch right tab based on phase
-          if (event.state.phase === 'planning' || event.state.phase === 'awaiting_approval') {
-            setRightTab('plan');
-          } else if (event.state.phase === 'executing' || event.state.phase === 'reviewing') {
-            setRightTab('diff');
-          }
-          break;
-
-        case 'team_file':
-          setTeamFile(event.file, event.content);
-          break;
-
-        case 'diff':
-          setDiff(event.diff);
           break;
 
         case 'remote_url':
@@ -141,6 +124,11 @@ export function useWebSocket(sessionId: string | null) {
           });
           break;
         }
+
+        // team_file and diff events are no longer rendered — the right
+        // panel was removed. Fall through silently.
+        default:
+          break;
       }
     };
 
@@ -152,7 +140,7 @@ export function useWebSocket(sessionId: string | null) {
     ws.onerror = () => {
       ws.close();
     };
-  }, [sessionId, addMessage, appendToMessage, setSessionState, setTeamFile, setDiff, setRightTab, setRemoteUrl, finalizeStream]);
+  }, [sessionId, addMessage, appendToMessage, setSessionState, setRemoteUrl, finalizeStream]);
 
   useEffect(() => {
     connect();

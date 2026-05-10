@@ -13,7 +13,7 @@
 ### Store / data plumbing
 - [x] @engineer In `packages/ui/src/store.ts`: remove `teamFiles`, `diff`, `rightTab` slices. Add `lastViewed: Record<string,string>` with `markViewed(id)` action. Persist `lastViewed` to `localStorage` under `viktown.lastViewed.v1` (load on store init, save on update).
 - [x] @engineer In `packages/ui/src/hooks/useSession.ts`: drop diff fetching and team-files syncing. Call `markViewed(selectedSessionId)` whenever a session is selected.
-- [ ] @engineer In `packages/ui/src/hooks/useWebSocket.ts`: drop `team_file` and `diff` event handlers. Leave `output`, `state`, `specialist`, `remote_url` intact.
+- [x] @engineer In `packages/ui/src/hooks/useWebSocket.ts`: drop `team_file` and `diff` event handlers. Leave `output`, `state`, `specialist`, `remote_url` intact.
 
 ### Layout + components
 - [ ] @engineer Rewrite `packages/ui/src/App.tsx` into a two-column layout: sidebar (~320px) + main pane (flex-1). Drop the right column entirely. Header bar simplified to title + remoteUrl link.
