@@ -1,5 +1,5 @@
 ## 2026-05-10T19:35:00Z — captain
-Session started. Title: "UI-changes". User wants to simplify the viktown dashboard webapp: drop heavy per-session detail (terminal chat already covers that), keep a multi-session overview surfacing captain output and flagging sessions needing attention. Dispatching scout to map current UI code.
+Session started. Title: "UI-changes". User wants to simplify the my-team dashboard webapp: drop heavy per-session detail (terminal chat already covers that), keep a multi-session overview surfacing captain output and flagging sessions needing attention. Dispatching scout to map current UI code.
 
 ## 2026-05-10T19:48:00Z — captain
 Plan approved by user ("go"). Beginning execution. Dispatching engineer to work through tasks.md in order: backend types -> foundations -> store -> components. Single engineer because the tasks are tightly coupled across shared types and component files (parallel engineers would step on App.tsx and store.ts).

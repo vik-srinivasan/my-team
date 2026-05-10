@@ -30,7 +30,7 @@ export function listPastCommand(): Command {
     .option('--json', 'Output JSON instead of a table')
     .action(async (options: { json?: boolean }) => {
       try {
-        const overridePath = process.env['VIKTOWN_REGISTRY_PATH'];
+        const overridePath = process.env['MY_TEAM_REGISTRY_PATH'];
         const registry = await readRegistry(overridePath);
 
         if (options.json) {

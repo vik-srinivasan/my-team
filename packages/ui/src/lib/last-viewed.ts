@@ -7,7 +7,7 @@
  * hauling the whole zustand store into a jsdom environment.
  */
 
-export const LAST_VIEWED_KEY = 'viktown.lastViewed.v1';
+export const LAST_VIEWED_KEY = 'my-team.lastViewed.v1';
 
 /**
  * Reads the persisted lastViewed map. Returns `{}` if:

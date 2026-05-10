@@ -2,7 +2,7 @@
 
 ## Goals
 
-A lightweight visual overview of all active viktown sessions. The terminal owns conversational interaction with captains; the dashboard owns at-a-glance triage.
+A lightweight visual overview of all active my-team sessions. The terminal owns conversational interaction with captains; the dashboard owns at-a-glance triage.
 
 The dashboard answers two questions at a glance:
 1. **Which sessions need me right now?** (must approve / blocked / captain has a question)
