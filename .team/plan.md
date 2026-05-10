@@ -1,97 +1,39 @@
-# Plan — UI-changes
+# Plan — landing-page value props (round 2)
 
-## Goals
+**Effort level:** light — copy + diagram restructure, no logic changes.
 
-A lightweight visual overview of all active my-team sessions. The terminal owns conversational interaction with captains; the dashboard owns at-a-glance triage.
+## Round 1 (shipped — PR #8)
 
-The dashboard answers two questions at a glance:
-1. **Which sessions need me right now?** (must approve / blocked / captain has a question)
-2. **Which sessions have moved since I last looked?** (unread updates)
+Added `WhyMyTeam` value-props section between `HowItWorks` and `Architecture`.
 
-When I click a session, I see its captain's recent output as a scrollable log — no editing, no chat input.
+## Round 2 goals
 
-## Approach — "Reshape what's there"
+1. **Personal-story blurb under the hero header.** 2–3 sentences. Vibe: "this started because I wanted a more structured way to interact with Claude Code that felt like having a coworker engineer. It's now how I build 95% of the time. Give a team a task, approve the plan, walk away to a PR." Conversational, first-person, terse.
+2. **Restructure the Architecture diagram** to put Captain + sub-agents (scout, engineer×N, tester, reviewer, git) at the visual centre. The current diagram leads with CLI / Wrapper / Web UI infra and treats sub-agents as a side cluster — the user wants the sub-agent fan-out and how each one feeds back to Captain to be the headline. CLI/wrapper/sessions can stay but should be visually secondary.
 
-Keep the App shell, store, hooks, websocket plumbing, and `NotificationBanner`. Rebuild the layout into two columns (sidebar + main) and strip down the per-session view to a read-only output log.
+## Approach
 
-### Layout change
+- **Hero blurb** — edit `apps/landing/app/components/Hero.tsx`. Insert a `<p>` directly under the existing tagline / before the stat row. Use `text-[color:var(--color-muted)] leading-relaxed max-w-2xl`. Keep tone first-person, no marketing fluff.
+- **Diagram** — edit `apps/landing/app/components/Architecture.tsx` (the file behind the screenshot the user sent). Reorganize so:
+  - Captain is the centre / top of the visual hierarchy.
+  - The sub-agents (scout, engineer×N, tester, reviewer, git) fan out from Captain with labelled edges showing what each produces or does (e.g. scout → `context.md`, engineer → commits, tester → test runs, reviewer → `review.md`, git → PR).
+  - CLI / Web UI / Wrapper daemon / sessions directory stay but are demoted — smaller, off to one side, or rendered as a thin "infra" lane underneath.
+  - Engineer×N parallelism stays visually obvious.
+- After implementation, redeploy a Vercel preview and report the URL.
 
-- **Drop the right panel entirely** — diff / plan / review / journal / decisions tabs go away. The PR + terminal cover those needs.
-- **Two columns**: left sidebar list (~320px wide, wider than today's 56px) + main pane (flex-1).
-- **Main pane** = read-only captain output log (scrollable, ~last 100 lines kept, auto-scrolls unless user scrolls up).
-- **Inline approve button** stays at the top of the main pane when `phase === 'awaiting_approval'` — one-click is friendlier than typing in terminal, and the dashboard already has the context to know it's needed.
-- **No chat input** — terminal owns conversational input.
+## Scope
 
-### Two-tier "needs attention" signals
+- `apps/landing/app/components/Hero.tsx` — add intro paragraph
+- `apps/landing/app/components/Architecture.tsx` — restructure diagram
 
-Each session row shows zero, one, or both of:
+## Out of scope
 
-- **Critical badge (red, with icon)** — action required. Triggers:
-  - `phase === 'awaiting_approval'`
-  - `phase === 'blocked'`
-  - `must_ask_pending.length > 0`
-- **Update dot (blue, subtle)** — captain has fresh output since I last viewed this session. Cleared the moment I select the session.
-
-The sidebar sorts: critical first, then unread updates, then everything else by recency.
-
-### Tracking "last viewed"
-
-Add `lastViewed: Record<sessionId, ISOString>` to the store, persisted in `localStorage`. On `selectSession()`, set `lastViewed[id] = now`. To detect "fresh output", compare `lastViewed[id]` against the session's `last_checkpoint` from `SessionState`.
-
-`SessionSummary` doesn't include `last_checkpoint` today, so we'll add it (small additive change to shared types + `listSessions()` in the wrapper) so the sidebar can compute "fresh" without fetching detail for every session.
-
-`must_ask_pending` will get the same treatment — added to `SessionSummary` as a count (`must_ask_count: number`) so the sidebar can flag it without fetching each session's detail.
-
-### What gets deleted
-
-- `packages/ui/src/components/RightPanel.tsx` — gone.
-- `Chat.tsx` chat input + send icon + draft state — gone. Component shrinks into a read-only output log; rename to `OutputLog.tsx`.
-- Diff fetching + `diff` slice in store — gone (was only used by RightPanel).
-- `teamFiles` state + `team_file` WS handler in store — gone (was only used by RightPanel).
-- `rightTab` state + auto-switch behavior — gone.
-
-`useWebSocket` keeps the `output`, `state`, `specialist`, and `remote_url` events; drops `team_file` and `diff` handlers.
-
-## Scope (file-level)
-
-### Frontend (`packages/ui`)
-
-- `src/App.tsx` — drop right column, simplify to two-column layout, remove header bar's diff/plan UI references.
-- `src/components/SessionList.tsx` — wider rows; add critical badge + unread dot; sort by attention; show `last_checkpoint` age instead of `created_at` age.
-- `src/components/Chat.tsx` -> rename to `src/components/OutputLog.tsx` — strip chat input, keep streaming markdown messages, keep approve button at top when applicable.
-- `src/components/RightPanel.tsx` — delete.
-- `src/components/AgentList.tsx` — keep, no functional change.
-- `src/components/NotificationBanner.tsx` — keep, no change.
-- `src/components/NewSessionModal.tsx` — keep, no change.
-- `src/store.ts` — remove `teamFiles`, `diff`, `rightTab`. Add `lastViewed: Record<string,string>` with localStorage persistence + `markViewed(id)` action.
-- `src/hooks/useSession.ts` — drop diff fetching and team-files state syncing.
-- `src/hooks/useWebSocket.ts` — drop `team_file` and `diff` handlers. Keep everything else.
-- `src/lib/phase.ts` (new) — extract `PHASE_DOT` + phase color helpers, used by both list and main pane.
-- `src/lib/attention.ts` (new) — pure derivation: `getAttention(session, lastViewed) -> { critical: boolean, hasUpdate: boolean, reason?: string }`.
-- `src/dev-seed.ts` — update mocks: more sessions, varied phases, simulate fresh output.
-
-### Backend (`packages/wrapper` + `packages/shared`)
-
-- `packages/shared/src/types.ts` — extend `SessionSummary` with `last_checkpoint: string` and `must_ask_count: number`.
-- `packages/wrapper/src/session-manager.ts` — `listSessions()` returns the new fields.
-
-## Must-ask items (decisions to flag)
-
-- **Approve button on dashboard** — proposing keep (one-click). If you'd rather it be terminal-only, say so and we'll drop it.
-- **Sidebar sort order** — proposing critical -> updates -> recency. Alphabetical or pure-recency are alternatives.
-- **Persisting `lastViewed`** — proposing localStorage so it survives reload. Alternative: in-memory only (resets every reload, simpler but more "noise").
-- **Dropping the right panel entirely** — proposing yes (heavy, terminal + GitHub PR cover it). If you want diff or review.md still accessible behind a toggle, say so.
+- Other sections, design tokens, Tailwind config changes
+- Adding new agents or changing the agents.ts data shape
 
 ## Acceptance criteria
 
-- Dashboard loads with sidebar showing all sessions; phase color + age visible per row.
-- Sessions in `awaiting_approval`, `blocked`, or with pending must-asks show a clear red critical badge with a one-line reason on hover.
-- Sessions with new captain output since last viewed show a subtle blue unread dot; selecting the session clears it.
-- Sessions are sorted: critical first, then unread updates, then recency.
-- Selecting a session shows the main pane with that captain's recent output (scrollable, last ~100 lines, auto-scroll unless user has scrolled up).
-- For `awaiting_approval`, an approve button appears at the top of the main pane and works.
-- `NotificationBanner` continues to work for blocked sessions.
-- No regressions in session creation flow (`+` button, NewSessionModal).
-- `pnpm -C packages/ui build` succeeds; `pnpm typecheck` (or equivalent) passes.
-- Dev startup (`pnpm dev`) renders the new dashboard; manual smoke: create session, approve, observe updates.
-- Unit tests cover `getAttention()` and `lastViewed` persistence behavior.
+- Hero has a short personal-story paragraph in the right spot.
+- Diagram visually leads with Captain → sub-agents fan-out, with infra demoted.
+- Build passes.
+- Preview URL provided.

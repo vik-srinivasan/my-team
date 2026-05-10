@@ -31,10 +31,10 @@
 - [x] @engineer Commit using Conventional Commits style.
 
 ### Testing
-- [ ] @tester Light: confirm build passes and the new paragraph + restructured diagram render in `page.tsx`.
+- [x] @tester Light: confirm build passes and the new paragraph + restructured diagram render in `page.tsx`.
 
 ### Review
-- [ ] @reviewer Light single-pass review: paragraph tone/length, diagram visual hierarchy, accessibility, TS strict.
+- [x] @reviewer Light single-pass review: paragraph tone/length, diagram visual hierarchy, accessibility, TS strict.
 
 ### Preview
 - [x] @engineer Vercel preview deploy. Preview: https://landing-19gwazpyo-vikr4m-5448s-projects.vercel.app · Production alias updated: https://landing-eosin-mu.vercel.app

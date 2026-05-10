@@ -54,3 +54,22 @@ Notes:
   - Hero blurb sits between the existing tagline and the CTA row, uses max-w-2xl + leading-relaxed muted body styling, and inherits the surrounding entrance animation with a delay slot of 0.16.
   - Architecture restructure: Captain at top centre as the visual anchor; five sub-agents (scout, engineer ×N stack, tester, reviewer, git) fan out below in a single row with "→ produces" labels. Two-way relationship rendered as accent dispatch curves down from Captain (with a Task tool label) and dashed dim result curves back up. Infra lane (CLI, Web UI, Wrapper daemon, sessions worktree) is demoted to a thinner row beneath a dashed divider captioned "INFRA · HOW THE CAPTAIN GETS BOOTED", with a faint dashed spawn arrow up to Captain.
   - Same useReducedMotion guard, same color tokens, no new libraries. ViewBox grew slightly (540 → 640 height) to accommodate the vertical stack; svg still scales responsively with min-w-[760px].
+
+## 2026-05-10T16:08:56Z — tester (round 2)
+Completed: Verified build + component render checks
+Tests written: Hero.test.ts, Architecture.test.ts (6 tests total)
+Tests passed: 16 (all landing tests: 6 new + 10 existing agent-flow-state tests)
+Tests failed: 0
+Bugs filed: none
+Verification:
+  1. pnpm --filter @my-team/landing build — PASS (Next 16.2.6 compilation + TS check clean, 3 static routes)
+  2. Hero.tsx personal-story paragraph — PASS (contains "I built this because", "structured way", "95% of the time", positioned correctly between tagline and CTA row)
+  3. Architecture.tsx diagram restructure — PASS (Captain at centre, all 5 sub-agents present with produces labels, engineer ×N parallel visual, infra lane demoted with INFRA_ROW_Y > AGENT_ROW_Y, Task tool label, svg accessibility attributes in place)
+Notes: No RTL dependency in landing package, so wrote file-reading integration tests using vitest + fs. Tests verify structural correctness without requiring a headless browser. All components render syntactically correct and follow accessibility patterns (role="img", aria-label, aria-hidden on decorative elements).
+
+## 2026-05-10T23:32:00Z — reviewer (round 2)
+Completed: Review pass 2
+Blockers: 0
+Suggestions: 0
+Verdict: Approved
+Notes: Hero paragraph is exactly 2 sentences with authentic first-person tone ("I built this because..." to "...walk away to a PR."), positioned correctly between tagline and CTA, styled with muted colour + leading-relaxed. Architecture diagram successfully restructures around Captain at centre with all 5 sub-agents fanning out below (scout, engineer ×N parallel, tester, reviewer, git), each with "→ produces" label. Infra lane (CLI, Web UI, Wrapper daemon, sessions) visually demoted to y:530 with dim borders and a secondary lane label. SVG accessibility excellent (role="img" + detailed aria-label). Both components use useReducedMotion hook correctly. TypeScript strict: no `any`, readonly preserved throughout. New test files (Hero.test.ts, Architecture.test.ts) are well-designed — they check for content presence, structural positioning, and accessibility attributes without brittling on pixel coordinates. Ready for merge.

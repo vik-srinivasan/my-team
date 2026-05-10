@@ -1,11 +1,11 @@
-## 2026-05-10T19:55:00Z — engineer
-Question: How should `getAttention()` treat sessions the user has never selected (no entry in `lastViewed`)?
+## 2026-05-10T22:05:00Z — engineer
+Question: Vercel preview deploy: repo-root link with `vercel.json` outputDirectory `.next` failed because the build outputs to `apps/landing/.next` when run via `pnpm --filter`. The existing landing project (per commit 89610bd) is configured with project root = `apps/landing`, but local `.vercel` link did not exist.
 Options considered:
-  - Treat unseen sessions as "fresh" (show update dot) — surfaces new sessions but creates a dot on first load for every session.
-  - Treat unseen sessions as "not fresh" — quieter on first load but a brand-new session won't get any signal until its checkpoint advances past an entry that doesn't exist.
-Decision: Treat unseen sessions as fresh. The update dot is meant to communicate "moved since you last looked", and "never looked" qualifies. Refreshing the page is rare in practice; the cost of one extra dot per session on cold load is small. Selecting the session clears it.
+  1. Edit `vercel.json` outputDirectory to `apps/landing/.next` for repo-root deploys (would break the existing remote project where root is already `apps/landing`).
+  2. Deploy from `apps/landing/` directory — Vercel auto-creates a fresh project named `landing` and runs `next build` natively.
+Decision: Option 2. Deleted the auto-created `clear-ash-84` Vercel link at repo root, ran `vercel --yes` from `apps/landing/`. New project `landing` created (separate from the existing `docs` landing project). This avoids touching the committed `vercel.json` and gets the user a working preview URL fast. The new project link lives at `apps/landing/.vercel/` which is gitignored.
 
-## 2026-05-10T19:56:00Z — engineer
-Question: When multiple critical triggers apply (e.g. `awaiting_approval` AND `must_ask_count > 0`), which reason wins?
-Options considered: surface all reasons concatenated; pick a priority order.
-Decision: Pick a priority order — `awaiting_approval` > `blocked` > `must_ask`. Tooltips need to stay short; awaiting_approval is the action with the highest leverage (one-click resolves it), so it wins. Rare in practice anyway.
+## 2026-05-10T22:06:00Z — engineer
+Question: Icon choice for the three value props.
+Options considered: Users/Zap/Coffee, Users/Coins/Hand, UsersRound/Sparkles/Moon.
+Decision: Users/Zap/Coffee. Users maps cleanly to "team", Zap to "lighter/faster tokens", Coffee to "walk away" — all from the requirements suggestion list and tonally consistent with the existing FlowNarrative/HowItWorks icon usage.
