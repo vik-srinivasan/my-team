@@ -49,14 +49,14 @@ Checked off as completed. See `implementation_plan.md` for detailed steps.
 
 ## Phase 3 — Web UI
 
-- [ ] 3.1 Vite + React + Tailwind setup
-- [ ] 3.2 API client + Zustand state management
-- [ ] 3.3 WebSocket hook (useWebSocket)
-- [ ] 3.4 Left column: SessionList, AgentList, NewSessionModal
-- [ ] 3.5 Middle column: Chat with markdown rendering
-- [ ] 3.6 Right column: DiffPanel, TeamArtifactPanel
-- [ ] 3.7 Wrapper: serve UI static files
-- [ ] 3.8 Phase 3 integration test + push
+- [x] 3.1 Vite + React + Tailwind setup
+- [x] 3.2 API client + Zustand state management
+- [x] 3.3 WebSocket hook (useWebSocket)
+- [x] 3.4 Left column: SessionList, AgentList, NewSessionModal
+- [x] 3.5 Middle column: Chat with markdown rendering
+- [x] 3.6 Right column: DiffPanel, TeamArtifactPanel
+- [x] 3.7 Wrapper: serve UI static files
+- [x] 3.8 Phase 3 integration test + push
 
 ---
 
