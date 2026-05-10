@@ -39,6 +39,8 @@ describe('HTTP API integration', () => {
   let sessionManager: SessionManager;
   let app: ReturnType<typeof createServer>['app'];
   let captainPromptPath: string;
+  let registryPath: string;
+  let registryDir: string;
 
   beforeAll(async () => {
     // Create a temp git repo
@@ -52,10 +54,17 @@ describe('HTTP API integration', () => {
     // Use a temp captain prompt
     captainPromptPath = join(tempRepo, 'captain.md');
     execSync(`echo "# Captain" > "${captainPromptPath}"`, { cwd: tempRepo });
+
+    // Isolate the recents registry so tests don't touch the real ~/team/recents.json
+    registryDir = await mkdtemp(join(tmpdir(), 'viktown-registry-'));
+    registryPath = join(registryDir, 'recents.json');
+    process.env['VIKTOWN_REGISTRY_PATH'] = registryPath;
   });
 
   afterAll(async () => {
     await rm(tempRepo, { recursive: true, force: true });
+    await rm(registryDir, { recursive: true, force: true });
+    delete process.env['VIKTOWN_REGISTRY_PATH'];
   });
 
   beforeEach(() => {
@@ -112,6 +121,36 @@ describe('HTTP API integration', () => {
 
     // Clean up the worktree
     const sessionId = res.body.id;
+    await sessionManager.killSession(sessionId);
+    try {
+      execSync(`git worktree remove "${worktreePath}" --force`, { cwd: tempRepo });
+      execSync(`git branch -D viktown/${sessionId}`, { cwd: tempRepo });
+    } catch {
+      // Best effort
+    }
+  });
+
+  it('POST /api/sessions records the source repo in the recents registry', async () => {
+    const res = await request(app)
+      .post('/api/sessions')
+      .send({ source_repo: tempRepo, title: 'Registry Test' });
+
+    expect(res.status).toBe(201);
+    const sessionId = res.body.id;
+    const worktreePath = res.body.worktree_path;
+
+    // Give the best-effort write a chance to settle (it's awaited in createSession,
+    // but the response is sent right after — re-read the registry from disk).
+    expect(existsSync(registryPath)).toBe(true);
+    const registry = JSON.parse(await readFile(registryPath, 'utf-8'));
+    expect(registry.version).toBe(1);
+    expect(Array.isArray(registry.repos)).toBe(true);
+    const entry = registry.repos.find((r: { path: string }) => r.path === tempRepo);
+    expect(entry).toBeTruthy();
+    expect(entry.session_count).toBeGreaterThanOrEqual(1);
+    expect(entry.last_session_id).toBe(sessionId);
+
+    // Clean up
     await sessionManager.killSession(sessionId);
     try {
       execSync(`git worktree remove "${worktreePath}" --force`, { cwd: tempRepo });

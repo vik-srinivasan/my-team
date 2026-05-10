@@ -15,6 +15,7 @@ import type {
 } from '@viktown/shared';
 import {
   generateSessionId,
+  recordSessionStart,
   SessionNotFoundError,
   SessionActiveError,
   SessionProcessDeadError,
@@ -196,6 +197,15 @@ export class SessionManager extends EventEmitter<SessionManagerEventMap> {
       diffTimer: null,
     };
     this.sessions.set(sessionId, managed);
+
+    // Record this session against the recents registry. Best-effort —
+    // a failed write must not block session creation.
+    try {
+      const overridePath = process.env['VIKTOWN_REGISTRY_PATH'];
+      await recordSessionStart(meta, overridePath);
+    } catch (err) {
+      this.log.warn({ sessionId, err }, 'Failed to update recents registry');
+    }
 
     this.log.info({ sessionId, pid: captain.pid }, 'Session created');
     return session;
