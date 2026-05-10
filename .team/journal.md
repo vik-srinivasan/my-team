@@ -12,4 +12,21 @@ Completed: Added `team purge` command + refreshed help text and README command t
 Created: packages/cli/src/commands/purge.ts
 Modified: packages/cli/src/index.ts, packages/cli/src/commands/help-info.ts, README.md
 Build: pnpm -r build green (after removing stale packages/shared/tsconfig.tsbuildinfo that was reporting Done while dist/ was missing — see decisions.md).
-Commit: (filled in after commit)
+Commit: cc19b4d
+
+## 2026-05-10T23:30:00Z — tester
+Completed: Light smoke check passed.
+- pnpm -r build: green across all 5 packages
+- node packages/cli/dist/index.js --help: purge command appears in Commander's auto-generated help
+- node packages/cli/dist/index.js help: custom help shows purge under "Session management", list-past under "Session lifecycle", and open under "Other"
+- pnpm test: all 75 tests pass, no regressions
+Tests written: 0 (no integration tests needed for light CLI addition)
+Tests passed: 75
+Tests failed: 0
+Bugs filed: none
+
+## 2026-05-10T23:35:00Z — reviewer
+Completed: Review pass 1
+Blockers: 0
+Suggestions: 1 (pre-existing tsconfig.tsbuildinfo tracking — not this PR's issue)
+Verdict: Approved

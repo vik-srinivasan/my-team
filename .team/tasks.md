@@ -8,10 +8,10 @@
 - [x] @engineer Verify `pnpm -r build` is green. (Required clearing stale `packages/shared/tsconfig.tsbuildinfo` first — composite build was reporting Done but dist/ was missing.)
 
 ## Testing
-- [ ] @tester Light effort — build/smoke check only. Confirm `team --help` (Commander auto) shows `purge`, and that `team help` (custom) output includes `purge`, `list-past`, and `open`. No new tests required.
+- [x] @tester Light effort — build/smoke check only. Confirm `team --help` (Commander auto) shows `purge`, and that `team help` (custom) output includes `purge`, `list-past`, and `open`. No new tests required.
 
 ## Review
-- [ ] @reviewer Confirm `purge.ts` matches the conventions of `kill.ts` / `clean.ts`, help text additions are accurate, and README table covers every command in `index.ts`.
+- [x] @reviewer Confirm `purge.ts` matches the conventions of `kill.ts` / `clean.ts`, help text additions are accurate, and README table covers every command in `index.ts`.
 
 ## Git
 - [ ] @git Push branch `my-team/gold-dew-22` and open a PR titled "feat(cli): add `team purge` command and refresh help text".
