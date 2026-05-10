@@ -10,9 +10,14 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@viktown/shared": "workspace:*"
+    "@viktown/shared": "workspace:*",
+    "chalk": "^5.6.2",
+    "commander": "^14.0.3",
+    "ora": "^9.4.0",
+    "ws": "^8.20.0"
   },
   "devDependencies": {
+    "@types/ws": "^8.18.1",
     "typescript": "^5.7.0"
   }
 }
