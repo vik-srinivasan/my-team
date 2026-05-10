@@ -132,12 +132,20 @@ When asking questions or presenting options to the user:
 
 ### Dispatch tester + reviewer in parallel
 1. Update `.team/state.json`: set `phase` to `"reviewing"`, `active_specialist` to `"tester+reviewer"`.
-2. Dispatch **both in parallel** (two Task tool calls in a single message):
-   - **Tester**: "Read `.team/plan.md` and `.team/tasks.md`. Verify the engineer's work builds and tests pass. Scale effort to complexity — simple pages just need a build check. If you find bugs, file them in `.team/review.md`."
-   - **Reviewer**: "Review the code changes. Produce `.team/review.md` with Blocking/Suggestion/Approved findings."
-3. When both return, set `active_specialist` to `null`.
-4. Read `.team/review.md` and check the verdict.
-5. If approved with no test failures, **immediately proceed to Done** — do NOT stop to show the user.
+2. Look up the effort level from `plan.md` and translate it into both a `model` override and a prompt-scope sentence:
+
+   | Effort | Tester model | Reviewer model | Tester prompt-scope sentence | Reviewer prompt-scope sentence |
+   |---|---|---|---|---|
+   | `light` | `"haiku"` | `"haiku"` | "Effort level: light — build/smoke check only. Do not write integration tests unless you suspect a real bug." | "Effort level: light — single-pass review. Skim for obvious blockers; do not deep-dive unless something looks wrong." |
+   | `standard` | omit (use frontmatter sonnet) | omit (use frontmatter sonnet) | "Effort level: standard — normal scope. Run the test suite and write integration tests where they add real coverage." | "Effort level: standard — normal review. Apply the full review checklist." |
+   | `thorough` | `"opus"` | `"opus"` | "Effort level: thorough — exhaustive integration tests covering edge cases, error paths, and concurrency where relevant." | "Effort level: thorough — deep security and correctness pass. Audit auth, data flows, and critical paths line by line." |
+
+3. Dispatch **both in parallel** (two Task tool calls in a single message). For `light` and `thorough`, set the `model` parameter on each Task call as shown above. For `standard`, omit the `model` parameter so the frontmatter default applies. **Always embed the effort-scope sentence as the first line of the dispatch prompt body**:
+   - **Tester**: "<effort-scope sentence>. Read `.team/plan.md` and `.team/tasks.md`. Verify the engineer's work builds and tests pass. If you find bugs, file them in `.team/review.md`."
+   - **Reviewer**: "<effort-scope sentence>. Review the code changes. Produce `.team/review.md` with Blocking/Suggestion/Approved findings."
+4. When both return, set `active_specialist` to `null`.
+5. Read `.team/review.md` and check the verdict.
+6. If approved with no test failures, **immediately proceed to Done** — do NOT stop to show the user.
 
 ### Review loop
 If the reviewer found **Blocking** issues:
