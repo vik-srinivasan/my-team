@@ -6,6 +6,13 @@ import { useSessionStore } from '../store.js';
 const RECONNECT_DELAY = 2000;
 const STREAM_FINALIZE_DELAY = 2000;
 
+// Strip ANSI escape sequences from PTY output for browser display
+// eslint-disable-next-line no-control-regex
+const ANSI_RE = /[\x1b\x9b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nq-uy=><~]/g;
+function stripAnsi(text: string): string {
+  return text.replace(ANSI_RE, '');
+}
+
 export function useWebSocket(sessionId: string | null) {
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -39,12 +46,16 @@ export function useWebSocket(sessionId: string | null) {
 
       switch (event.type) {
         case 'output': {
+          // Strip ANSI escape sequences for browser display
+          const cleaned = stripAnsi(event.text);
+          if (!cleaned) break; // skip empty chunks (pure escape sequences)
+
           // Reset the finalize timer on each output chunk
           if (streamFinalizeTimer.current) clearTimeout(streamFinalizeTimer.current);
 
           if (streamingMessageId.current) {
             // Append to existing streaming message
-            appendToMessage(streamingMessageId.current, event.text);
+            appendToMessage(streamingMessageId.current, cleaned);
           } else {
             // Start a new streaming message
             const id = crypto.randomUUID();
@@ -52,7 +63,7 @@ export function useWebSocket(sessionId: string | null) {
             addMessage({
               id,
               role: 'captain',
-              text: event.text,
+              text: cleaned,
               timestamp: new Date().toISOString(),
             });
           }
