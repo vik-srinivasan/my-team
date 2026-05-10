@@ -42,7 +42,7 @@ describe('HTTP API integration', () => {
 
   beforeAll(async () => {
     // Create a temp git repo
-    tempRepo = await realpath(await mkdtemp(join(tmpdir(), 'viktown-e2e-')));
+    tempRepo = await realpath(await mkdtemp(join(tmpdir(), 'my-team-e2e-')));
     execSync('git init', { cwd: tempRepo });
     execSync('git checkout -b main', { cwd: tempRepo });
     execSync('echo "hello" > test.txt', { cwd: tempRepo });

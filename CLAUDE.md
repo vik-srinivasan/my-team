@@ -71,5 +71,5 @@ Better to surface a problem at line 100 than discover it at line 5000.
 
 - **Node**: v22 (required by pnpm 11)
 - **pnpm**: v11 (installed via homebrew)
-- **GitHub**: `gh` authenticated as `vik-srinivasan`, repo at `vik-srinivasan/viktown`
+- **GitHub**: `gh` authenticated as `vik-srinivasan`, repo at `vik-srinivasan/my-team`
 - **Session IDs**: human-readable format (`adjective-noun-number`)

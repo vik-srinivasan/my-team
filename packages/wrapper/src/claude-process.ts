@@ -102,7 +102,7 @@ export async function spawnCaptain(options: SpawnCaptainOptions): Promise<Captai
   const args = [
     '--append-system-prompt', captainPrompt,
     '--dangerously-skip-permissions',
-    '--remote-control', sessionId ?? 'viktown-captain',
+    '--remote-control', sessionId ?? 'my-team-captain',
     '--effort', 'xhigh',
   ];
 

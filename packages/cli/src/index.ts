@@ -19,7 +19,7 @@ const program = new Command();
 
 program
   .name('team')
-  .description('Viktown — Multi-agent orchestrator for Claude Code')
+  .description('my-team — Multi-agent orchestrator for Claude Code')
   .version('0.1.0');
 
 program.addCommand(startCommand());

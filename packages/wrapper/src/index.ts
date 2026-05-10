@@ -25,7 +25,7 @@ const { app, start } = createServer({ sessionManager, log, host: HOST, port: POR
 const httpServer = await start();
 const wss = setupWebSocket(httpServer, sessionManager, log);
 
-log.info('Viktown wrapper daemon started');
+log.info('my-team wrapper daemon started');
 
 // Graceful shutdown
 async function shutdown(signal: string): Promise<void> {

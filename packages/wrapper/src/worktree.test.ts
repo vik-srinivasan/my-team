@@ -12,7 +12,7 @@ describe('worktree', () => {
 
   beforeEach(async () => {
     // Create a real temp git repo for testing
-    tempRepo = await realpath(await mkdtemp(join(tmpdir(), 'viktown-test-')));
+    tempRepo = await realpath(await mkdtemp(join(tmpdir(), 'my-team-test-')));
     execSync('git init', { cwd: tempRepo });
     execSync('git checkout -b main', { cwd: tempRepo });
     execSync('echo "hello" > test.txt', { cwd: tempRepo });
@@ -32,7 +32,7 @@ describe('worktree', () => {
     });
 
     it('throws NotAGitRepoError for non-repo', async () => {
-      const nonRepo = await realpath(await mkdtemp(join(tmpdir(), 'viktown-nonrepo-')));
+      const nonRepo = await realpath(await mkdtemp(join(tmpdir(), 'my-team-nonrepo-')));
       await expect(resolveRepoRoot(nonRepo)).rejects.toThrow('Not a git repository');
       await rm(nonRepo, { recursive: true, force: true });
     });

@@ -4,7 +4,7 @@ import { api, ApiError } from '../api-client.js';
 
 export function uiCommand(): Command {
   return new Command('ui')
-    .description('Open the Viktown web dashboard in your browser')
+    .description('Open the my-team web dashboard in your browser')
     .action(async () => {
       const url = 'http://127.0.0.1:3001';
 

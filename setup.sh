@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-echo "=== Viktown Setup ==="
+echo "=== my-team Setup ==="
 echo ""
 
 # Check prerequisites

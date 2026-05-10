@@ -29,7 +29,7 @@ describe('team-files', () => {
   };
 
   beforeEach(async () => {
-    worktreePath = await mkdtemp(join(tmpdir(), 'viktown-teamfiles-'));
+    worktreePath = await mkdtemp(join(tmpdir(), 'my-team-teamfiles-'));
     const dir = teamDir(worktreePath);
     await mkdir(dir, { recursive: true });
     await Promise.all([
