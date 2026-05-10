@@ -1,7 +1,59 @@
+import { useState, useRef, useEffect } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+
 import { useSessionStore } from '../store.js';
+import { useWebSocket } from '../hooks/useWebSocket.js';
+import { api } from '../api.js';
 
 export function Chat() {
+  const selectedId = useSessionStore((s) => s.selectedSessionId);
   const messages = useSessionStore((s) => s.messages);
+  const sessionState = useSessionStore((s) => s.sessionState);
+  const addMessage = useSessionStore((s) => s.addMessage);
+  const { send } = useWebSocket(selectedId);
+
+  const [input, setInput] = useState('');
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const isAwaitingApproval = sessionState?.phase === 'awaiting_approval';
+
+  // Auto-scroll to bottom on new messages
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages.length]);
+
+  const handleSend = () => {
+    const text = input.trim();
+    if (!text || !selectedId) return;
+
+    addMessage({
+      id: crypto.randomUUID(),
+      role: 'user',
+      text,
+      timestamp: new Date().toISOString(),
+    });
+    send({ type: 'input', text });
+    setInput('');
+  };
+
+  const handleApprove = () => {
+    if (!selectedId) return;
+    api.sessions.approve(selectedId).catch(() => {});
+    addMessage({
+      id: crypto.randomUUID(),
+      role: 'user',
+      text: 'Approved',
+      timestamp: new Date().toISOString(),
+    });
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
+  };
 
   return (
     <div className="flex flex-1 flex-col">
@@ -16,17 +68,30 @@ export function Chat() {
             {messages.map((msg) => (
               <div
                 key={msg.id}
-                className={`text-sm ${
+                className={
                   msg.role === 'user'
-                    ? 'ml-auto max-w-[80%] rounded-lg bg-blue-600 px-3 py-2 text-white'
+                    ? 'flex justify-end'
                     : msg.role === 'system'
-                      ? 'italic text-zinc-500'
-                      : 'max-w-[80%] text-zinc-200'
-                }`}
+                      ? ''
+                      : ''
+                }
               >
-                {msg.text}
+                {msg.role === 'system' ? (
+                  <div className="text-xs italic text-zinc-500">{msg.text}</div>
+                ) : msg.role === 'user' ? (
+                  <div className="max-w-[80%] rounded-lg bg-blue-600 px-3 py-2 text-sm text-white">
+                    {msg.text}
+                  </div>
+                ) : (
+                  <div className="prose prose-invert prose-sm max-w-none text-zinc-200">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                      {msg.text}
+                    </ReactMarkdown>
+                  </div>
+                )}
               </div>
             ))}
+            <div ref={messagesEndRef} />
           </div>
         )}
       </div>
@@ -34,15 +99,25 @@ export function Chat() {
       {/* Input */}
       <div className="border-t border-zinc-800 p-3">
         <div className="flex gap-2">
-          <input
-            type="text"
+          <textarea
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
             placeholder="Message captain..."
-            className="flex-1 rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 outline-none focus:border-zinc-600"
-            disabled
+            rows={1}
+            className="flex-1 resize-none rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 outline-none focus:border-zinc-600"
           />
+          {isAwaitingApproval && (
+            <button
+              onClick={handleApprove}
+              className="rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-500"
+            >
+              Approve
+            </button>
+          )}
           <button
-            className="rounded-lg bg-zinc-700 px-4 py-2 text-sm text-zinc-300"
-            disabled
+            onClick={handleSend}
+            className="rounded-lg bg-zinc-700 px-4 py-2 text-sm text-zinc-300 hover:bg-zinc-600"
           >
             Send
           </button>
