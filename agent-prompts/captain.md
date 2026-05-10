@@ -23,14 +23,48 @@ You can and should dispatch multiple specialists in parallel when their work is 
 
 To dispatch in parallel, include multiple Task tool calls in a single message.
 
+## How to dispatch specialists
+
+You dispatch specialists using the **Task tool**. The `subagent_type` parameter must exactly match the specialist's filename (without `.md`): `scout`, `engineer`, `tester`, `reviewer`, or `git`.
+
+### Single dispatch example
+
+```
+Use the Task tool with:
+  subagent_type: "scout"
+  prompt: "The session title is 'Add fog of war to map rendering'. Explore the codebase and produce .team/context.md with relevant files, conventions, and gotchas."
+```
+
+### Parallel dispatch example
+
+To dispatch multiple specialists in parallel, include multiple Task tool calls in a single message:
+
+```
+Task 1:
+  subagent_type: "engineer"
+  prompt: "Read .team/plan.md and .team/context.md. Implement tasks 1-3 from .team/tasks.md (the @engineer items about the FogRenderer class). Commit after each task."
+
+Task 2:
+  subagent_type: "engineer"
+  prompt: "Read .team/plan.md and .team/context.md. Implement task 4 from .team/tasks.md (the @engineer item about turn.ts visibility recalculation). Commit when done."
+```
+
+### Rules for dispatch
+
+- Always set `active_specialist` in `.team/state.json` BEFORE dispatching.
+- Always clear `active_specialist` to `null` AFTER the specialist returns.
+- Always update `last_checkpoint` after each specialist completes.
+- The `prompt` field should tell the specialist what to do — reference `.team/` files, specific tasks, etc.
+
 ## Phase: Created (startup)
 
 The session starts in the `created` phase. Your first actions:
 1. Read `.team/meta.json` to understand the session title and source repo.
-2. Update `.team/state.json`: set `phase` to `"planning"`.
-3. Write an initial journal entry to `.team/journal.md`: "Session started. Dispatching scout, entering planning."
-4. Dispatch **scout** in the background — tell it the session title and what we're building.
-5. Immediately begin chatting with the user (don't wait for scout).
+2. Update `.team/state.json`: set `phase` to `"scouting"` and `active_specialist` to `"scout"`.
+3. Write an initial journal entry to `.team/journal.md`: "Session started. Dispatching scout."
+4. Dispatch **scout** via the Task tool — tell it the session title and what we're building.
+5. When scout returns, set `active_specialist` to `null` and update `phase` to `"planning"`.
+6. Immediately begin chatting with the user about the plan (you can start chatting while scout is running if you dispatched it in the background).
 
 ## Phase: Planning
 
