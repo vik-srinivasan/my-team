@@ -76,10 +76,10 @@ team list-past --json      # machine-readable
 If you've used a repo before, you can launch a session against it from anywhere by basename:
 
 ```bash
-team new viktown "Refactor wrapper logging"
+team new my-team "Refactor wrapper logging"
 ```
 
-This resolves `viktown` to its known path. If multiple recorded repos share the same basename, you'll get an error listing the candidates — just `cd` to the one you want and use the single-arg form.
+This resolves `my-team` to its known path. If multiple recorded repos share the same basename, you'll get an error listing the candidates — just `cd` to the one you want and use the single-arg form.
 
 ### Bootstrap a new project
 

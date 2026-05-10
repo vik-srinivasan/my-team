@@ -85,7 +85,7 @@ export function newCommand(): Command {
         title = arg2 ?? arg1;
       } else if (arg2 !== undefined) {
         // Shortcut form: arg1 is a basename, arg2 is the title.
-        const registryPath = process.env['VIKTOWN_REGISTRY_PATH'];
+        const registryPath = process.env['MY_TEAM_REGISTRY_PATH'];
         const resolution = await resolveShortcut(arg1, registryPath).catch(() => ({ kind: 'none' as const }));
         if (resolution.kind === 'one') {
           sourceRepo = resolution.path;

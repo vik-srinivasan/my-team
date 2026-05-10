@@ -201,7 +201,7 @@ export class SessionManager extends EventEmitter<SessionManagerEventMap> {
     // Record this session against the recents registry. Best-effort —
     // a failed write must not block session creation.
     try {
-      const overridePath = process.env['VIKTOWN_REGISTRY_PATH'];
+      const overridePath = process.env['MY_TEAM_REGISTRY_PATH'];
       await recordSessionStart(meta, overridePath);
     } catch (err) {
       this.log.warn({ sessionId, err }, 'Failed to update recents registry');

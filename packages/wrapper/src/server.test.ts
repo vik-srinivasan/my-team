@@ -58,13 +58,13 @@ describe('HTTP API integration', () => {
     // Isolate the recents registry so tests don't touch the real ~/team/recents.json
     registryDir = await mkdtemp(join(tmpdir(), 'my-team-registry-'));
     registryPath = join(registryDir, 'recents.json');
-    process.env['VIKTOWN_REGISTRY_PATH'] = registryPath;
+    process.env['MY_TEAM_REGISTRY_PATH'] = registryPath;
   });
 
   afterAll(async () => {
     await rm(tempRepo, { recursive: true, force: true });
     await rm(registryDir, { recursive: true, force: true });
-    delete process.env['VIKTOWN_REGISTRY_PATH'];
+    delete process.env['MY_TEAM_REGISTRY_PATH'];
   });
 
   beforeEach(() => {
