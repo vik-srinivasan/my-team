@@ -49,3 +49,17 @@ export class ClaudeProcessError extends MyTeamError {
     this.name = 'ClaudeProcessError';
   }
 }
+
+export class RepoRegistryError extends MyTeamError {
+  constructor(message: string) {
+    super(message, 'REPO_REGISTRY_ERROR');
+    this.name = 'RepoRegistryError';
+  }
+}
+
+export class EmptyProjectInitError extends MyTeamError {
+  constructor(message: string) {
+    super(message, 'EMPTY_PROJECT_INIT_ERROR');
+    this.name = 'EmptyProjectInitError';
+  }
+}

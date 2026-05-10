@@ -1,120 +1,56 @@
-# Context — Rename "Viktown" to "my-team"
+# Context — UI-changes
 
-**Scope: 134 occurrences across 53 files** (raw `rg -i viktown` count, includes pnpm-lock.yaml).
+## Relevant files
 
----
+- `packages/ui/src/App.tsx:L37-L107` — Root layout. Three-column shell: left (56px), middle (flex-1), right (520px). Renders `NotificationBanner`, header bar when a session is selected, conditionally mounts `Chat` and `RightPanel`. Right column absent when nothing selected.
+- `packages/ui/src/components/SessionList.tsx:L31-L101` — Left column session list. Phase dot + title + age, second line shows phase + `active_specialist`. Click selects; `+` opens `NewSessionModal`. Polls every 5s via `useSession`.
+- `packages/ui/src/components/AgentList.tsx:L22-L62` — Bottom of left column when a session is selected. Captain status + `Scout > Eng > Test > Rev > Git` pipeline bar.
+- `packages/ui/src/components/Chat.tsx` — Full captain chat with streaming markdown, approve button (when `awaiting_approval`), auto-scroll. Heavy detail view we're moving away from.
+- `packages/ui/src/components/RightPanel.tsx` — Tab bar (Diff / Plan / Review / Journal / Decisions). Custom diff parser + react-markdown views.
+- `packages/ui/src/components/NotificationBanner.tsx` — Polls `/api/notifications` every 10s. Amber dismissible banners for blocked sessions. Already wired into `App.tsx`.
+- `packages/ui/src/store.ts` — Zustand store: `sessions`, `selectedSessionId`, `sessionState`, `messages`, `teamFiles`, `diff`, `rightTab`, `remoteUrl`. `selectSession()` clears per-session state.
+- `packages/ui/src/hooks/useSession.ts` — Fetches list (poll 5s); on selection fetches `GET /api/sessions/:id` + diff; polls both every 5s.
+- `packages/ui/src/hooks/useWebSocket.ts` — `ws://.../ws/sessions/:id`. Events: `output` (ANSI strip > captain stream), `state`, `team_file`, `diff`, `remote_url`, `specialist`. Auto-reconnects every 2s. Streaming finalized after 3s silence. No `tabManuallySet` flag.
+- `packages/ui/src/api.ts` — Thin HTTP client; relative `/api` base (Vite proxy in dev, wrapper serves `dist/` in prod).
+- `packages/ui/src/dev-seed.ts` — Mock seed data via `seedDevData()`.
+- `packages/shared/src/types.ts:L130-L139` — `SessionSummary`: `{ id, title, source_repo, phase, active_specialist, created_at }`. No `last_checkpoint`, `blockers`, or `must_ask_pending` at the list level.
+- `packages/shared/src/types.ts:L27-L34` — `SessionState`: `{ phase, active_specialist, review_iterations, max_review_iterations, last_checkpoint, blockers, must_ask_pending }`.
+- `packages/wrapper/src/session-manager.ts:L38` — Notifications dir: `~/team/notifications/`.
+- `packages/wrapper/src/session-manager.ts:L222-L231` — `listSessions()` returns `SessionSummary[]` from in-memory state; does NOT include `blockers` or `must_ask_pending`.
 
-## 1. Package metadata (`package.json` files)
+## Conventions
 
-| File | Field | Current |
-|---|---|---|
-| `package.json` | `name` | `"viktown"` (root workspace) |
-| `packages/cli/package.json` | `name` | `"@viktown/cli"` |
-| `packages/cli/package.json` | dep | `"@viktown/shared": "workspace:*"` |
-| `packages/shared/package.json` | `name` | `"@viktown/shared"` |
-| `packages/wrapper/package.json` | `name` | `"@viktown/wrapper"` |
-| `packages/wrapper/package.json` | dep | `"@viktown/shared": "workspace:*"` |
-| `packages/ui/package.json` | `name` | `"@viktown/ui"` |
-| `packages/ui/package.json` | dep | `"@viktown/shared": "workspace:*"` |
-| `apps/landing/package.json` | `name` | `"@viktown/landing"` |
-| `vercel.json` | `buildCommand` | `pnpm --filter @viktown/landing build` |
-| `setup.sh` | `pnpm --filter` x4 | `@viktown/shared|wrapper|cli|ui` |
+- Components: `PascalCase.tsx`. Hooks: `useXxx.ts` in `src/hooks/`. ESM imports use `.js` extension.
+- Tailwind v4 via `@tailwindcss/vite`. One `@import 'tailwindcss'` in `src/index.css`. No `tailwind.config.js`.
+- Color palette: `zinc-950` bg, `zinc-900` panels, `zinc-800` borders/hover. Status: cyan=scouting/planning, amber=awaiting_approval, blue=executing, purple=reviewing, green=done, red=blocked. `PHASE_DOT` is duplicated in `App.tsx` and `SessionList.tsx` — consolidate.
+- Zustand with selector subscriptions. All mutations through named actions. `selectSession()` resets per-session state — any persistent "last seen" must live outside the session slice.
+- No UI component tests currently. Convention is vitest colocated.
 
-CLI `bin` is already `"team"` — no change.
+## Dependencies
 
-## 2. TS imports — `@viktown/shared` → `@my-team/shared`
+- React 19.1 + Vite 6
+- Tailwind v4
+- Zustand v5
+- `lucide-react` v0.511
+- `react-markdown` v10 + `remark-gfm` v4 + `rehype-highlight` v7
+- No component library (no shadcn / radix)
 
-- `packages/cli/src/commands/attach.ts:5`
-- `packages/wrapper/src/claude-process.ts:6`
-- `packages/wrapper/src/session-manager.ts:15,21`
-- `packages/wrapper/src/api/sessions.ts:10,11`
-- `packages/wrapper/src/api/websocket.ts:5`
-- `packages/wrapper/src/team-files.ts:5`
-- `packages/wrapper/src/worktree.ts:8,9`
-- `packages/ui/src/store.ts:7`
-- `packages/ui/src/hooks/useWebSocket.ts:3`
-- `packages/ui/src/api.ts:8`
+## Data available for "needs attention" signals
 
-## 3. Branded strings / class names
+`GET /api/sessions` returns `SessionSummary` with `phase` + `active_specialist` only. From this alone:
+- `phase === 'awaiting_approval'` -> needs approval
+- `phase === 'blocked'` -> needs attention (also in `NotificationBanner`)
+- `must_ask_pending.length > 0` -> only in `SessionState`, not `SessionSummary`. Options: (a) expand `SessionSummary` + `listSessions()`, (b) fetch all detail, (c) poll `/api/notifications`.
 
-| File | What |
-|---|---|
-| `packages/shared/src/errors.ts:1,6,11,18,25,32,39,46` | `ViktownError` class + subclasses + `this.name` |
-| `packages/wrapper/src/api/sessions.ts:11,41` | import + `instanceof ViktownError` |
-| `packages/wrapper/src/worktree.ts:15` | `VIKTOWN_AGENTS_DIR` const (rename to `MY_TEAM_AGENTS_DIR`) |
-| `packages/wrapper/src/worktree.ts:57,150` | branch prefix: `` `viktown/${sessionId}` `` |
-| `packages/wrapper/src/worktree.ts:138` | comment `Viktown built-in →` |
-| `packages/wrapper/src/claude-process.ts:105` | fallback `'viktown-captain'` |
-| `packages/wrapper/src/index.ts:28` | log `'Viktown wrapper daemon started'` |
-| `packages/cli/src/index.ts:22` | `.description('Viktown — Multi-agent…')` |
-| `packages/cli/src/commands/help-info.ts:6,9` | description + colored banner |
-| `packages/cli/src/commands/ui.ts:7` | `.description('Open the Viktown web dashboard…')` |
-| `packages/ui/index.html:6` | `<title>Viktown</title>` |
+"New updates since last viewed" has no built-in signal. Simplest: client-side `Map<id, lastViewedAt>` in store, compare against `last_checkpoint` from detail fetch / state WS events.
 
-## 4. Branch prefix call sites + tests
+## Gotchas
 
-- `packages/wrapper/src/worktree.ts:57,150` — production code
-- `packages/wrapper/src/server.test.ts:118,189,237,274` — `git branch -D viktown/${sessionId}`
-- `packages/wrapper/src/worktree.test.ts:64,96` — expect/cleanup
-- `packages/wrapper/src/team-files.test.ts:17` — fixture
-- Cosmetic temp-dir prefixes (rename optional): `server.test.ts:45`, `worktree.test.ts:15,35`, `team-files.test.ts:32`
-
-## 5. Landing page (`apps/landing/app/`)
-
-- `layout.tsx:7,10,12,18,20,22` — metadata title, OG, `metadataBase: new URL('https://viktown.dev')`
-- `components/Hero.tsx:7` — `GITHUB_URL` + h1 header (must change to `my-team: Multi-Agent…`)
-- `components/Hero.tsx` right-panel `AgentFlow` — **dashboard-like widget → add WIP badge**
-- `components/Footer.tsx:3,4,13` — URLs + visible `viktown` brand text
-- `components/Quickstart.tsx:18,35,36` — clone URL + GITHUB_URL + README_URL
-- `components/HowItWorks.tsx:13,14` — terminal demo `[viktown]` lines
-- `components/Architecture.tsx:228-241` — SVG `<text>` `VIKTOWN` header (all-caps)
-- `components/Architecture.tsx:26` — `Web UI` box → **add WIP label**
-
-## 6. Hardcoded GitHub URLs
-
-- `apps/landing/app/components/Hero.tsx:7`
-- `apps/landing/app/components/Footer.tsx:3,4`
-- `apps/landing/app/components/Quickstart.tsx:18,35,36`
-- `README.md:15`
-- `SETUP.md:39,169,175,177,207-213,228` (URLs + path suggestions like `~/.viktown`)
-- `CLAUDE.md:74` — `repo at 'vik-srinivasan/viktown'`
-
-## 7. Local-path references
-
-- `.team/meta.json:4` — `"source_repo": "/Users/vik/Documents/viktown"` (this session's generated artifact; ignore)
-- No hardcoded `/Users/vik/Documents/viktown` in source files.
-
-## 8. Agent prompts (source of truth: `agent-prompts/`)
-
-- `agent-prompts/captain.md:3`
-- `agent-prompts/scout.md:10`
-- `agent-prompts/engineer.md:10`
-- `agent-prompts/tester.md:10`
-- `agent-prompts/reviewer.md:10`
-- `agent-prompts/git.md:10,63`
-
-`.claude/agents/` is regenerated from `agent-prompts/` at session creation — do NOT edit.
-
-## 9. Docs
-
-- `SPEC.md` (6), `README.md` (3), `CLAUDE.md` (3), `SETUP.md` (15), `implementation_plan.md` (9), `tasks.md` (1)
-
-## 10. Casing convention
-
-| Old | New |
-|---|---|
-| `viktown` (npm scope, branch prefix, lowercase prose) | `my-team` |
-| `Viktown` (CLI description, prose) | `my-team` |
-| `VIKTOWN` (SVG all-caps) | `MY-TEAM` |
-| `ViktownError` | `MyTeamError` |
-| `@viktown/` (npm scope) | `@my-team/` |
-| `VIKTOWN_AGENTS_DIR` (internal const) | `MY_TEAM_AGENTS_DIR` |
-
-**`pnpm-lock.yaml`**: do NOT hand-edit. Run `pnpm install` after package.json updates.
-
-## 11. Explicitly out of scope (post-merge user actions)
-
-- `gh repo rename my-team` (GitHub redirects old URL)
-- `mv /Users/vik/Documents/viktown /Users/vik/Documents/my-team`
-- Cleaning up the `viktown/` branch prefix on already-pushed branches
-- This session's own branch (`viktown/safe-sun-66`) stays — renaming mid-flight would break the PR push
+- `PHASE_DOT` duplicated — extract to shared util.
+- `selectSession()` wipes messages — if overview shows recent captain output for non-selected sessions, output must come from a separate endpoint or a session-keyed map.
+- `useWebSocket` mounts in `Chat`. Single instance tied to selected session.
+- Session list polling is 5s — fine for overview.
+- `NotificationBanner` already works — keep.
+- `SessionSummary` lacks `last_checkpoint` — if overview wants "updated X ago", expand the shared type + `listSessions()`.
+- Tailwind v4 — no config file. Dark mode is manual classes.
+- Vite proxy — dev `/api` and `/ws` -> `localhost:3001`. Prod: wrapper serves `dist/`. No router; SPA, no URL-based routing.

@@ -136,6 +136,8 @@ export interface SessionSummary {
   phase: SessionPhase;
   active_specialist: string | null;
   created_at: string;
+  last_checkpoint: string;
+  must_ask_count: number;
 }
 
 export interface SessionDetail extends Session {
@@ -153,4 +155,20 @@ export interface DiffResponse {
 export interface ErrorResponse {
   error: string;
   code: string;
+}
+
+// ── Recents registry ────────────────────────────────────────────────
+
+export interface RepoRecord {
+  path: string;
+  basename: string;
+  first_used: string;
+  last_used: string;
+  session_count: number;
+  last_session_id: string;
+}
+
+export interface RepoRegistry {
+  version: 1;
+  repos: RepoRecord[];
 }

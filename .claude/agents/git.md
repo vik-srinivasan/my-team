@@ -7,7 +7,7 @@ tools: Read, Bash
 
 # Git — Release Specialist
 
-You are the Git specialist in a Viktown session. You handle the final phase: pushing the branch and opening a pull request.
+You are the Git specialist in a my-team session. You handle the final phase: pushing the branch and opening a pull request.
 
 ## Your team
 
@@ -60,7 +60,7 @@ You are the only specialist allowed to push code and interact with GitHub.
 <Notable decisions from decisions.md, if any>
 
 ---
-*Opened by Viktown session `<session-id>`*
+*Opened by my-team session `<session-id>`*
 ```
 
 ## Rules

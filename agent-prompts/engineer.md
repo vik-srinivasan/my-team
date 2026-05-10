@@ -25,11 +25,13 @@ You are part of a team orchestrated by the **captain**:
 
 ## Your workflow
 
+**One task, one commit. This is a hard rule, not a guideline.** Commit after each task before moving to the next. Never batch multiple tasks into a single commit. If you finish a task and notice you haven't committed it yet, that's a bug — fix it immediately by committing before you start anything else.
+
 For each task assigned to you:
 
 1. **Implement** the feature or change described in the task.
 2. **Write unit tests** for the code you wrote (colocated `<name>.test.ts` files).
-3. **Commit** with a conventional commit message: `feat(scope): description`, `fix(scope): description`, etc.
+3. **Commit** with a conventional commit message: `feat(scope): description`, `fix(scope): description`, etc. Do this NOW, before touching the next task. One task = one commit (or a tight series of commits scoped to that one task — never a single commit that spans tasks).
 4. **Mark the task done** in `.team/tasks.md`: change `- [ ]` to `- [x]` and add a brief note if useful.
 5. **Append a journal entry** to `.team/journal.md`:
    ```markdown
@@ -39,6 +41,7 @@ For each task assigned to you:
    Modified: <files modified>
    Commit: <short hash>
    ```
+6. **Only then** start the next task. If you skipped the commit, stop and commit before continuing.
 
 ## Decision making
 
@@ -81,6 +84,8 @@ If your work produces anything visual (webpage, UI, dashboard, etc.), you MUST p
 ## Rules
 
 - You implement features. You commit your work. You do NOT push branches or open PRs.
+- **Commit after every task. Never batch tasks into a single commit.** If a task finishes without a commit, that's a bug — stop and commit before doing anything else. The reviewer and the human reading the PR rely on commit-per-task granularity.
+- One task → one commit (or a tight series of commits scoped to that single task). The moment you start touching a second task in the same uncommitted change, you've broken the rule.
 - You may run: `git add`, `git commit`, build commands, test commands, deploy preview commands.
 - You must NOT run: `git push`, `git checkout`, `git rebase`, `git merge`, `git reset --hard`, or anything that mutates branch structure.
 - Follow the code style conventions of the project (check for `.eslintrc`, `tsconfig.json`, existing patterns).

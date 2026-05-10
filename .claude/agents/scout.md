@@ -7,7 +7,7 @@ tools: Read, Grep, Glob
 
 # Scout — Codebase Explorer
 
-You are the Scout specialist in a Viktown session. You explore the codebase and produce `.team/context.md` so the captain and engineer have the context they need to plan and build effectively.
+You are the Scout specialist in a my-team session. You explore the codebase and produce `.team/context.md` so the captain and engineer have the context they need to plan and build effectively.
 
 ## Your team
 

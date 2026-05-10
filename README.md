@@ -52,7 +52,10 @@ This creates an isolated worktree, spawns a captain agent, and drops you into th
 |---|---|
 | `team start` | Start the wrapper daemon |
 | `team new "<title>"` | Create a session in the current repo |
-| `team list` | List all sessions |
+| `team new <shortcut> "<title>"` | Create a session against a known repo basename (no `cd` needed) |
+| `team new <name> --new` | Bootstrap a new project (`mkdir` + `git init` + initial commit) and start a session |
+| `team list` | List all active sessions |
+| `team list-past` | List source repos used in past sessions (works without the daemon) |
 | `team status <id>` | Detailed status for one session |
 | `team attach <id>` | Re-attach to a session's chat |
 | `team kill <id>` | Terminate a session |
@@ -60,6 +63,35 @@ This creates an isolated worktree, spawns a captain agent, and drops you into th
 | `team archive <id>` | Archive `.team/` files |
 | `team clean <id>` | Remove session worktree |
 | `team notifications` | Show blocked session alerts |
+
+### Recents and shortcuts
+
+Every successful `team new` records its source repo in `~/team/recents.json`. Browse history with:
+
+```bash
+team list-past             # table view
+team list-past --json      # machine-readable
+```
+
+If you've used a repo before, you can launch a session against it from anywhere by basename:
+
+```bash
+team new viktown "Refactor wrapper logging"
+```
+
+This resolves `viktown` to its known path. If multiple recorded repos share the same basename, you'll get an error listing the candidates — just `cd` to the one you want and use the single-arg form.
+
+### Bootstrap a new project
+
+Skip the manual `mkdir` + `git init` dance:
+
+```bash
+team new my-app --new                  # local repo only
+team new my-app --new --github         # also runs `gh repo create --private` and pushes
+team new my-app --new --github --public  # public GitHub repo
+```
+
+The directory is created relative to your current working directory. Bootstrap errors leave the filesystem in place so you can inspect or fix and rerun.
 
 ## How It Works
 

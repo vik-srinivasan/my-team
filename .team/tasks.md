@@ -1,54 +1,39 @@
-# Tasks — Rename Viktown → my-team
+# Tasks — UI-changes
 
 ## Engineering
 
-### Engineer A — packages/ + root configs
-- [x] @engineer Rename `name` and workspace `dependencies` in every `package.json` (root, `packages/cli`, `packages/shared`, `packages/wrapper`, `packages/ui`, `apps/landing`)
-- [x] @engineer Update `vercel.json` `buildCommand` to `pnpm --filter @my-team/landing build`
-- [x] @engineer Update `setup.sh` `pnpm --filter` invocations
-- [x] @engineer Rewrite all `@viktown/shared` imports → `@my-team/shared` in TS source
-- [x] @engineer Rename `ViktownError` (class + subclasses + `this.name` + all import/usage sites) → `MyTeamError`
-- [x] @engineer Rename `VIKTOWN_AGENTS_DIR` const → `MY_TEAM_AGENTS_DIR`
-- [x] @engineer Update branch prefix in `packages/wrapper/src/worktree.ts:57,150` → `my-team/${sessionId}`
-- [x] @engineer Update test assertions/cleanup that reference `viktown/` branch prefix (server.test.ts, worktree.test.ts, team-files.test.ts fixture)
-- [x] @engineer Update CLI description strings, help banner, wrapper log strings, claude-process fallback remote ID, ui index.html title
-- [x] @engineer Run `pnpm install` to regenerate `pnpm-lock.yaml`
-- [x] @engineer Verify `pnpm -r build` passes and `pnpm -r test` passes — tests: 39/39 pass on re-run (intermittent parallel git-worktree flakiness in server.test.ts is pre-existing). Build: shared/wrapper/ui/landing all pass; `@my-team/cli` fails on pre-existing `start.ts` type error (ChildProcess.on not found) — verified the same error exists at b360f5c before my rename. See `.team/decisions.md`.
+### Backend / shared types
+- [x] @engineer Extend `SessionSummary` in `packages/shared/src/types.ts` with `last_checkpoint: string` and `must_ask_count: number`.
+- [x] @engineer Update `listSessions()` in `packages/wrapper/src/session-manager.ts` to populate the two new fields from in-memory state. Add unit test if a `session-manager.test.ts` doesn't already exist for `listSessions`. (Extended existing lifecycle test in `server.test.ts` to assert the new fields.)
 
-### Engineer B — apps/landing/
-- [x] @engineer Update Hero `<h1>` to read `my-team: Multi-Agent orchestration` / `for Claude Code.` (preserve gradient styling)
-- [x] @engineer Update all `GITHUB_URL` / repo URL constants in Hero, Footer, Quickstart
-- [x] @engineer Update Quickstart clone command (`viktown.git` → `my-team.git`)
-- [x] @engineer Update HowItWorks terminal-demo `[viktown]` lines → `[my-team]`
-- [x] @engineer Update Architecture SVG `VIKTOWN` text → `MY-TEAM`
-- [x] @engineer Update Footer brand text and any `viktown` strings
-- [x] @engineer Update `layout.tsx` metadata (title, description, OG, `metadataBase`)
-- [x] @engineer Add WIP indicator to Hero's right-panel `AgentFlow` widget (small WIP pill near the "live" badge)
-- [x] @engineer Add WIP indicator to Architecture diagram's "Web UI" box (subtitle now reads `React 19 + Vite · WIP`)
-- [x] @engineer Verify `pnpm --filter @my-team/landing build` succeeds — build green
+### Frontend foundations
+- [x] @engineer Create `packages/ui/src/lib/phase.ts` exporting `PHASE_DOT`, `PHASE_LABEL`, and any shared phase helpers. Replace the duplicated maps in `App.tsx` and `SessionList.tsx` with imports from this file.
+- [x] @engineer Create `packages/ui/src/lib/attention.ts` exporting `getAttention(session, lastViewed) -> { critical: boolean, hasUpdate: boolean, reason: string | null }`. Add `attention.test.ts` covering: awaiting_approval, blocked, must_ask_count > 0, fresh `last_checkpoint`, all-clear.
 
-### Engineer C — docs + agent prompts
-- [x] @engineer Update `SPEC.md` (replace viktown → my-team; update any URLs/paths)
-- [x] @engineer Update `README.md`
-- [x] @engineer Update `CLAUDE.md`
-- [x] @engineer Update `SETUP.md`
-- [x] @engineer Update `implementation_plan.md`
-- [x] @engineer Update repo-root `tasks.md` (NOT this `.team/tasks.md`)
-- [x] @engineer Update `agent-prompts/captain.md`
-- [x] @engineer Update `agent-prompts/scout.md`
-- [x] @engineer Update `agent-prompts/engineer.md`
-- [x] @engineer Update `agent-prompts/tester.md`
-- [x] @engineer Update `agent-prompts/reviewer.md`
-- [x] @engineer Update `agent-prompts/git.md` (identity line + PR-body footer)
+### Store / data plumbing
+- [x] @engineer In `packages/ui/src/store.ts`: remove `teamFiles`, `diff`, `rightTab` slices. Add `lastViewed: Record<string,string>` with `markViewed(id)` action. Persist `lastViewed` to `localStorage` under `viktown.lastViewed.v1` (load on store init, save on update).
+- [x] @engineer In `packages/ui/src/hooks/useSession.ts`: drop diff fetching and team-files syncing. Call `markViewed(selectedSessionId)` whenever a session is selected.
+- [x] @engineer In `packages/ui/src/hooks/useWebSocket.ts`: drop `team_file` and `diff` event handlers. Leave `output`, `state`, `specialist`, `remote_url` intact.
+
+### Layout + components
+- [x] @engineer Rewrite `packages/ui/src/App.tsx` into a two-column layout: sidebar (~320px) + main pane (flex-1). Drop the right column entirely. Header bar simplified to title + remoteUrl link.
+- [x] @engineer Rework `packages/ui/src/components/SessionList.tsx`: wider rows (~320px), show title + phase label + age (from `last_checkpoint`), critical badge with icon + tooltip reason, unread dot. Sort: critical -> hasUpdate -> recency.
+- [x] @engineer Rename `packages/ui/src/components/Chat.tsx` -> `OutputLog.tsx`. Remove input box, draft state, send button. Keep streaming markdown messages, auto-scroll, approve button (when `phase === 'awaiting_approval'`). Update `App.tsx` import.
+- [x] @engineer Delete `packages/ui/src/components/RightPanel.tsx` and any imports/references to it.
+- [x] @engineer Update `packages/ui/src/dev-seed.ts` with 4-5 mock sessions across varied phases (executing, awaiting_approval, blocked, done) and simulate `last_checkpoint` so unread/critical badges are exercisable. (File didn't exist; created it and wired it via `main.tsx` behind `?seed=1`.)
 
 ## Testing
-- [ ] @tester Run full suite: `pnpm -r test` — all packages pass
-- [ ] @tester Verify `rg -i viktown -g '!pnpm-lock.yaml' -g '!node_modules' -g '!.git' -g '!.team/meta.json' -g '!.claude/agents'` returns 0 hits
-- [ ] @tester Verify landing page builds (`pnpm --filter @my-team/landing build`)
-- [ ] @tester Spot-check landing page renders header and WIP indicators correctly
+
+- [x] @tester Run `pnpm install` if needed, then `pnpm -C packages/ui build` — must succeed with no type errors.
+- [x] @tester Run `pnpm -C packages/wrapper build` (or repo-wide `pnpm build`) — must succeed.
+- [x] @tester Run `pnpm -C packages/ui test` and `pnpm -C packages/wrapper test` — all green, including the new `attention.test.ts`.
+- [x] @tester Start dev (`pnpm dev`) with seed data, smoke-test: dashboard renders two-column layout, sessions sort correctly, clicking a session clears its unread dot, approve button appears for `awaiting_approval`, NotificationBanner still shows blocked sessions. Report any visual regressions.
+- [x] @engineer Add `packages/ui/src/lib/last-viewed.test.ts` covering load/persist round-trip, malformed JSON, missing key, non-string filtering, SSR guard, and quota-error swallow. (Added during review-fix pass; helpers extracted to `lib/last-viewed.ts`.)
 
 ## Review
-- [ ] @reviewer Code review pass — verify no stale `viktown` references, no broken imports, casing convention applied uniformly
+
+- [x] @reviewer Code review pass. Produce `.team/review.md` with Blocking / Suggestion / Approved findings. Pay attention to: removed code is fully removed (no dangling imports/types), localStorage persistence handles SSR/first-load gracefully, attention derivation has no off-by-one on `last_checkpoint` comparisons.
 
 ## Git
-- [ ] @git Push session branch and open PR with title `rename: viktown → my-team`
+
+- [x] @git Push the session branch and open a PR against `main` with the session title.

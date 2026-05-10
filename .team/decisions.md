@@ -1,6 +1,11 @@
-## 2026-05-10T20:18:00Z — engineer (A)
-Question: `pnpm -r build` failed for `@my-team/cli` due to pre-existing TS errors in `packages/cli/src/commands/start.ts` (`Property 'on' does not exist on type 'ChildProcess'`, `Parameter 'err' implicitly has 'any' type` x2 etc.). The `cli` package is missing `@types/node` in its devDependencies, so Node's `ChildProcess` lacks type info.
+## 2026-05-10T19:55:00Z — engineer
+Question: How should `getAttention()` treat sessions the user has never selected (no entry in `lastViewed`)?
 Options considered:
-1. Add `@types/node` to `packages/cli/package.json` devDependencies as a minimal fix.
-2. Leave it alone — it's unrelated to the rename and out of my engineer-A scope.
-Decision: Option 2 — leave alone. Verified by checking out `b360f5c` (pre-rename) that the same error existed before my changes. The rename did not introduce or worsen it. Logging here for the reviewer/captain to triage as a separate follow-up.
+  - Treat unseen sessions as "fresh" (show update dot) — surfaces new sessions but creates a dot on first load for every session.
+  - Treat unseen sessions as "not fresh" — quieter on first load but a brand-new session won't get any signal until its checkpoint advances past an entry that doesn't exist.
+Decision: Treat unseen sessions as fresh. The update dot is meant to communicate "moved since you last looked", and "never looked" qualifies. Refreshing the page is rare in practice; the cost of one extra dot per session on cold load is small. Selecting the session clears it.
+
+## 2026-05-10T19:56:00Z — engineer
+Question: When multiple critical triggers apply (e.g. `awaiting_approval` AND `must_ask_count > 0`), which reason wins?
+Options considered: surface all reasons concatenated; pick a priority order.
+Decision: Pick a priority order — `awaiting_approval` > `blocked` > `must_ask`. Tooltips need to stay short; awaiting_approval is the action with the highest leverage (one-click resolves it), so it wins. Rare in practice anyway.

@@ -4,6 +4,7 @@ import { Command } from 'commander';
 import { startCommand } from './commands/start.js';
 import { newCommand } from './commands/new.js';
 import { listCommand } from './commands/list.js';
+import { listPastCommand } from './commands/list-past.js';
 import { statusCommand } from './commands/status.js';
 import { attachCommand } from './commands/attach.js';
 import { killCommand } from './commands/kill.js';
@@ -25,6 +26,7 @@ program
 program.addCommand(startCommand());
 program.addCommand(newCommand());
 program.addCommand(listCommand());
+program.addCommand(listPastCommand());
 program.addCommand(statusCommand());
 program.addCommand(attachCommand());
 program.addCommand(killCommand());

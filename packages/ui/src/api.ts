@@ -3,8 +3,6 @@ import type {
   CreateSessionResponse,
   SessionSummary,
   SessionDetail,
-  DiffResponse,
-  TeamFiles,
 } from '@my-team/shared';
 
 const BASE = '/api';
@@ -59,21 +57,6 @@ export const api = {
 
     archive(id: string): Promise<void> {
       return request(`/sessions/${id}/archive`, { method: 'POST' });
-    },
-
-    diff(id: string): Promise<DiffResponse> {
-      return request(`/sessions/${id}/diff`);
-    },
-
-    team(id: string): Promise<TeamFiles> {
-      return request(`/sessions/${id}/team`);
-    },
-
-    teamFile(id: string, file: string): Promise<string> {
-      return fetch(`${BASE}/sessions/${id}/team/${file}`).then((r) => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return r.text();
-      });
     },
   },
 };
