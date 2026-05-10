@@ -10,7 +10,8 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@viktown/shared": "workspace:*"
+    "@viktown/shared": "workspace:*",
+    "simple-git": "^3.36.0"
   },
   "devDependencies": {
     "typescript": "^5.7.0"
