@@ -22,6 +22,13 @@ export class SessionActiveError extends ViktownError {
   }
 }
 
+export class SessionProcessDeadError extends ViktownError {
+  constructor(id: string) {
+    super(`Session '${id}' exists but its captain process is not running.`, 'SESSION_PROCESS_DEAD');
+    this.name = 'SessionProcessDeadError';
+  }
+}
+
 export class NotAGitRepoError extends ViktownError {
   constructor(path: string) {
     super(`Not a git repository: ${path}`, 'NOT_A_GIT_REPO');

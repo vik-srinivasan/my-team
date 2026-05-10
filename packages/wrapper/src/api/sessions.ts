@@ -39,6 +39,7 @@ function handleError(res: Response, err: unknown, log: Logger): void {
   if (err instanceof ViktownError) {
     const statusCode = err.code === 'SESSION_NOT_FOUND' ? 404
       : err.code === 'SESSION_ACTIVE' ? 409
+      : err.code === 'SESSION_PROCESS_DEAD' ? 409
       : err.code === 'NOT_A_GIT_REPO' ? 400
       : 500;
     res.status(statusCode).json({

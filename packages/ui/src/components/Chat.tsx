@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import rehypeHighlight from 'rehype-highlight';
 
 import { useSessionStore } from '../store.js';
 import { useWebSocket } from '../hooks/useWebSocket.js';
@@ -37,15 +38,24 @@ export function Chat() {
     setInput('');
   };
 
-  const handleApprove = () => {
+  const handleApprove = async () => {
     if (!selectedId) return;
-    api.sessions.approve(selectedId).catch(() => {});
-    addMessage({
-      id: crypto.randomUUID(),
-      role: 'user',
-      text: 'Approved',
-      timestamp: new Date().toISOString(),
-    });
+    try {
+      await api.sessions.approve(selectedId);
+      addMessage({
+        id: crypto.randomUUID(),
+        role: 'user',
+        text: 'Approved',
+        timestamp: new Date().toISOString(),
+      });
+    } catch {
+      addMessage({
+        id: crypto.randomUUID(),
+        role: 'system',
+        text: 'Failed to send approval — captain process may not be running.',
+        timestamp: new Date().toISOString(),
+      });
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -84,7 +94,7 @@ export function Chat() {
                   </div>
                 ) : (
                   <div className="prose prose-invert prose-sm max-w-none text-zinc-200">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]}>
                       {msg.text}
                     </ReactMarkdown>
                   </div>

@@ -17,6 +17,7 @@ import {
   generateSessionId,
   SessionNotFoundError,
   SessionActiveError,
+  SessionProcessDeadError,
 } from '@viktown/shared';
 
 import {
@@ -116,6 +117,18 @@ export class SessionManager extends EventEmitter<SessionManagerEventMap> {
       if (managed) {
         managed.session.pid = null;
         managed.captain = null;
+
+        // If captain crashed unexpectedly (non-zero exit, not killed/done), set blocked
+        const phase = managed.session.state.phase;
+        if (code !== 0 && phase !== 'killed' && phase !== 'done' && phase !== 'cleaned') {
+          managed.session.state.phase = 'blocked';
+          managed.session.state.blockers = [
+            ...managed.session.state.blockers,
+            `Captain process crashed with exit code ${code}`,
+          ];
+          this.emitEvent(sessionId, { type: 'state', state: managed.session.state });
+          this.writeNotification(sessionId, managed.session.meta.title, managed.session.state.blockers);
+        }
       }
     });
 
@@ -224,7 +237,7 @@ export class SessionManager extends EventEmitter<SessionManagerEventMap> {
       throw new SessionNotFoundError(id);
     }
     if (!managed.captain || !managed.captain.running) {
-      throw new SessionNotFoundError(id); // Process not running
+      throw new SessionProcessDeadError(id);
     }
     managed.captain.write(text);
   }

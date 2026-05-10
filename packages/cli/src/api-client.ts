@@ -32,7 +32,18 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
 
   if (!response.ok) {
     const errorBody = await response.json().catch(() => ({ error: 'Unknown error', code: 'UNKNOWN' })) as { error: string; code: string };
-    throw new ApiError(response.status, errorBody.error, errorBody.code);
+
+    // Map to helpful messages
+    let message = errorBody.error;
+    if (response.status === 404 && errorBody.code === 'SESSION_NOT_FOUND') {
+      message = `Session not found. Run 'team list' to see active sessions.`;
+    } else if (response.status === 409 && errorBody.code === 'SESSION_ACTIVE') {
+      message = `Session is still active. Kill it first with: team kill <id>`;
+    } else if (response.status === 409 && errorBody.code === 'SESSION_PROCESS_DEAD') {
+      message = `Session exists but its captain process is not running.`;
+    }
+
+    throw new ApiError(response.status, message, errorBody.code);
   }
 
   return response.json() as Promise<T>;
