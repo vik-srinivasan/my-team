@@ -154,3 +154,19 @@ export interface ErrorResponse {
   error: string;
   code: string;
 }
+
+// ── Recents registry ────────────────────────────────────────────────
+
+export interface RepoRecord {
+  path: string;
+  basename: string;
+  first_used: string;
+  last_used: string;
+  session_count: number;
+  last_session_id: string;
+}
+
+export interface RepoRegistry {
+  version: 1;
+  repos: RepoRecord[];
+}
