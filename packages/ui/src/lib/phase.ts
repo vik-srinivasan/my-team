@@ -42,3 +42,46 @@ export function phaseLabel(phase: string | undefined | null): string {
   if (!phase) return '';
   return PHASE_LABEL[phase as SessionPhase] ?? phase;
 }
+
+/**
+ * Human-friendly, narrative status line for a session row.
+ *
+ * Most phases map to a fixed sentence. `executing` is dynamic: if we know
+ * which specialist is active, we name them; otherwise we default to
+ * "Engineer is working" (the most common case).
+ */
+export function phaseFriendlyLabel(
+  phase: string | undefined | null,
+  activeSpecialist?: string | null,
+): string {
+  switch (phase) {
+    case 'created':
+      return 'Just created';
+    case 'scouting':
+      return 'Scout is exploring';
+    case 'planning':
+      return 'Drafting plan';
+    case 'awaiting_approval':
+      return 'Waiting for your approval';
+    case 'executing': {
+      if (activeSpecialist && activeSpecialist.length > 0) {
+        const name =
+          activeSpecialist.charAt(0).toUpperCase() + activeSpecialist.slice(1);
+        return `${name} is working`;
+      }
+      return 'Engineer is working';
+    }
+    case 'reviewing':
+      return 'Reviewing code';
+    case 'done':
+      return 'Done';
+    case 'blocked':
+      return 'Blocked — needs you';
+    case 'killed':
+      return 'Killed';
+    case 'cleaned':
+      return 'Cleaned';
+    default:
+      return phaseLabel(phase);
+  }
+}

@@ -8,3 +8,9 @@ dist/
 .turbo
 coverage/
 .vercel
+
+# Build cache (per-worktree, never tracked)
+*.tsbuildinfo
+
+# Session metadata (per-worktree, never tracked)
+.team/

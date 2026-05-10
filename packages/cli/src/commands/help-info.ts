@@ -21,6 +21,7 @@ export function helpInfoCommand(): Command {
   \x1b[33mSession lifecycle:\x1b[0m
     team new <title>          Create a new session in the current repo
     team list                 List all active sessions
+    team list-past            List source repos used in past sessions
     team status <id>          Show detailed session status
     team attach <id>          Re-attach to a session's captain chat
     team logs <id>            View the session journal
@@ -29,11 +30,13 @@ export function helpInfoCommand(): Command {
     team kill <id>            Stop a running session (preserves worktree)
     team archive <id>         Archive .team/ files to ~/team/archives/
     team clean <id>           Remove worktree entirely (archives first)
+    team purge <id>           Kill and clean a session in one step
 
   \x1b[33mOther:\x1b[0m
     team notifications        Check for blocked sessions needing attention
     team notifications --clear  Clear all notifications
     team ui                   Open the web dashboard in your browser
+    team open <id>            Open a session worktree in VS Code
     team help                 Show this help
     team start                Start the wrapper daemon
 
