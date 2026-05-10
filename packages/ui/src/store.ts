@@ -6,7 +6,7 @@ import type {
   SessionPhase,
 } from '@viktown/shared';
 
-const LAST_VIEWED_KEY = 'viktown.lastViewed.v1';
+import { loadLastViewed, persistLastViewed } from './lib/last-viewed.js';
 
 export interface ChatMessage {
   id: string;
@@ -43,35 +43,6 @@ export interface SessionStore {
   // Last-viewed timestamps per session, persisted to localStorage.
   lastViewed: Record<string, string>;
   markViewed: (id: string) => void;
-}
-
-function loadLastViewed(): Record<string, string> {
-  if (typeof window === 'undefined') return {};
-  try {
-    const raw = window.localStorage.getItem(LAST_VIEWED_KEY);
-    if (!raw) return {};
-    const parsed: unknown = JSON.parse(raw);
-    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-      const result: Record<string, string> = {};
-      for (const [k, v] of Object.entries(parsed as Record<string, unknown>)) {
-        if (typeof v === 'string') result[k] = v;
-      }
-      return result;
-    }
-    return {};
-  } catch {
-    // Private mode, quota exceeded, malformed JSON — start clean.
-    return {};
-  }
-}
-
-function persistLastViewed(value: Record<string, string>): void {
-  if (typeof window === 'undefined') return;
-  try {
-    window.localStorage.setItem(LAST_VIEWED_KEY, JSON.stringify(value));
-  } catch {
-    // Best effort — ignore quota / private-mode errors.
-  }
 }
 
 export const useSessionStore = create<SessionStore>((set) => ({

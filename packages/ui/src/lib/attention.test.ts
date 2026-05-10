@@ -55,6 +55,14 @@ describe('getAttention', () => {
     expect(result.reason).toBe('Awaiting approval');
   });
 
+  it('prefers blocked reason over must_ask when both apply', () => {
+    const session = makeSession({ phase: 'blocked', must_ask_count: 2 });
+    const result = getAttention(session, { 'sess-1': session.last_checkpoint });
+
+    expect(result.critical).toBe(true);
+    expect(result.reason).toBe('Blocked');
+  });
+
   it('marks hasUpdate when last_checkpoint is newer than lastViewed', () => {
     const session = makeSession({
       last_checkpoint: '2026-05-10T11:00:00Z',
