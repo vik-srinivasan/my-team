@@ -8,11 +8,14 @@ import { ClaudeProcessError } from '@viktown/shared';
 interface CaptainProcessEventMap {
   data: [text: string];
   exit: [code: number];
+  remoteUrl: [url: string];
 }
 
 export class CaptainProcess extends EventEmitter<CaptainProcessEventMap> {
   private ptyProcess: pty.IPty;
   private _running: boolean = true;
+  private _remoteUrl: string | null = null;
+  private _urlDetected: boolean = false;
 
   get pid(): number {
     return this.ptyProcess.pid;
@@ -22,11 +25,24 @@ export class CaptainProcess extends EventEmitter<CaptainProcessEventMap> {
     return this._running;
   }
 
+  get remoteUrl(): string | null {
+    return this._remoteUrl;
+  }
+
   constructor(ptyProcess: pty.IPty) {
     super();
     this.ptyProcess = ptyProcess;
 
     this.ptyProcess.onData((data) => {
+      // Scan early output for remote control URL
+      if (!this._urlDetected) {
+        const match = data.match(/https:\/\/claude\.ai\/code\/[^\s\x1b)]+/);
+        if (match) {
+          this._remoteUrl = match[0];
+          this._urlDetected = true;
+          this.emit('remoteUrl', this._remoteUrl);
+        }
+      }
       this.emit('data', data);
     });
 
@@ -58,12 +74,13 @@ export class CaptainProcess extends EventEmitter<CaptainProcessEventMap> {
 export interface SpawnCaptainOptions {
   worktreePath: string;
   captainPromptPath: string;
+  sessionId?: string;
   cols?: number;
   rows?: number;
 }
 
 export async function spawnCaptain(options: SpawnCaptainOptions): Promise<CaptainProcess> {
-  const { worktreePath, captainPromptPath, cols = 120, rows = 40 } = options;
+  const { worktreePath, captainPromptPath, sessionId, cols = 120, rows = 40 } = options;
 
   let captainPrompt: string;
   try {
@@ -82,10 +99,13 @@ export async function spawnCaptain(options: SpawnCaptainOptions): Promise<Captai
     // Fall back to bare name and hope it's on PATH
   }
 
-  const ptyProcess = pty.spawn(claudeBin, [
+  const args = [
     '--append-system-prompt', captainPrompt,
     '--dangerously-skip-permissions',
-  ], {
+    '--remote-control', sessionId ?? 'viktown-captain',
+  ];
+
+  const ptyProcess = pty.spawn(claudeBin, args, {
     name: 'xterm-256color',
     cols,
     rows,

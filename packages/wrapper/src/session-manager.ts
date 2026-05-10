@@ -79,6 +79,7 @@ export class SessionManager extends EventEmitter<SessionManagerEventMap> {
       worktree_path: worktreePath,
       pid: null,
       started_at: new Date().toISOString(),
+      remote_url: null,
     };
 
     // Pre-trust the worktree directory so Claude Code skips the interactive trust dialog
@@ -88,11 +89,22 @@ export class SessionManager extends EventEmitter<SessionManagerEventMap> {
     const captain = await spawnCaptain({
       worktreePath,
       captainPromptPath: this.captainPromptPath,
+      sessionId,
       cols,
       rows,
     });
 
     session.pid = captain.pid;
+
+    // Capture remote control URL when detected
+    captain.on('remoteUrl', (url) => {
+      this.log.info({ sessionId, remoteUrl: url }, 'Remote control URL detected');
+      const managed = this.sessions.get(sessionId);
+      if (managed) {
+        managed.session.remote_url = url;
+      }
+      this.emitEvent(sessionId, { type: 'remote_url', url });
+    });
 
     // Forward captain output as WS events immediately (no buffering —
     // buffering can split ANSI escape sequences mid-sequence, causing garbled TUI output)

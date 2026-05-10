@@ -21,6 +21,11 @@ export function statusCommand(): Command {
         console.log(`  Reviews:    ${state.review_iterations}/${state.max_review_iterations}`);
         console.log(`  Created:    ${meta.created_at}`);
 
+        const remoteUrl = session.remote_url as string | null;
+        if (remoteUrl) {
+          console.log(`  Remote:     ${chalk.cyan(remoteUrl)}`);
+        }
+
         const blockers = state.blockers as string[];
         if (blockers.length > 0) {
           console.log(chalk.red(`  Blockers:   ${blockers.join(', ')}`));

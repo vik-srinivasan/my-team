@@ -52,6 +52,7 @@ export interface Session {
   worktree_path: string;
   pid: number | null;
   started_at: string;
+  remote_url: string | null;
 }
 
 // ── WebSocket events ────────────────────────────────────────────────
@@ -85,12 +86,18 @@ export interface WsSpecialistEvent {
   status: SpecialistStatus;
 }
 
+export interface WsRemoteUrlEvent {
+  type: 'remote_url';
+  url: string;
+}
+
 export type WsServerEvent =
   | WsOutputEvent
   | WsStateEvent
   | WsTeamFileEvent
   | WsDiffEvent
-  | WsSpecialistEvent;
+  | WsSpecialistEvent
+  | WsRemoteUrlEvent;
 
 export interface WsClientInputEvent {
   type: 'input';
@@ -119,6 +126,7 @@ export interface CreateSessionResponse {
   title: string;
   worktree_path: string;
   phase: SessionPhase;
+  remote_url: string | null;
 }
 
 export interface SessionSummary {

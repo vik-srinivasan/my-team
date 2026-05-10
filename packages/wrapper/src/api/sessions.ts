@@ -74,6 +74,7 @@ export function createSessionsRouter(
         title: session.meta.title,
         worktree_path: session.worktree_path,
         phase: session.state.phase,
+        remote_url: session.remote_url,
       };
       res.status(201).json(response);
     } catch (err) {
