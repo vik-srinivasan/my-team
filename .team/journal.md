@@ -170,3 +170,10 @@ Commit: 8829ff6 fix(landing): correct start-marker orientation on captain↔agen
 Production deploy: https://landing-80qvlqz9p-vikr4m-5448s-projects.vercel.app (aliased to https://landing-eosin-mu.vercel.app)
 Verification: `curl -s https://landing-eosin-mu.vercel.app | grep -c arrow-accent-start` → 0 (broken marker gone); `... grep -c bidirectional` → 1 (aria-label still describes bidirectional arrows). Captain-end arrowheads now point INTO Captain.
 Root cause: the `arrow-accent-start` marker used `orient="auto"`, which orients along path direction — at a path's start that's the same direction as the end-marker, so both arrowheads pointed the same way (away from Captain). Fix: reuse the existing `arrow-accent` marker (which uses `orient="auto-start-reverse"` — SVG auto-flips it 180° when used as marker-start) for both ends and delete the redundant marker definition.
+
+## 2026-05-11T00:52:00Z — git
+Action: Pushed branch and added PR #8 comment
+Commits: 6c76d23 (chore(team): update round 6 tracking files), 8829ff6 (fix(landing): correct start-marker orientation on captain↔agent arrows)
+PR: https://github.com/vik-srinivasan/my-team/pull/8
+Comment: https://github.com/vik-srinivasan/my-team/pull/8#issuecomment-4416668701
+Status: Branch my-team/clear-ash-84 pushed to origin. PR #8 comment: "Fixed start-marker orientation — Captain-end arrowheads now point into Captain instead of away. Production verified at https://landing-eosin-mu.vercel.app". All round-6 changes live on the branch. Production alias serving corrected build.
