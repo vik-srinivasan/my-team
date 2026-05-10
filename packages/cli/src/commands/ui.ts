@@ -6,7 +6,7 @@ export function uiCommand(): Command {
   return new Command('ui')
     .description('Open the Viktown web dashboard in your browser')
     .action(async () => {
-      const url = 'http://localhost:3001';
+      const url = 'http://127.0.0.1:3001';
 
       // Check if daemon is running first
       try {
