@@ -1,15 +1,19 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { EventEmitter } from 'node:events';
+import type { IPty } from 'node-pty';
 import { CaptainProcess } from './claude-process.js';
 
-// Minimal mock of node-pty IPty
-function createMockPty() {
-  const emitter = new EventEmitter();
+function createMockPty(): IPty & {
+  _emitData: (text: string) => void;
+  _emitExit: (code: number) => void;
+} {
   let dataHandler: ((data: string) => void) | null = null;
   let exitHandler: ((e: { exitCode: number; signal?: number }) => void) | null = null;
 
   return {
     pid: 12345,
+    cols: 120,
+    rows: 40,
+    handleFlowControl: false,
     onData(cb: (data: string) => void) {
       dataHandler = cb;
       return { dispose: () => {} };
@@ -21,7 +25,10 @@ function createMockPty() {
     write: vi.fn(),
     kill: vi.fn(),
     resize: vi.fn(),
-    // Test helpers
+    pause: vi.fn(),
+    resume: vi.fn(),
+    clear: vi.fn(),
+    process: 'claude',
     _emitData(text: string) {
       dataHandler?.(text);
     },
@@ -37,8 +44,7 @@ describe('CaptainProcess', () => {
 
   beforeEach(() => {
     mockPty = createMockPty();
-    // Cast to satisfy IPty interface — only testing our wrapper behavior
-    captain = new CaptainProcess(mockPty as unknown as Parameters<typeof CaptainProcess['prototype']['constructor']> extends never ? never : ConstructorParameters<typeof CaptainProcess>[0]);
+    captain = new CaptainProcess(mockPty);
   });
 
   it('exposes pid from pty process', () => {

@@ -4,12 +4,12 @@ import { readFile } from 'node:fs/promises';
 
 import { ClaudeProcessError } from '@viktown/shared';
 
-export interface CaptainProcessEvents {
-  data: (text: string) => void;
-  exit: (code: number) => void;
+interface CaptainProcessEventMap {
+  data: [text: string];
+  exit: [code: number];
 }
 
-export class CaptainProcess extends EventEmitter<CaptainProcessEvents> {
+export class CaptainProcess extends EventEmitter<CaptainProcessEventMap> {
   private ptyProcess: pty.IPty;
   private _running: boolean = true;
 
@@ -82,7 +82,6 @@ export async function spawnCaptain(options: SpawnCaptainOptions): Promise<Captai
     cwd: worktreePath,
     env: {
       ...process.env,
-      // Ensure claude sees the worktree as its working directory
     },
   });
 

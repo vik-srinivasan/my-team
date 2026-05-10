@@ -2,7 +2,7 @@ import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { mkdir, writeFile, readdir, copyFile, cp, realpath } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
-import simpleGit from 'simple-git';
+import { simpleGit } from 'simple-git';
 
 import type { SessionMeta, SessionState } from '@viktown/shared';
 import { NotAGitRepoError, WorktreeError } from '@viktown/shared';
