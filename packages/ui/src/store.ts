@@ -6,7 +6,7 @@ import type {
   SessionPhase,
 } from '@viktown/shared';
 
-export type RightTab = 'diff' | 'plan' | 'review' | 'journal' | 'decisions';
+export type RightTab = 'diff' | 'plan' | 'tasks' | 'review' | 'journal' | 'decisions';
 
 export interface ChatMessage {
   id: string;
