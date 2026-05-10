@@ -1,0 +1,5 @@
+{
+  "buildCommand": "pnpm --filter @viktown/landing build",
+  "outputDirectory": "apps/landing/.next",
+  "installCommand": "pnpm install"
+}
