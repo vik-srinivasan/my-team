@@ -3,17 +3,17 @@
 ## Engineering
 
 ### Engineer A — packages/ + root configs
-- [ ] @engineer Rename `name` and workspace `dependencies` in every `package.json` (root, `packages/cli`, `packages/shared`, `packages/wrapper`, `packages/ui`, `apps/landing`)
-- [ ] @engineer Update `vercel.json` `buildCommand` to `pnpm --filter @my-team/landing build`
-- [ ] @engineer Update `setup.sh` `pnpm --filter` invocations
-- [ ] @engineer Rewrite all `@viktown/shared` imports → `@my-team/shared` in TS source
-- [ ] @engineer Rename `ViktownError` (class + subclasses + `this.name` + all import/usage sites) → `MyTeamError`
-- [ ] @engineer Rename `VIKTOWN_AGENTS_DIR` const → `MY_TEAM_AGENTS_DIR`
-- [ ] @engineer Update branch prefix in `packages/wrapper/src/worktree.ts:57,150` → `my-team/${sessionId}`
-- [ ] @engineer Update test assertions/cleanup that reference `viktown/` branch prefix (server.test.ts, worktree.test.ts, team-files.test.ts fixture)
-- [ ] @engineer Update CLI description strings, help banner, wrapper log strings, claude-process fallback remote ID, ui index.html title
-- [ ] @engineer Run `pnpm install` to regenerate `pnpm-lock.yaml`
-- [ ] @engineer Verify `pnpm -r build` passes and `pnpm -r test` passes
+- [x] @engineer Rename `name` and workspace `dependencies` in every `package.json` (root, `packages/cli`, `packages/shared`, `packages/wrapper`, `packages/ui`, `apps/landing`)
+- [x] @engineer Update `vercel.json` `buildCommand` to `pnpm --filter @my-team/landing build`
+- [x] @engineer Update `setup.sh` `pnpm --filter` invocations
+- [x] @engineer Rewrite all `@viktown/shared` imports → `@my-team/shared` in TS source
+- [x] @engineer Rename `ViktownError` (class + subclasses + `this.name` + all import/usage sites) → `MyTeamError`
+- [x] @engineer Rename `VIKTOWN_AGENTS_DIR` const → `MY_TEAM_AGENTS_DIR`
+- [x] @engineer Update branch prefix in `packages/wrapper/src/worktree.ts:57,150` → `my-team/${sessionId}`
+- [x] @engineer Update test assertions/cleanup that reference `viktown/` branch prefix (server.test.ts, worktree.test.ts, team-files.test.ts fixture)
+- [x] @engineer Update CLI description strings, help banner, wrapper log strings, claude-process fallback remote ID, ui index.html title
+- [x] @engineer Run `pnpm install` to regenerate `pnpm-lock.yaml`
+- [x] @engineer Verify `pnpm -r build` passes and `pnpm -r test` passes — tests: 39/39 pass on re-run (intermittent parallel git-worktree flakiness in server.test.ts is pre-existing). Build: shared/wrapper/ui/landing all pass; `@my-team/cli` fails on pre-existing `start.ts` type error (ChildProcess.on not found) — verified the same error exists at b360f5c before my rename. See `.team/decisions.md`.
 
 ### Engineer B — apps/landing/
 - [x] @engineer Update Hero `<h1>` to read `my-team: Multi-Agent orchestration` / `for Claude Code.` (preserve gradient styling)
