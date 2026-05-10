@@ -4,15 +4,28 @@ import type { WsServerEvent, WsClientEvent } from '@viktown/shared';
 import { useSessionStore } from '../store.js';
 
 const RECONNECT_DELAY = 2000;
+const STREAM_FINALIZE_DELAY = 2000;
 
 export function useWebSocket(sessionId: string | null) {
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const streamingMessageId = useRef<string | null>(null);
+  const streamFinalizeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const addMessage = useSessionStore((s) => s.addMessage);
+  const appendToMessage = useSessionStore((s) => s.appendToMessage);
   const setSessionState = useSessionStore((s) => s.setSessionState);
   const setTeamFile = useSessionStore((s) => s.setTeamFile);
   const setDiff = useSessionStore((s) => s.setDiff);
+  const setRightTab = useSessionStore((s) => s.setRightTab);
+
+  const finalizeStream = useCallback(() => {
+    streamingMessageId.current = null;
+    if (streamFinalizeTimer.current) {
+      clearTimeout(streamFinalizeTimer.current);
+      streamFinalizeTimer.current = null;
+    }
+  }, []);
 
   const connect = useCallback(() => {
     if (!sessionId) return;
@@ -25,17 +38,39 @@ export function useWebSocket(sessionId: string | null) {
       const event = JSON.parse(evt.data as string) as WsServerEvent;
 
       switch (event.type) {
-        case 'output':
-          addMessage({
-            id: crypto.randomUUID(),
-            role: 'captain',
-            text: event.text,
-            timestamp: new Date().toISOString(),
-          });
+        case 'output': {
+          // Reset the finalize timer on each output chunk
+          if (streamFinalizeTimer.current) clearTimeout(streamFinalizeTimer.current);
+
+          if (streamingMessageId.current) {
+            // Append to existing streaming message
+            appendToMessage(streamingMessageId.current, event.text);
+          } else {
+            // Start a new streaming message
+            const id = crypto.randomUUID();
+            streamingMessageId.current = id;
+            addMessage({
+              id,
+              role: 'captain',
+              text: event.text,
+              timestamp: new Date().toISOString(),
+            });
+          }
+
+          // Finalize after 2s of silence
+          streamFinalizeTimer.current = setTimeout(finalizeStream, STREAM_FINALIZE_DELAY);
           break;
+        }
 
         case 'state':
+          finalizeStream();
           setSessionState(event.state);
+          // Auto-switch right tab based on phase
+          if (event.state.phase === 'planning' || event.state.phase === 'awaiting_approval') {
+            setRightTab('plan');
+          } else if (event.state.phase === 'executing' || event.state.phase === 'reviewing') {
+            setRightTab('diff');
+          }
           break;
 
         case 'team_file':
@@ -46,14 +81,18 @@ export function useWebSocket(sessionId: string | null) {
           setDiff(event.diff);
           break;
 
-        case 'specialist':
+        case 'specialist': {
+          finalizeStream();
+          const label = event.name.charAt(0).toUpperCase() + event.name.slice(1);
+          const verb = event.status === 'started' ? 'started working' : 'finished';
           addMessage({
             id: crypto.randomUUID(),
             role: 'system',
-            text: `${event.name} ${event.status}`,
+            text: `${label} ${verb}`,
             timestamp: new Date().toISOString(),
           });
           break;
+        }
       }
     };
 
@@ -65,12 +104,13 @@ export function useWebSocket(sessionId: string | null) {
     ws.onerror = () => {
       ws.close();
     };
-  }, [sessionId, addMessage, setSessionState, setTeamFile, setDiff]);
+  }, [sessionId, addMessage, appendToMessage, setSessionState, setTeamFile, setDiff, setRightTab, finalizeStream]);
 
   useEffect(() => {
     connect();
     return () => {
       if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
+      if (streamFinalizeTimer.current) clearTimeout(streamFinalizeTimer.current);
       wsRef.current?.close();
       wsRef.current = null;
     };

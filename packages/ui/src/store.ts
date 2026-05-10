@@ -33,6 +33,7 @@ export interface SessionStore {
   // Chat messages (for selected session)
   messages: ChatMessage[];
   addMessage: (msg: ChatMessage) => void;
+  appendToMessage: (id: string, text: string) => void;
   clearMessages: () => void;
 
   // Team files (for selected session)
@@ -85,6 +86,12 @@ export const useSessionStore = create<SessionStore>((set) => ({
 
   messages: [],
   addMessage: (msg) => set((s) => ({ messages: [...s.messages, msg] })),
+  appendToMessage: (id, text) =>
+    set((s) => ({
+      messages: s.messages.map((msg) =>
+        msg.id === id ? { ...msg, text: msg.text + text } : msg,
+      ),
+    })),
   clearMessages: () => set({ messages: [] }),
 
   teamFiles: {},

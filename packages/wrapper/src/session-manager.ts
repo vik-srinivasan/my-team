@@ -44,6 +44,10 @@ interface ManagedSession {
   session: Session;
   captain: CaptainProcess | null;
   watcher: TeamFileWatcher | null;
+  lastDiff: string;
+  diffTimer: ReturnType<typeof setTimeout> | null;
+  outputBuffer: string;
+  outputTimer: ReturnType<typeof setTimeout> | null;
 }
 
 export class SessionManager extends EventEmitter<SessionManagerEventMap> {
@@ -86,13 +90,28 @@ export class SessionManager extends EventEmitter<SessionManagerEventMap> {
 
     session.pid = captain.pid;
 
-    // Forward captain output as WS events
+    // Forward captain output as WS events (buffered to avoid per-character fragmentation)
     captain.on('data', (text) => {
-      this.emitEvent(sessionId, { type: 'output', text });
+      const managed = this.sessions.get(sessionId);
+      if (!managed) return;
+      managed.outputBuffer += text;
+
+      // Flush after 100ms of inactivity
+      if (managed.outputTimer) clearTimeout(managed.outputTimer);
+      managed.outputTimer = setTimeout(() => {
+        this.flushOutput(sessionId);
+      }, 100);
+
+      // Also flush if buffer gets large
+      if (managed.outputBuffer.length > 4096) {
+        this.flushOutput(sessionId);
+      }
     });
 
     captain.on('exit', (code) => {
       this.log.info({ sessionId, code }, 'Captain process exited');
+      // Flush any remaining buffered output
+      this.flushOutput(sessionId);
       const managed = this.sessions.get(sessionId);
       if (managed) {
         managed.session.pid = null;
@@ -106,6 +125,9 @@ export class SessionManager extends EventEmitter<SessionManagerEventMap> {
 
       // Emit team_file event
       this.emitEvent(sessionId, { type: 'team_file', file: filename, content });
+
+      // Schedule a debounced diff recalculation on any file change
+      this.scheduleDiffEmit(sessionId);
 
       // If state.json changed, update in-memory state and emit events
       if (filename === 'state.json') {
@@ -147,7 +169,15 @@ export class SessionManager extends EventEmitter<SessionManagerEventMap> {
       }
     });
 
-    const managed: ManagedSession = { session, captain, watcher };
+    const managed: ManagedSession = {
+      session,
+      captain,
+      watcher,
+      lastDiff: '',
+      diffTimer: null,
+      outputBuffer: '',
+      outputTimer: null,
+    };
     this.sessions.set(sessionId, managed);
 
     this.log.info({ sessionId, pid: captain.pid }, 'Session created');
@@ -291,6 +321,39 @@ export class SessionManager extends EventEmitter<SessionManagerEventMap> {
     }
     await Promise.all(promises);
     this.sessions.clear();
+  }
+
+  private flushOutput(sessionId: string): void {
+    const managed = this.sessions.get(sessionId);
+    if (!managed || !managed.outputBuffer) return;
+
+    if (managed.outputTimer) {
+      clearTimeout(managed.outputTimer);
+      managed.outputTimer = null;
+    }
+
+    const text = managed.outputBuffer;
+    managed.outputBuffer = '';
+    this.emitEvent(sessionId, { type: 'output', text });
+  }
+
+  private scheduleDiffEmit(sessionId: string): void {
+    const managed = this.sessions.get(sessionId);
+    if (!managed) return;
+
+    if (managed.diffTimer) clearTimeout(managed.diffTimer);
+    managed.diffTimer = setTimeout(async () => {
+      managed.diffTimer = null;
+      try {
+        const diff = await this.getDiff(sessionId);
+        if (diff !== managed.lastDiff) {
+          managed.lastDiff = diff;
+          this.emitEvent(sessionId, { type: 'diff', diff });
+        }
+      } catch {
+        // Session may have been cleaned up
+      }
+    }, 500);
   }
 
   private emitEvent(sessionId: string, event: WsServerEvent): void {
