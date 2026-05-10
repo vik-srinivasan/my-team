@@ -143,3 +143,13 @@ Commits: 58b5a44 (refactor: per-agent return curves + trim infra), d6b6617 (chor
 PR: https://github.com/vik-srinivasan/my-team/pull/8
 Comment: https://github.com/vik-srinivasan/my-team/pull/8#issuecomment-4416632945
 Status: All round-4 changes pushed to origin/my-team/clear-ash-84. PR #8 now includes per-agent return curves, Web UI removal, infra accent-blue styling, and updated tracking files. Fast path — tester/reviewer not run. Ready to merge.
+
+## 2026-05-11T00:15:00Z — engineer
+Completed: Round 5 — bidirectional Captain↔agent arrows, drop dim return curves
+Modified: apps/landing/app/components/Architecture.tsx, apps/landing/app/components/Architecture.test.ts, .team/tasks.md
+Build: pnpm --filter @my-team/landing build — passed (Next.js 16.2.6, 3 static routes)
+Tests: pnpm exec vitest run apps/landing — 21/21 passed (Architecture: 10/10 green). 3 wrapper-package suites fail with pre-existing "@my-team/shared" resolution errors, unrelated to this change.
+Commit: 11e492b refactor(landing): bidirectional captain↔agent arrows, drop dim return curves
+Production deploy: https://landing-nt377zzho-vikr4m-5448s-projects.vercel.app (aliased to https://landing-eosin-mu.vercel.app)
+Verification: `curl -s https://landing-eosin-mu.vercel.app | grep -c bidirectional` → 1 (alias is serving the new build)
+Visual change: Each of the five Captain→agent dispatch curves is now a single accent-blue line with arrowheads at BOTH ends — Captain ↔ agent — replacing the round-4 pair of solid-out + dim-dashed-back curves. The "→ artifacts" chip is gone. Implementation: a mirrored marker `arrow-accent-start` referenced via `marker-start`; existing `arrow-accent` stays on `marker-end`; same accent fill, same curve geometry.
