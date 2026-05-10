@@ -1,7 +1,7 @@
 import { Github, FileText, ExternalLink } from 'lucide-react';
 
-const GITHUB_URL = 'https://github.com/vik-srinivasan/viktown';
-const SPEC_URL = 'https://github.com/vik-srinivasan/viktown/blob/main/SPEC.md';
+const GITHUB_URL = 'https://github.com/vik-srinivasan/my-team';
+const SPEC_URL = 'https://github.com/vik-srinivasan/my-team/blob/main/SPEC.md';
 const PERSONAL_URL = 'https://vik-srinivasan.github.io/personal-website/#/';
 
 export default function Footer() {
@@ -10,7 +10,7 @@ export default function Footer() {
       <div className="mx-auto max-w-[1100px] px-6">
         <div className="flex flex-col items-start justify-between gap-6 md:flex-row md:items-center">
           <div>
-            <div className="font-mono text-sm text-[color:var(--color-text)]">viktown</div>
+            <div className="font-mono text-sm text-[color:var(--color-text)]">my-team</div>
             <p className="mt-1 text-xs text-[color:var(--color-dim)]">
               Local-only multi-agent orchestrator for Claude Code.
             </p>

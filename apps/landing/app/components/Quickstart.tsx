@@ -15,13 +15,13 @@ const STEPS: readonly CodeStep[] = [
   {
     index: 1,
     label: 'Clone',
-    command: 'git clone https://github.com/vik-srinivasan/viktown.git',
+    command: 'git clone https://github.com/vik-srinivasan/my-team.git',
     note: 'Public repo. No auth needed.',
   },
   {
     index: 2,
     label: 'Install',
-    command: 'cd viktown && ./setup.sh',
+    command: 'cd my-team && ./setup.sh',
     note: 'Builds packages, links the team CLI globally. Needs Node 22 and pnpm 11.',
   },
   {
@@ -32,8 +32,8 @@ const STEPS: readonly CodeStep[] = [
   },
 ];
 
-const GITHUB_URL = 'https://github.com/vik-srinivasan/viktown';
-const README_URL = 'https://github.com/vik-srinivasan/viktown#readme';
+const GITHUB_URL = 'https://github.com/vik-srinivasan/my-team';
+const README_URL = 'https://github.com/vik-srinivasan/my-team#readme';
 
 export default function Quickstart() {
   const reduced = useReducedMotion();
