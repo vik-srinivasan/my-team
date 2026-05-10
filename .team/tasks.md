@@ -20,7 +20,7 @@
 - [x] @engineer Rework `packages/ui/src/components/SessionList.tsx`: wider rows (~320px), show title + phase label + age (from `last_checkpoint`), critical badge with icon + tooltip reason, unread dot. Sort: critical -> hasUpdate -> recency.
 - [x] @engineer Rename `packages/ui/src/components/Chat.tsx` -> `OutputLog.tsx`. Remove input box, draft state, send button. Keep streaming markdown messages, auto-scroll, approve button (when `phase === 'awaiting_approval'`). Update `App.tsx` import.
 - [x] @engineer Delete `packages/ui/src/components/RightPanel.tsx` and any imports/references to it.
-- [ ] @engineer Update `packages/ui/src/dev-seed.ts` with 4-5 mock sessions across varied phases (executing, awaiting_approval, blocked, done) and simulate `last_checkpoint` so unread/critical badges are exercisable.
+- [x] @engineer Update `packages/ui/src/dev-seed.ts` with 4-5 mock sessions across varied phases (executing, awaiting_approval, blocked, done) and simulate `last_checkpoint` so unread/critical badges are exercisable. (File didn't exist; created it and wired it via `main.tsx` behind `?seed=1`.)
 
 ## Testing
 
