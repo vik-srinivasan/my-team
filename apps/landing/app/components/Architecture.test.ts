@@ -47,17 +47,20 @@ describe('Architecture component', () => {
     expect(archContent).toContain('opens PR');
   });
 
-  it('renders all four infra nodes', () => {
+  it('renders the three infra nodes (CLI → wrapper → sessions) and not Web UI', () => {
     expect(archContent).toContain('team CLI');
-    expect(archContent).toContain('Web UI');
     expect(archContent).toContain('Wrapper daemon');
     expect(archContent).toContain('~/team/sessions/<id>/');
+    // Web UI was removed in round 4.
+    expect(archContent).not.toContain('Web UI');
   });
 
-  it('renders dispatch and result paths showing agent communication', () => {
-    // Dispatch fan from Captain to agents (accent), result return arc back to Captain (dim dashed).
+  it('renders dispatch and per-agent return paths showing agent communication', () => {
+    // Dispatch fan from Captain to agents (accent), and a per-agent return
+    // curve from each sub-agent back to Captain (dim dashed).
     expect(archContent).toContain('Dispatch curves');
-    expect(archContent).toContain('Result arc');
+    expect(archContent).toContain('Per-agent return curves');
+    expect(archContent).toContain('return-${agent.id}');
     expect(archContent).toContain('Task tool');
   });
 
@@ -69,8 +72,8 @@ describe('Architecture component', () => {
 
   it('keeps the infra lane label above its divider', () => {
     expect(archContent).toContain('INFRA · HOW THE CAPTAIN GETS BOOTED');
-    // Infra boxes use the dim border colour
-    expect(archContent).toContain('stroke="#262626"');
+    // Round 4: infra boxes share Captain's accent-blue stroke (#0e7490).
+    expect(archContent).toContain('stroke="#0e7490"');
   });
 
   it('renders a downward spawn arrow from infra to Captain', () => {

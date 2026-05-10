@@ -2,14 +2,19 @@
 
 import { motion, useReducedMotion } from 'motion/react';
 
-// Architecture diagram (round-3 layout):
-//   1. Infra strip (CLI / Web UI / Wrapper daemon / sessions worktree) sits at
-//      the top — dim and shorter than the rest, so it reads as scaffolding.
+// Architecture diagram (round-4 layout):
+//   1. Infra strip (CLI → Wrapper daemon → sessions worktree) sits at the top —
+//      shorter than the rest but with the same accent-blue stroke as Captain
+//      so it reads as the boot path that produces the headline.
 //   2. A dashed divider with the label "INFRA · HOW THE CAPTAIN GETS BOOTED"
 //      separates infra from the headline.
 //   3. The Wrapper daemon spawns Captain via a downward dashed arrow.
 //   4. Captain sits centred underneath, the visual anchor.
-//   5. Five sub-agents fan out below Captain, each with a "→ produces" label.
+//   5. Five sub-agents fan out below Captain. Each agent has a solid accent
+//      dispatch curve from Captain's bottom edge AND a dim dashed return curve
+//      back to Captain — dispatch fans from the centre band of Captain's
+//      bottom edge, returns arrive at a wider outer band, so the two families
+//      read as parallel without tangling.
 //
 // Reading order: infra strip → divider → Captain → agent fan-out.
 
@@ -25,15 +30,14 @@ interface InfraNode {
 
 const INFRA: readonly InfraNode[] = [
   { id: 'cli', title: 'team CLI', subtitle: 'commander + chalk' },
-  { id: 'ui', title: 'Web UI', subtitle: 'React 19 · WIP' },
   { id: 'wrapper', title: 'Wrapper daemon', subtitle: 'HTTP · WS · node-pty' },
   { id: 'worktree', title: '~/team/sessions/<id>/', subtitle: 'git worktree + .team/' },
 ];
 
 const INFRA_ROW_Y = 60;
-const INFRA_W = 178;
-const INFRA_H = 46;
-const INFRA_GAP = 22;
+const INFRA_W = 200;
+const INFRA_H = 50;
+const INFRA_GAP = 32;
 const INFRA_ROW_TOTAL_W = INFRA.length * INFRA_W + (INFRA.length - 1) * INFRA_GAP;
 const INFRA_ROW_X = (VIEW_W - INFRA_ROW_TOTAL_W) / 2;
 
@@ -109,7 +113,7 @@ export default function Architecture() {
             the built-in <code className="font-mono text-[color:var(--color-text)]">Task</code>{' '}
             tool and reads their artifacts back from the session&apos;s{' '}
             <code className="font-mono text-[color:var(--color-text)]">.team/</code> directory.
-            Same token budget, same working tree. The infra strip up top — CLI, web UI, wrapper
+            Same token budget, same working tree. The infra strip up top — CLI, wrapper
             daemon, worktree — is how the captain gets booted.
           </p>
         </div>
@@ -126,7 +130,7 @@ export default function Architecture() {
               viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
               className="block min-w-[760px] w-full h-auto p-4"
               role="img"
-              aria-label="Architecture diagram (top to bottom): a dim infra strip with the team CLI, Web UI, Wrapper daemon, and sessions worktree feeds the Wrapper daemon, which spawns the Captain below it. The Captain — the visual anchor — then dispatches five sub-agents that fan out beneath it via the Task tool: scout (produces context.md), engineer ×N parallel (commits to the session branch), tester (runs the suite and files bugs), reviewer (produces review.md), and git (pushes and opens the PR). Each sub-agent returns its artifact back to Captain."
+              aria-label="Architecture diagram (top to bottom): a three-box infra strip — team CLI, Wrapper daemon, sessions worktree — sits at the top with the same accent-blue stroke as Captain. The Wrapper daemon spawns the Captain below it. The Captain — the visual anchor — then dispatches five sub-agents that fan out beneath it via the Task tool: scout (produces context.md), engineer ×N parallel (commits to the session branch), tester (runs the suite and files bugs), reviewer (produces review.md), and git (pushes and opens the PR). Each sub-agent returns its artifact back to Captain via a dim dashed return curve."
             >
               <defs>
                 <marker
@@ -166,15 +170,14 @@ export default function Architecture() {
 
               {/* ---------- 1. Infra strip (top, demoted) ---------- */}
 
-              {/* Infra connector lines: cli/ui -> wrapper -> worktree.
-                  All thin, dim, and stay strictly inside the infra strip. */}
+              {/* Infra connector lines: cli -> wrapper -> worktree.
+                  Thin and dim; the boxes themselves carry the accent. */}
               {(() => {
                 const cy = INFRA_ROW_Y + INFRA_H / 2;
                 const cliRightX = infraX(0) + INFRA_W;
-                const uiRightX = infraX(1) + INFRA_W;
-                const wrapperLeftX = infraX(2);
-                const wrapperRightX = infraX(2) + INFRA_W;
-                const worktreeLeftX = infraX(3);
+                const wrapperLeftX = infraX(1);
+                const wrapperRightX = infraX(1) + INFRA_W;
+                const worktreeLeftX = infraX(2);
 
                 const straight = (x1: number, x2: number) =>
                   `M ${x1} ${cy} L ${x2} ${cy}`;
@@ -183,14 +186,6 @@ export default function Architecture() {
                   <g>
                     <path
                       d={straight(cliRightX, wrapperLeftX)}
-                      fill="none"
-                      stroke="#404040"
-                      strokeOpacity={0.7}
-                      strokeWidth={1}
-                      markerEnd="url(#arrow-dim)"
-                    />
-                    <path
-                      d={straight(uiRightX, wrapperLeftX)}
                       fill="none"
                       stroke="#404040"
                       strokeOpacity={0.7}
@@ -209,7 +204,9 @@ export default function Architecture() {
                 );
               })()}
 
-              {/* Infra boxes */}
+              {/* Infra boxes — accent-blue stroke matches Captain so the boot
+                  path reads as the same family. Smaller than Captain so it
+                  still reads as subordinate. */}
               {INFRA.map((node, i) => {
                 const x = infraX(i);
                 const y = INFRA_ROW_Y;
@@ -222,28 +219,28 @@ export default function Architecture() {
                       height={INFRA_H}
                       rx={6}
                       fill="#0a0a0a"
-                      stroke="#262626"
-                      strokeWidth={1}
+                      stroke="#0e7490"
+                      strokeWidth={1.25}
                     />
                     <text
                       x={x + INFRA_W / 2}
-                      y={y + 20}
+                      y={y + 22}
                       textAnchor="middle"
                       fontFamily="var(--font-mono)"
                       fontSize={11}
                       fontWeight={500}
-                      fill="#a3a3a3"
+                      fill="#e5e5e5"
                     >
                       {node.title}
                     </text>
                     {node.subtitle && (
                       <text
                         x={x + INFRA_W / 2}
-                        y={y + 35}
+                        y={y + 38}
                         textAnchor="middle"
                         fontFamily="var(--font-mono)"
                         fontSize={9}
-                        fill="#525252"
+                        fill="#67e8f9"
                       >
                         {node.subtitle}
                       </text>
@@ -276,7 +273,7 @@ export default function Architecture() {
 
               {/* ---------- 3. Spawn arrow from Wrapper down to Captain ---------- */}
               {(() => {
-                const wrapperCx = infraX(2) + INFRA_W / 2;
+                const wrapperCx = infraX(1) + INFRA_W / 2;
                 const wrapperBottom = INFRA_ROW_Y + INFRA_H;
                 // Vertical drop from wrapper, slight curve into captain top.
                 const spawnD =
@@ -369,12 +366,15 @@ export default function Architecture() {
               {/* ---------- 5. Captain ↔ Sub-agents (the headline) ----------
 
                   Routing rules to keep the fan readable:
-                  - Dispatch curves leave Captain's BOTTOM edge at evenly-spaced
-                    x-offsets and land on each agent's TOP-CENTRE. Solid accent.
-                  - Result curves leave each agent's TOP edge slightly to the
-                    right and return to a separate region: Captain's RIGHT edge.
-                    Dashed dim. This keeps dispatch and result on different
-                    Captain edges so they don't tangle. */}
+                  - Dispatch curves leave Captain's BOTTOM edge from a tight
+                    INNER band (anchorSpan ≈ 120) and land on each agent's
+                    TOP-CENTRE. Solid accent.
+                  - Return curves leave each agent's TOP edge slightly to the
+                    RIGHT of centre and arrive at Captain's bottom edge in a
+                    wider OUTER band (anchorSpan ≈ 220). Dim dashed. The
+                    different anchor band + horizontal offset keeps dispatch
+                    and return reading as two parallel families instead of
+                    overlapping. */}
 
               {/* Task tool chip — sits ON the dispatch fan, just below Captain. */}
               {(() => {
@@ -408,21 +408,21 @@ export default function Architecture() {
                 );
               })()}
 
-              {/* Dispatch curves — fan out from Captain bottom edge to each
-                  agent top-centre. Distinct, evenly spaced anchor points. */}
+              {/* Dispatch curves — fan out from a tight INNER band of
+                  Captain's bottom edge to each agent top-centre. */}
               {SUB_AGENTS.map((agent, i) => {
                 const ax = agentX(i);
                 const agentTopCx = ax + AGENT_W / 2;
                 const agentTop = AGENT_ROW_Y;
 
-                // Spread anchor points evenly across Captain's bottom edge,
-                // centred. With 5 agents and 260px-wide Captain we use a
-                // 180px span so the anchors stay safely inside the rect.
-                const anchorSpan = 180;
+                // Inner band: 120px wide, centred under Captain. Leaves room
+                // either side for the wider return-curve anchor band.
+                const dispatchAnchorSpan = 120;
                 const t = SUB_AGENTS.length === 1 ? 0.5 : i / (SUB_AGENTS.length - 1);
-                const dispatchStartX = captainCx - anchorSpan / 2 + anchorSpan * t;
+                const dispatchStartX =
+                  captainCx - dispatchAnchorSpan / 2 + dispatchAnchorSpan * t;
 
-                // Smooth S-curve: vertical leave, vertical arrive at agent top.
+                // Dispatch leaves agent top at centre.
                 const midY = (captainBottom + agentTop) / 2;
                 const dispatchD =
                   `M ${dispatchStartX} ${captainBottom} ` +
@@ -443,44 +443,58 @@ export default function Architecture() {
                 );
               })}
 
-              {/* Result arc — single dashed dim arc that loops from the agent
-                  row's right side back up to Captain's RIGHT edge. Conceptually
-                  represents "agents return artifacts to Captain". Keeping it as
-                  one arc (rather than 5 overlapping return curves) is much
-                  cleaner visually; the produces labels under each box already
-                  carry the per-agent detail. */}
+              {/* Per-agent return curves — each sub-agent returns its artifact
+                  to Captain via a dim dashed curve. Returns leave each agent's
+                  TOP edge offset to the right of centre, and arrive at a wider
+                  OUTER band of Captain's bottom edge so they read as a
+                  parallel family beside the dispatch fan, not overlapping it. */}
+              {SUB_AGENTS.map((agent, i) => {
+                const ax = agentX(i);
+                const agentTop = AGENT_ROW_Y;
+                // Return leaves slightly right of agent centre so it visually
+                // separates from the dispatch arrow landing at agent centre.
+                const returnStartX = ax + AGENT_W / 2 + 14;
+
+                // Outer band: 220px wide, wider than dispatch's 120px so
+                // returns land outside the dispatch anchors on Captain.
+                const returnAnchorSpan = 220;
+                const t = SUB_AGENTS.length === 1 ? 0.5 : i / (SUB_AGENTS.length - 1);
+                const returnEndX =
+                  captainCx - returnAnchorSpan / 2 + returnAnchorSpan * t;
+
+                // Lower midpoint than dispatch so the two families bow apart
+                // through the middle of the gap.
+                const midY =
+                  (captainBottom + agentTop) / 2 + 28;
+                const returnD =
+                  `M ${returnStartX} ${agentTop} ` +
+                  `C ${returnStartX} ${midY}, ` +
+                  `${returnEndX} ${midY}, ` +
+                  `${returnEndX} ${captainBottom}`;
+
+                return (
+                  <path
+                    key={`return-${agent.id}`}
+                    d={returnD}
+                    fill="none"
+                    stroke="#737373"
+                    strokeOpacity={0.55}
+                    strokeWidth={1}
+                    strokeDasharray="3 3"
+                    markerEnd="url(#arrow)"
+                  />
+                );
+              })}
+
+              {/* "→ artifacts" label sits to the right of the return-curve
+                  family so the family is named without cluttering the curves. */}
               {(() => {
                 const lastAgentX = agentX(SUB_AGENTS.length - 1) + AGENT_W;
-                const startX = lastAgentX - 12;
-                const startY = AGENT_ROW_Y;
-                const endX = CAPTAIN.x + CAPTAIN.w;
-                const endY = CAPTAIN.y + CAPTAIN.h * 0.72;
-                // Wide arc to the right of everything — clearly separate from
-                // the dispatch fan beneath Captain.
-                const ctrl1X = lastAgentX + 60;
-                const ctrl1Y = (startY + endY) / 2;
-                const ctrl2X = endX + 90;
-                const ctrl2Y = endY;
-                const resultD =
-                  `M ${startX} ${startY} ` +
-                  `C ${ctrl1X} ${ctrl1Y}, ` +
-                  `${ctrl2X} ${ctrl2Y}, ` +
-                  `${endX + 2} ${endY}`;
-
-                // Label sits ON the arc, in the chip style.
-                const labelX = ctrl2X - 8;
-                const labelY = (startY + endY) / 2 + 6;
+                const labelX = lastAgentX + 26;
+                const labelY =
+                  (AGENT_ROW_Y + captainBottom) / 2 + 4;
                 return (
                   <g>
-                    <path
-                      d={resultD}
-                      fill="none"
-                      stroke="#525252"
-                      strokeOpacity={0.7}
-                      strokeWidth={1}
-                      strokeDasharray="3 3"
-                      markerEnd="url(#arrow)"
-                    />
                     <rect
                       x={labelX - 38}
                       y={labelY - 11}

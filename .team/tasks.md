@@ -63,3 +63,20 @@
 
 ### Git
 - [x] @git Push to the existing branch / PR #8. Comment on PR with the new preview URL.
+
+---
+
+## Round 4 (current — fast path, no tester/reviewer)
+
+### Engineering
+- [x] @engineer In `Architecture.tsx`: add dotted gray result curves from EACH sub-agent (scout, engineer, tester, reviewer, git) back to Captain — currently only git has a visible return path. Style them as the existing dim/dashed result lines.
+- [x] @engineer Remove the Web UI box from the infra row. Final infra layout: CLI → Wrapper daemon → `~/team/sessions/<id>/`. Give all three of those boxes the same accent-blue stroke as the Captain box (instead of the current dim stroke).
+- [x] @engineer Update `Architecture.test.ts` so any assertions about INFRA node count / Web UI presence still pass.
+- [x] @engineer Run `pnpm --filter @my-team/landing build` and confirm it passes.
+- [x] @engineer Commit using Conventional Commits style.
+
+### Preview
+- [x] @engineer Vercel preview deploy from `apps/landing/`. Capture URL.
+
+### Git
+- [ ] @git Push to PR #8. Brief comment with the new preview URL.
