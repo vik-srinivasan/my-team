@@ -1,151 +1,122 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
-import {
-  stripAnsi,
-  cleanCaptainOutput,
-  isMeaningfulText,
-} from './useWebSocket.js';
+import type {
+  SessionState,
+  TeamFileName,
+  WsServerEvent,
+} from '@my-team/shared';
 
-/**
- * The full pipeline matches what the WS handler runs:
- *   raw PTY chunk -> stripAnsi -> cleanCaptainOutput -> isMeaningfulText
- * Any noisy fixture should end up as empty text, or be rejected by
- * isMeaningfulText. Any meaningful fixture should survive both stages.
- */
-function pipeline(raw: string): string {
-  return cleanCaptainOutput(stripAnsi(raw));
+import { routeServerEvent, type WsEventHandlers } from './useWebSocket.js';
+
+function makeHandlers(): WsEventHandlers & {
+  writeOutput: ReturnType<typeof vi.fn>;
+  setTeamFile: ReturnType<typeof vi.fn>;
+  setSessionState: ReturnType<typeof vi.fn>;
+  setRemoteUrl: ReturnType<typeof vi.fn>;
+} {
+  return {
+    writeOutput: vi.fn(),
+    setTeamFile: vi.fn(),
+    setSessionState: vi.fn(),
+    setRemoteUrl: vi.fn(),
+  };
 }
 
-describe('stripAnsi', () => {
-  it('removes SGR color codes', () => {
-    expect(stripAnsi('\x1b[31mhello\x1b[0m')).toBe('hello');
+describe('routeServerEvent', () => {
+  it('routes team_file events to setTeamFile with the discriminator name', () => {
+    const handlers = makeHandlers();
+    const event: WsServerEvent = {
+      type: 'team_file',
+      name: 'plan',
+      content: '# Plan\nstep one\n',
+    };
+
+    routeServerEvent(event, handlers);
+
+    expect(handlers.setTeamFile).toHaveBeenCalledTimes(1);
+    expect(handlers.setTeamFile).toHaveBeenCalledWith(
+      'plan',
+      '# Plan\nstep one\n',
+    );
+    expect(handlers.writeOutput).not.toHaveBeenCalled();
+    expect(handlers.setSessionState).not.toHaveBeenCalled();
+    expect(handlers.setRemoteUrl).not.toHaveBeenCalled();
   });
 
-  it('removes OSC window title sequences', () => {
-    expect(stripAnsi('\x1b]0;the title\x07hello')).toBe('hello');
+  it('routes each of the four TeamFileName values independently', () => {
+    const handlers = makeHandlers();
+    const samples: Record<TeamFileName, string> = {
+      plan: 'plan body',
+      tasks: '- [ ] do thing',
+      journal: '## entry',
+      review: 'lgtm',
+    };
+
+    for (const [name, content] of Object.entries(samples) as Array<
+      [TeamFileName, string]
+    >) {
+      routeServerEvent({ type: 'team_file', name, content }, handlers);
+    }
+
+    expect(handlers.setTeamFile).toHaveBeenCalledTimes(4);
+    expect(handlers.setTeamFile.mock.calls).toEqual([
+      ['plan', samples.plan],
+      ['tasks', samples.tasks],
+      ['journal', samples.journal],
+      ['review', samples.review],
+    ]);
   });
 
-  it('drops carriage returns used for spinner overwrites', () => {
-    expect(stripAnsi('working\rdone\n')).toBe('workingdone');
-  });
-});
+  it('forwards output bytes verbatim — no ANSI stripping', () => {
+    const handlers = makeHandlers();
+    // ANSI SGR + CR + LF: every byte must reach the terminal callback.
+    const raw = '\x1b[31mhello\x1b[0m\rworld\n';
 
-describe('cleanCaptainOutput drops PTY noise', () => {
-  it.each([
-    '>>bypasspermissionson',
-    '>> bypass permissions on',
-    '   bypass permissions on  (shift+tab to cycle)',
-    'shift+tab to cycle',
-    'esc to interrupt',
-    'esctointerrupt',
-    'RemoteControlactive',
-    'Remote Control active',
-    'Contemplating...',
-    'Conplating...',
-    'Complating',
-    'thinking with xhigh effort',
-    'thinking with high effort',
-    'thought for 12s',
-    '↓ 1,234 tokens',
-    '↓ 12k tokens',
-    '12345 tokens',
-    '(ctrl+o to expand)',
-    '   (ctrl+o   to   expand)',
-    '└ tool call frame leftover',
-    '┃ sidebar frame leftover',
-    '│ vertical bar leftover',
-    '[38;5;7m residual color',
-    '[0m  ',
-  ])('drops noisy line: %j', (line) => {
-    expect(pipeline(line)).toBe('');
+    routeServerEvent({ type: 'output', text: raw }, handlers);
+
+    expect(handlers.writeOutput).toHaveBeenCalledTimes(1);
+    expect(handlers.writeOutput).toHaveBeenCalledWith(raw);
   });
 
-  it('drops embedded ESC[ fragments even mid-line', () => {
-    expect(cleanCaptainOutput('keep me\n\x1b[31mthrow this away')).toBe(
-      'keep me',
+  it('routes state events to setSessionState', () => {
+    const handlers = makeHandlers();
+    const state: SessionState = {
+      phase: 'executing',
+      active_specialist: 'engineer',
+      review_iterations: 0,
+      max_review_iterations: 3,
+      last_checkpoint: '2026-05-11T00:00:00.000Z',
+      blockers: [],
+      must_ask_pending: [],
+    };
+
+    routeServerEvent({ type: 'state', state }, handlers);
+
+    expect(handlers.setSessionState).toHaveBeenCalledWith(state);
+  });
+
+  it('routes remote_url events to setRemoteUrl', () => {
+    const handlers = makeHandlers();
+    routeServerEvent(
+      { type: 'remote_url', url: 'https://example.test/r/abc' },
+      handlers,
+    );
+    expect(handlers.setRemoteUrl).toHaveBeenCalledWith(
+      'https://example.test/r/abc',
     );
   });
 
-  it('collapses noise mixed with real content', () => {
-    const input = [
-      '# Heading',
-      '↓ 1,234 tokens',
-      'Contemplating...',
-      'Real paragraph that should survive.',
-      '└ tool frame leftover',
-      '(ctrl+o to expand)',
-      'Another sentence with content.',
-    ].join('\n');
+  it('ignores unhandled event types (specialist, diff) without throwing', () => {
+    const handlers = makeHandlers();
+    routeServerEvent(
+      { type: 'specialist', name: 'engineer', status: 'started' },
+      handlers,
+    );
+    routeServerEvent({ type: 'diff', diff: '' }, handlers);
 
-    const out = pipeline(input);
-    expect(out).toContain('# Heading');
-    expect(out).toContain('Real paragraph that should survive.');
-    expect(out).toContain('Another sentence with content.');
-    expect(out).not.toMatch(/tokens/);
-    expect(out).not.toMatch(/Contemplating/i);
-    expect(out).not.toMatch(/ctrl\+o/);
-    expect(out).not.toMatch(/^└/m);
-  });
-});
-
-describe('cleanCaptainOutput preserves real content', () => {
-  it.each([
-    '# Heading One',
-    '## A sub-heading',
-    '```ts',
-    '```',
-    'A normal sentence about the implementation plan.',
-    '- list bullet with words',
-    'See [link text](https://example.com) for details.',
-    'The wrapper spawns claude via node-pty.',
-  ])('keeps meaningful line: %j', (line) => {
-    expect(pipeline(line)).toBe(line);
-  });
-
-  it('keeps markdown headers untouched', () => {
-    const md = '# Plan\n\nFirst we will scout the repo, then we plan.';
-    expect(pipeline(md)).toBe(md);
-  });
-
-  // Regression: the contemplating-spinner regex used to match "complete"
-  // and related "compl*" words, silently dropping legitimate captain output.
-  // See review pass 1 — these must always pass through the filter.
-  it.each([
-    'complete',
-    'completed',
-    'completing',
-    'completes',
-    'completion',
-    'The implementation is complete.',
-    'All tasks are now completed.',
-    'We are completing the final task.',
-    'This is a template literal in TypeScript.',
-    'The feature is fully implemented.',
-    'Use a compatible Node version.',
-  ])('does NOT drop legitimate word: %j', (line) => {
-    expect(pipeline(line)).toBe(line);
-  });
-});
-
-describe('isMeaningfulText', () => {
-  it('accepts markdown headers even if short', () => {
-    expect(isMeaningfulText('# Hi')).toBe(true);
-    expect(isMeaningfulText('### Section')).toBe(true);
-  });
-
-  it('accepts code fences', () => {
-    expect(isMeaningfulText('```')).toBe(true);
-    expect(isMeaningfulText('```typescript')).toBe(true);
-  });
-
-  it('rejects empty/whitespace and tiny fragments', () => {
-    expect(isMeaningfulText('')).toBe(false);
-    expect(isMeaningfulText('   ')).toBe(false);
-    expect(isMeaningfulText('ab')).toBe(false);
-    expect(isMeaningfulText('--')).toBe(false);
-  });
-
-  it('accepts ordinary sentences', () => {
-    expect(isMeaningfulText('Plan approved, dispatching engineer.')).toBe(true);
+    expect(handlers.writeOutput).not.toHaveBeenCalled();
+    expect(handlers.setTeamFile).not.toHaveBeenCalled();
+    expect(handlers.setSessionState).not.toHaveBeenCalled();
+    expect(handlers.setRemoteUrl).not.toHaveBeenCalled();
   });
 });
