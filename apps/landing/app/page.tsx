@@ -4,6 +4,7 @@ import HowItWorks from './components/HowItWorks';
 import WhyMyTeam from './components/WhyMyTeam';
 import Architecture from './components/Architecture';
 import Quickstart from './components/Quickstart';
+import GettingStarted from './components/GettingStarted';
 import Footer from './components/Footer';
 
 export default function Page() {
@@ -15,6 +16,7 @@ export default function Page() {
       <WhyMyTeam />
       <Architecture />
       <Quickstart />
+      <GettingStarted />
       <Footer />
     </main>
   );
