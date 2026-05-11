@@ -2,7 +2,9 @@
 
 Multi-agent orchestration for Claude Code. Spin up a team of AI specialists that plan, code, test, review, and ship a PR — all from one command.
 
-Landing page → [landing-eosin-mu.vercel.app](https://landing-eosin-mu.vercel.app)
+Landing page → [docs-olive-eight-29.vercel.app](https://docs-olive-eight-29.vercel.app/)
+
+The live site has a tabbed "Get started" walkthrough — Quickstart, Agent (use my-team to set up my-team), and Remote (control sessions from your phone).
 
 ## Quickstart
 
