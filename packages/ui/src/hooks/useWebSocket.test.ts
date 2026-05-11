@@ -306,3 +306,154 @@ describe('full pipeline on realistic PTY chunks', () => {
     expect(out).not.toMatch(/tokens/);
   });
 });
+
+/**
+ * Integration test — full stream pipeline regression for the screenshot bug.
+ *
+ * The bug: Claude Code emits PTY chunks containing CR-based spinner overwrites
+ * interleaved with spinner glyphs and real content. Before the fixes:
+ *   - stripAnsi dropped `\r` instead of simulating overwrite, causing spinner
+ *     status text to concatenate with content ("30thnking…efort" mangling).
+ *   - NOISE_LINE_PATTERNS missed Billowing/glyph-cluster/counter patterns.
+ *   - joinChunks prepended `\n` to every WS chunk, fragmenting prose into a
+ *     vertical per-word paragraph list in ReactMarkdown.
+ *
+ * This test feeds a realistic sequence of PTY WS chunks (as they arrive from
+ * the server-side line buffer) through the complete pipeline:
+ *   stripAnsi → cleanCaptainOutput → isMeaningfulText → joinChunks
+ * and asserts that the accumulated output is clean, readable prose with no
+ * spinner artifacts, no word mangling, and no paragraph fragmentation.
+ */
+describe('screenshot-bug regression: full stream pipeline with chunk accumulation', () => {
+  /**
+   * Simulates the WS handler accumulation loop. Each PTY chunk is processed
+   * through the full pipeline and accumulated exactly as useWebSocket does:
+   *   1. stripAnsi + cleanCaptainOutput
+   *   2. isMeaningfulText gate
+   *   3. joinChunks to merge into the running accumulator
+   * Returns the final accumulated string.
+   */
+  function accumulateChunks(chunks: string[]): string {
+    let acc = '';
+    for (const chunk of chunks) {
+      const cleaned = cleanCaptainOutput(stripAnsi(chunk));
+      if (!cleaned || !isMeaningfulText(cleaned)) continue;
+      acc = joinChunks(acc, cleaned);
+    }
+    return acc;
+  }
+
+  it('produces clean prose from a realistic spinner+CR+content PTY sequence', () => {
+    // These chunks represent what the server-side line buffer emits after
+    // coalescing raw PTY bytes. Each string is one WS message payload.
+    // The pattern mirrors the screenshot: Claude Code rotates through spinner
+    // verbs with CR overwrites, emits glyph+counter status lines, then
+    // eventually produces real plan content.
+    const ptyChunks = [
+      // Chunk 1: spinner with CR overwrites — only the final segment survives stripAnsi
+      '\x1b[?25lBillowing…\r\x1b[2K30s thinking with xhigh effort\rThe plan is ready.\n',
+      // Chunk 2: pure spinner-glyph cluster line, no real content
+      '✲ ❺ ✣ ·· 3\n',
+      // Chunk 3: "N active" status counter
+      '1 active\n',
+      // Chunk 4: token counter footer
+      '(24s ↑ 1.4k tokens · thought for 1s)\n',
+      // Chunk 5: next spinner verb line (multi-CR)
+      'Pondering…\r45s Pondering…\rWe will start with the scout phase.\n',
+      // Chunk 6: another glyph cluster
+      '◆ ►► ·· 12\n',
+      // Chunk 7: real content prose — the kind the user should actually see
+      'First, the engineer will implement the feature.\n',
+      // Chunk 8: real content continues (word-by-word chunk to stress joinChunks)
+      'Then tests will be added.',
+      // Chunk 9: OSC title + SGR noise before a real line
+      '\x1b]0;claude\x07\x1b[1mNext steps:\x1b[0m\n',
+    ];
+
+    const result = accumulateChunks(ptyChunks);
+
+    // The real content sentences must be present.
+    expect(result).toContain('The plan is ready.');
+    expect(result).toContain('We will start with the scout phase.');
+    expect(result).toContain('First, the engineer will implement the feature.');
+    expect(result).toContain('Then tests will be added.');
+    expect(result).toContain('Next steps:');
+
+    // No spinner verb leakage.
+    expect(result).not.toMatch(/Billowing/i);
+    expect(result).not.toMatch(/Pondering/i);
+
+    // No CR-overwrite mangling — none of the overwritten status text survives.
+    // The pre-fix bug would have produced "30s thinking with xhigh effortThe plan"
+    // or similar concatenations.
+    expect(result).not.toMatch(/\d+s thinking/i);
+    expect(result).not.toMatch(/xhigh effort/i);
+
+    // No token counter or spinner glyph lines.
+    expect(result).not.toMatch(/tokens/);
+    expect(result).not.toMatch(/active/i);
+    expect(result).not.toMatch(/thought for \d/i);
+
+    // No paragraph fragmentation: the two consecutive prose sentences must
+    // not be separated by more than one blank line (i.e. joinChunks kept them
+    // in the same logical block rather than making each word a new paragraph).
+    const engineerIdx = result.indexOf('First, the engineer');
+    const thenIdx = result.indexOf('Then tests');
+    expect(engineerIdx).toBeGreaterThanOrEqual(0);
+    expect(thenIdx).toBeGreaterThan(engineerIdx);
+    // The text between the two sentences should not contain two consecutive newlines.
+    const between = result.slice(engineerIdx, thenIdx);
+    expect(between).not.toMatch(/\n\n/);
+  });
+
+  it('no word mangling: CR-overwrite sequence never produces concatenated fragments', () => {
+    // This directly reproduces the "30thnking…efort" class of corruption:
+    // a realistic chunk where spinner status is overwritten by real content.
+    // Pre-fix: stripAnsi('.replace(/\r/g,"")' ) would join all three segments.
+    // Post-fix: only the final segment after the last \r survives per line.
+    const chunk =
+      'thinking with xhigh effort\r' +
+      '30s thinking with xhigh effort\r' +
+      'The implementation approach is to use a line buffer.';
+
+    const result = cleanCaptainOutput(stripAnsi(chunk));
+
+    // Only the last CR segment (real content) should remain.
+    expect(result).toBe('The implementation approach is to use a line buffer.');
+    // Status fragments must not bleed into the output.
+    expect(result).not.toMatch(/thinking/i);
+    expect(result).not.toMatch(/xhigh/i);
+    expect(result).not.toMatch(/30s/);
+    // Words must not be mangled together.
+    expect(result).not.toMatch(/\w{25,}/); // no pathological run-together words
+  });
+
+  it('word-by-word chunks accumulate as a single paragraph, not a fragment list', () => {
+    // The pre-fix bug: appendToMessage unconditionally prepended '\n' to every
+    // chunk, so PTY word-sized chunks became one-word markdown paragraphs.
+    // Post-fix: joinChunks uses a space separator unless a block boundary is needed.
+    const words = [
+      'The',
+      'captain',
+      'has',
+      'reviewed',
+      'the',
+      'plan',
+      'and',
+      'approved',
+      'it.',
+    ];
+
+    let acc = '';
+    for (const word of words) {
+      // Each word is meaningful (simulate isMeaningfulText passing after
+      // the real filter — use 3+ char words directly to avoid the gate).
+      acc = joinChunks(acc, word);
+    }
+
+    // Must read as a single sentence.
+    expect(acc).toBe('The captain has reviewed the plan and approved it.');
+    // Must contain exactly zero newlines — no fragmentation.
+    expect(acc.includes('\n')).toBe(false);
+  });
+});
