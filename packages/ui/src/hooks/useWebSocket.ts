@@ -28,11 +28,35 @@ const NOISE_LINE_PATTERNS: readonly RegExp[] = [
   //   contemplating, contemplate, contemplator,
   //   conplating, conplate, complating, complate
   /\b(?:contempl|conplat|complat)(?:at)?(?:e|ing|es|ed|or|ion)?\b/i,
+  // Claude Code spinner verb vocabulary. Stems chosen so that PTY
+  // corruptions (dropped letters, joined glyphs) still match. These
+  // appear as a rotating list with a spinner glyph prefix, e.g.
+  // "✲ Billowing…" / "✺ Pondering…". The pattern is line-anchored so
+  // it only fires when the entire line is a spinner status word
+  // (optionally preceded by spinner glyphs/whitespace and followed by
+  // ellipsis/punctuation). This prevents false positives on common
+  // English words used in prose ("deliberate", "pondered", "simmers",
+  // "mulling", "musing") which previously got entire lines silently
+  // dropped. The invariant: a spinner line is short and isolated; a
+  // prose sentence has these words embedded in a longer string.
+  /^[\s✲✺✣↳◆►·⏵▸▶●○◯◌◍◎⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏]*(?:billow|ponder|cogitat|ruminat|deliberat|simmer|osmos|musing|mulling)\w*[\s…\.]*$/iu,
   /thinking\s+with\s+x?high\s+effort/,
-  /thought\s+for\s+\d+\s*s?\b/,
-  // Token counters: "↓ 12 tokens", "12 tokens", "12k tokens"
-  /↓\s*\d[\d.,]*\s*k?\s*tokens/,
+  /thinking\s+on\s+\d/i,
+  /\bthought\s+for\s+\d+\s*s?\b/,
+  // Token counters: "↓ 12 tokens", "↑ 1.4k tokens", "12k tokens"
+  /[↑↓]\s*\d[\d.,]*\s*k?\s*tokens/,
   /\b\d[\d.,]*\s*k?\s+tokens\b/,
+  // Status footer line: "(24s ↑ 1.4k tokens · thought for 1s)" — match
+  // the leading "(Ns " block which always precedes a spinner status footer.
+  /\(\s*\d+\s*s\s*[↑↓·]/,
+  // "N active" / "N Cactive" counters (PTY occasionally glues a glyph
+  // onto the digit, producing things like "1 Cactive").
+  /^\s*\d+\s*c?active\b/i,
+  // Unicode spinner glyph lines: lines dominated by spinner glyphs and
+  // digits/tiny tokens (no real words). Triggers only when the line is
+  // mostly these glyphs — won't strip a normal sentence that happens to
+  // contain one.
+  /^[\s✲✺✣↳◆►·⏵▸▶●○◯◌◍◎⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏]+(?:\s*\d+\s*)*[\s✲✺✣↳◆►·⏵▸▶●○◯◌◍◎⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏]*$/u,
   // Tool-call expansion chrome
   /\(\s*ctrl\s*\+\s*o\s+to\s+expand\s*\)/,
 ];
@@ -75,11 +99,28 @@ function stripAnsi(text: string): string {
     .replace(/\x1b[7-8=<>]/g, '')
     // Any remaining ESC + one char
     .replace(/\x1b./g, '')
-    // C0 control chars (except \n and \t)
+    // C0 control chars (except \n, \t, \r — \r handled below)
     // eslint-disable-next-line no-control-regex
     .replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '')
-    // Carriage return used for line overwriting (spinners etc)
-    .replace(/\r/g, '')
+    // Normalize Windows-style line endings to plain `\n` BEFORE the
+    // per-line CR-overwrite simulation. Without this, "a\r\nb" would
+    // split into a line ending in "\r" (whose CR-segment then keeps
+    // only the empty tail), silently dropping every CRLF-terminated
+    // line. PTYs on most platforms emit bare `\n`, but the wrapper
+    // running on Windows or some shells does emit `\r\n` — guard it.
+    .replace(/\r\n/g, '\n')
+    // Simulate terminal CR-overwrite: within each physical line, a `\r`
+    // returns the cursor to column 0 and subsequent text overwrites
+    // whatever came before. After all overwrites only the last segment
+    // would still be visible — so keep only that. Critical for spinner
+    // status lines like "thinking…\r30s thinking…\rreal content" which
+    // otherwise concatenate into garbled gibberish.
+    .split('\n')
+    .map((line) => {
+      const segments = line.split('\r');
+      return segments[segments.length - 1] ?? '';
+    })
+    .join('\n')
     // Collapse multiple blank lines
     .replace(/\n{3,}/g, '\n\n')
     .trim();
@@ -136,8 +177,67 @@ function isMeaningfulText(text: string): boolean {
   return words.length >= 3;
 }
 
+/**
+ * Decide how to join a streaming chunk onto the existing in-progress
+ * captain message. PTY chunks frequently arrive word-by-word; if every
+ * chunk gets a leading `\n` we end up with markdown that renders as a
+ * vertical fragment list. Instead:
+ *   - if `prev` already ends with a newline, append `cleaned` directly
+ *   - if `cleaned` opens a markdown-structural line (heading, fenced
+ *     code, list item, blockquote, hr), force a newline boundary
+ *   - if `prev` ends with whitespace, append `cleaned` directly
+ *   - otherwise insert a single space so words don't run together
+ */
+function joinChunks(prev: string, cleaned: string): string {
+  if (cleaned.length === 0) return prev;
+  const prevEndsBlock = endsMarkdownBlock(prev);
+  if (startsMarkdownBlock(cleaned) || prevEndsBlock) {
+    if (prev.endsWith('\n\n')) return prev + cleaned;
+    if (prev.endsWith('\n')) return prev + '\n' + cleaned;
+    if (prev.length === 0) return cleaned;
+    return prev + '\n\n' + cleaned;
+  }
+  if (prev.length === 0) return cleaned;
+  const lastChar = prev[prev.length - 1] ?? '';
+  if (lastChar === '\n' || lastChar === ' ' || lastChar === '\t') return prev + cleaned;
+  const firstChar = cleaned[0] ?? '';
+  if (firstChar === '\n' || firstChar === ' ' || firstChar === '\t' || /[.,;:!?)\]}]/.test(firstChar)) {
+    return prev + cleaned;
+  }
+  return prev + ' ' + cleaned;
+}
+
+/** True if a cleaned chunk opens with a markdown block element. */
+function startsMarkdownBlock(text: string): boolean {
+  const trimStart = text.replace(/^[ \t]+/, '');
+  if (/^#{1,6}\s+\S/.test(trimStart)) return true; // heading
+  if (trimStart.startsWith('```')) return true; // fenced code
+  if (/^[-*+]\s+\S/.test(trimStart)) return true; // bullet list
+  if (/^\d+\.\s+\S/.test(trimStart)) return true; // ordered list
+  if (trimStart.startsWith('> ')) return true; // blockquote
+  if (/^-{3,}\s*$/.test(trimStart)) return true; // hr
+  if (/^={3,}\s*$/.test(trimStart)) return true; // setext underline
+  return false;
+}
+
+/**
+ * True if the *last line* of `text` is a markdown block that should not
+ * have follow-on text glued to it (headings, fenced code openers/closers,
+ * list items, blockquotes). When prev ends with one of these, the next
+ * chunk must start on a new paragraph.
+ */
+function endsMarkdownBlock(text: string): boolean {
+  if (text.length === 0) return false;
+  // Already paragraph-terminated; no need to detect further.
+  if (text.endsWith('\n\n')) return false;
+  // Find the last logical line.
+  const lastNewline = text.lastIndexOf('\n');
+  const lastLine = lastNewline === -1 ? text : text.slice(lastNewline + 1);
+  return startsMarkdownBlock(lastLine);
+}
+
 // Exported for unit tests; the hook itself remains the primary export.
-export { stripAnsi, cleanCaptainOutput, isMeaningfulText };
+export { stripAnsi, cleanCaptainOutput, isMeaningfulText, joinChunks };
 
 export function useWebSocket(sessionId: string | null) {
   const wsRef = useRef<WebSocket | null>(null);
@@ -180,8 +280,15 @@ export function useWebSocket(sessionId: string | null) {
           if (streamFinalizeTimer.current) clearTimeout(streamFinalizeTimer.current);
 
           if (streamingMessageId.current) {
-            // Append to existing streaming message
-            appendToMessage(streamingMessageId.current, '\n' + cleaned);
+            // Append to existing streaming message. Compute the
+            // separator from the prior text so word-sized PTY chunks
+            // don't become a vertical fragment list in markdown.
+            const id = streamingMessageId.current;
+            const prev = useSessionStore.getState().messages.find((m) => m.id === id)?.text ?? '';
+            const merged = joinChunks(prev, cleaned);
+            // appendToMessage concatenates raw, so pass just the delta.
+            const delta = merged.slice(prev.length);
+            if (delta.length > 0) appendToMessage(id, delta);
           } else {
             // Start a new streaming message
             const id = crypto.randomUUID();

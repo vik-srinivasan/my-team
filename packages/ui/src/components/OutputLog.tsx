@@ -91,41 +91,54 @@ export function OutputLog() {
         className="flex-1 overflow-y-auto px-4 py-3"
       >
         {messages.length === 0 ? (
-          <div className="flex h-full flex-1 items-center justify-center">
+          <div className="flex h-full flex-1 items-center justify-center px-6 text-center">
             {isActive ? (
-              <div className="flex items-center gap-2 text-sm text-zinc-500">
+              <div className="flex items-center gap-2 text-base text-zinc-400">
                 <span className="h-2 w-2 rounded-full bg-blue-400 animate-pulse" />
                 Captain is working...
               </div>
             ) : (
-              <p className="text-sm text-zinc-500">No captain output yet</p>
+              <p className="text-base text-zinc-400">
+                Waiting for the captain to start working…
+              </p>
             )}
           </div>
         ) : (
           <div className="space-y-3">
-            {messages.map((msg) => (
-              <div key={msg.id}>
-                {msg.role === 'system' ? (
-                  <div className="flex items-center gap-2 py-1">
-                    <div className="h-px flex-1 bg-zinc-800" />
-                    <span className="text-xs text-zinc-500">{msg.text}</span>
-                    <div className="h-px flex-1 bg-zinc-800" />
-                  </div>
-                ) : msg.role === 'user' ? (
-                  <div className="flex justify-end">
-                    <div className="max-w-[75%] rounded-xl bg-blue-600 px-3 py-2 text-sm text-white">
-                      {msg.text}
+            {messages.map((msg, idx) => {
+              const next = messages[idx + 1];
+              const showCaptainSeparator =
+                msg.role === 'captain' && next?.role === 'captain';
+              return (
+                <div key={msg.id}>
+                  {msg.role === 'system' ? (
+                    <div className="flex items-center gap-2 py-1">
+                      <div className="h-px flex-1 bg-zinc-800" />
+                      <span className="text-xs text-zinc-500">{msg.text}</span>
+                      <div className="h-px flex-1 bg-zinc-800" />
                     </div>
-                  </div>
-                ) : (
-                  <div className="prose prose-invert prose-sm max-w-none text-zinc-300 prose-headings:text-zinc-200 prose-code:text-cyan-300 prose-pre:bg-zinc-800/50 prose-pre:border prose-pre:border-zinc-700 prose-pre:rounded-lg">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]}>
-                      {msg.text}
-                    </ReactMarkdown>
-                  </div>
-                )}
-              </div>
-            ))}
+                  ) : msg.role === 'user' ? (
+                    <div className="flex justify-end">
+                      <div className="max-w-[75%] rounded-xl bg-blue-600 px-3 py-2 text-sm text-white">
+                        {msg.text}
+                      </div>
+                    </div>
+                  ) : (
+                    <div
+                      className={`prose prose-invert prose-sm max-w-none text-zinc-300 prose-headings:text-zinc-200 prose-p:leading-relaxed prose-code:text-cyan-300 prose-pre:bg-zinc-800/50 prose-pre:border prose-pre:border-zinc-700 prose-pre:rounded-lg prose-pre:px-4 prose-pre:py-3 ${
+                        showCaptainSeparator
+                          ? 'border-b border-zinc-800/70 pb-3'
+                          : ''
+                      }`}
+                    >
+                      <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]}>
+                        {msg.text}
+                      </ReactMarkdown>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
             <div ref={messagesEndRef} />
           </div>
         )}

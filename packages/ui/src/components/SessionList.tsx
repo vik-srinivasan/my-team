@@ -108,7 +108,7 @@ export function SessionList() {
               <button
                 key={s.id}
                 onClick={() => selectSession(s.id)}
-                className={`w-full px-3 py-2.5 text-left transition-colors ${
+                className={`w-full px-3 py-3.5 text-left transition-colors ${
                   isSelected
                     ? 'bg-zinc-800 border-l-2 border-blue-500'
                     : 'border-l-2 border-transparent hover:bg-zinc-800/50'
@@ -128,7 +128,7 @@ export function SessionList() {
                     }
                   />
                   <span className="truncate text-sm font-medium text-zinc-200">{s.title}</span>
-                  <span className="ml-auto shrink-0 text-xs text-zinc-600">
+                  <span className="ml-auto shrink-0 text-xs text-zinc-700">
                     {timeAgo(ageSource)}
                   </span>
                 </div>

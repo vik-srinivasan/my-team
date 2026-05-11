@@ -6,7 +6,7 @@ import { OutputLog } from './components/OutputLog.js';
 import { NotificationBanner } from './components/NotificationBanner.js';
 import { useSession } from './hooks/useSession.js';
 import { useSessionStore } from './store.js';
-import { phaseDot, phaseLabel } from './lib/phase.js';
+import { phaseDot, phaseLabel, phasePill } from './lib/phase.js';
 
 export function App() {
   useSession();
@@ -34,15 +34,21 @@ export function App() {
           {selectedId && selectedSession ? (
             <>
               {/* Header bar */}
-              <div className="flex shrink-0 items-center gap-3 border-b border-zinc-800 bg-zinc-900/80 px-4 py-2">
+              <div className="flex shrink-0 items-center gap-3 border-b border-zinc-800 bg-zinc-900/80 px-4 py-3">
                 <span className={`h-2 w-2 rounded-full ${phaseDot(phase)}`} />
-                <span className="text-sm font-medium text-zinc-200">
+                <span
+                  className="text-base font-semibold text-zinc-100"
+                  title={selectedSession.id}
+                >
                   {selectedSession.title}
                 </span>
-                <span className="text-xs text-zinc-500">
-                  {phaseLabel(phase)}
-                </span>
-                <span className="text-xs text-zinc-600">{selectedSession.id}</span>
+                {phase && (
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-xs font-medium ${phasePill(phase)}`}
+                  >
+                    {phaseLabel(phase)}
+                  </span>
+                )}
                 <div className="ml-auto flex items-center gap-3">
                   {remoteUrl && (
                     <a

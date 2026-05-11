@@ -11,11 +11,30 @@ interface CaptainProcessEventMap {
   remoteUrl: [url: string];
 }
 
+/** How long to hold a partial line before flushing on the idle timer. */
+const LINE_FLUSH_MS = 50;
+
+export interface CaptainProcessOptions {
+  /**
+   * Buffer PTY output until a newline or `flushMs` of idle time. Reduces
+   * the chance that a single logical line is split across multiple
+   * WebSocket events, which would force the client into much harder
+   * ANSI/CR-overwrite reassembly. Defaults to true.
+   */
+  bufferLines?: boolean;
+  /** Idle flush timeout in milliseconds. Defaults to {@link LINE_FLUSH_MS}. */
+  flushMs?: number;
+}
+
 export class CaptainProcess extends EventEmitter<CaptainProcessEventMap> {
   private ptyProcess: pty.IPty;
   private _running: boolean = true;
   private _remoteUrl: string | null = null;
   private _urlDetected: boolean = false;
+  private bufferLines: boolean;
+  private flushMs: number;
+  private lineBuffer: string = '';
+  private flushTimer: ReturnType<typeof setTimeout> | null = null;
 
   get pid(): number {
     return this.ptyProcess.pid;
@@ -29,12 +48,16 @@ export class CaptainProcess extends EventEmitter<CaptainProcessEventMap> {
     return this._remoteUrl;
   }
 
-  constructor(ptyProcess: pty.IPty) {
+  constructor(ptyProcess: pty.IPty, options: CaptainProcessOptions = {}) {
     super();
     this.ptyProcess = ptyProcess;
+    this.bufferLines = options.bufferLines ?? true;
+    this.flushMs = options.flushMs ?? LINE_FLUSH_MS;
 
     this.ptyProcess.onData((data) => {
-      // Scan early output for remote control URL
+      // Scan early output for remote control URL on the raw byte stream
+      // so we don't miss URLs that span buffer boundaries — but the URL
+      // itself never contains a newline so any single chunk should hold it.
       if (!this._urlDetected) {
         const match = data.match(/https:\/\/claude\.ai\/code\/[^\s\x1b)]+/);
         if (match) {
@@ -43,13 +66,60 @@ export class CaptainProcess extends EventEmitter<CaptainProcessEventMap> {
           this.emit('remoteUrl', this._remoteUrl);
         }
       }
-      this.emit('data', data);
+      this.handleData(data);
     });
 
     this.ptyProcess.onExit(({ exitCode }) => {
       this._running = false;
+      // Make sure any final unterminated line reaches listeners before
+      // they tear down. Otherwise a process that exits without a trailing
+      // newline could leak its last words.
+      this.flushBuffer();
       this.emit('exit', exitCode);
     });
+  }
+
+  /**
+   * Coalesce PTY output into newline-terminated emissions. Holds a tail
+   * partial line for up to `flushMs` before emitting it anyway so we
+   * don't stall when the captain produces a prompt with no trailing newline.
+   */
+  private handleData(data: string): void {
+    if (!this.bufferLines) {
+      this.emit('data', data);
+      return;
+    }
+
+    this.lineBuffer += data;
+    const lastNewline = this.lineBuffer.lastIndexOf('\n');
+    if (lastNewline !== -1) {
+      // Emit everything up to and including the last newline as one chunk.
+      const ready = this.lineBuffer.slice(0, lastNewline + 1);
+      this.lineBuffer = this.lineBuffer.slice(lastNewline + 1);
+      this.emit('data', ready);
+    }
+
+    // (Re)arm the idle flush so a stalled partial line still surfaces.
+    if (this.flushTimer) clearTimeout(this.flushTimer);
+    if (this.lineBuffer.length > 0) {
+      this.flushTimer = setTimeout(() => {
+        this.flushTimer = null;
+        this.flushBuffer();
+      }, this.flushMs);
+    }
+  }
+
+  /** Emit any pending partial line and clear timers. Idempotent. */
+  private flushBuffer(): void {
+    if (this.flushTimer) {
+      clearTimeout(this.flushTimer);
+      this.flushTimer = null;
+    }
+    if (this.lineBuffer.length > 0) {
+      const pending = this.lineBuffer;
+      this.lineBuffer = '';
+      this.emit('data', pending);
+    }
   }
 
   write(input: string): void {
@@ -61,6 +131,7 @@ export class CaptainProcess extends EventEmitter<CaptainProcessEventMap> {
 
   kill(): void {
     if (this._running) {
+      this.flushBuffer();
       this.ptyProcess.kill();
       this._running = false;
     }
@@ -77,10 +148,21 @@ export interface SpawnCaptainOptions {
   sessionId?: string;
   cols?: number;
   rows?: number;
+  /** Pass-through to {@link CaptainProcess} buffering. */
+  bufferLines?: boolean;
+  flushMs?: number;
 }
 
 export async function spawnCaptain(options: SpawnCaptainOptions): Promise<CaptainProcess> {
-  const { worktreePath, captainPromptPath, sessionId, cols = 120, rows = 40 } = options;
+  const {
+    worktreePath,
+    captainPromptPath,
+    sessionId,
+    cols = 120,
+    rows = 40,
+    bufferLines,
+    flushMs,
+  } = options;
 
   let captainPrompt: string;
   try {
@@ -116,5 +198,5 @@ export async function spawnCaptain(options: SpawnCaptainOptions): Promise<Captai
     },
   });
 
-  return new CaptainProcess(ptyProcess);
+  return new CaptainProcess(ptyProcess, { bufferLines, flushMs });
 }
