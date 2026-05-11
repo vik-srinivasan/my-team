@@ -39,6 +39,12 @@ export const TABS = [
     eyebrow: '05 / WORKTREE',
     title: 'Inspect what the team is doing',
   },
+  {
+    id: 'agent',
+    label: 'Launch with agent',
+    eyebrow: '06 / AGENT',
+    title: 'Hand it to your coding agent',
+  },
 ] as const satisfies readonly Tab[];
 
 export type TabId = (typeof TABS)[number]['id'];

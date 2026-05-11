@@ -2,7 +2,14 @@
 
 import { useState } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
-import { Terminal, FolderTree, ChevronRight } from 'lucide-react';
+import {
+  Terminal,
+  FolderTree,
+  ChevronRight,
+  Download,
+  Check,
+  Copy,
+} from 'lucide-react';
 import {
   TABS,
   DEFAULT_TAB,
@@ -450,6 +457,109 @@ function WorktreePanel() {
   );
 }
 
+// ---------- Agent panel ----------
+
+const SETUP_DOC_PATH = '/my-team-setup.md';
+
+const AGENT_COMPATIBILITY = [
+  'Claude Code',
+  'Cursor',
+  'Codex',
+  'any markdown-aware agent',
+] as const;
+
+function AgentPanel() {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    if (typeof navigator === 'undefined' || !navigator.clipboard) {
+      // Clipboard API unavailable — render-safe no-op.
+      return;
+    }
+    try {
+      const res = await fetch(SETUP_DOC_PATH);
+      if (!res.ok) return;
+      const text = await res.text();
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // Swallow — fetch or clipboard failed; the download link still works.
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <p className="max-w-3xl text-[color:var(--color-muted)] leading-relaxed">
+        Skip the manual install. Hand the setup guide below to any coding agent —
+        Claude Code, Cursor, Codex, or anything that follows a markdown spec — and it
+        will install and verify my-team for you, then hand it back ready to use.
+      </p>
+
+      <div className="flex flex-wrap items-center gap-3">
+        <a
+          href={SETUP_DOC_PATH}
+          download="my-team-setup.md"
+          className="inline-flex items-center gap-2 rounded-md bg-[color:var(--color-accent)] px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-[color:var(--color-accent-bright)] hover:text-[color:var(--color-bg)]"
+        >
+          <Download size={16} aria-hidden="true" />
+          Download my-team-setup.md
+        </a>
+        <button
+          type="button"
+          onClick={() => void handleCopy()}
+          className="inline-flex items-center gap-2 rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-surface)]/40 px-5 py-2.5 text-sm font-medium text-[color:var(--color-text)] transition-colors hover:border-[color:var(--color-border-strong)] hover:bg-[color:var(--color-surface)]"
+          aria-label="Copy my-team-setup.md contents to clipboard"
+        >
+          {copied ? (
+            <>
+              <Check size={16} aria-hidden="true" />
+              <span>Copied</span>
+            </>
+          ) : (
+            <>
+              <Copy size={16} aria-hidden="true" />
+              <span>Copy contents</span>
+            </>
+          )}
+        </button>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="font-mono text-[11px] uppercase tracking-[0.16em] text-[color:var(--color-dim)]">
+          Compatible with
+        </span>
+        {AGENT_COMPATIBILITY.map((name) => (
+          <span
+            key={name}
+            className="inline-flex items-center rounded-full border border-[color:var(--color-border)] px-2.5 py-1 font-mono text-[11px] text-[color:var(--color-dim)]"
+          >
+            {name}
+          </span>
+        ))}
+      </div>
+
+      <div className="overflow-hidden rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)]/60 backdrop-blur">
+        <header className="flex items-center justify-between border-b border-[color:var(--color-border)] bg-[color:var(--color-surface-2)] px-4 py-2.5">
+          <div className="flex items-center gap-2">
+            <span className="h-2.5 w-2.5 rounded-full bg-red-400/70" aria-hidden="true" />
+            <span className="h-2.5 w-2.5 rounded-full bg-amber-400/70" aria-hidden="true" />
+            <span className="h-2.5 w-2.5 rounded-full bg-emerald-400/70" aria-hidden="true" />
+          </div>
+          <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-[color:var(--color-dim)]">
+            tell your agent
+          </span>
+        </header>
+        <pre className="overflow-x-auto p-5 font-mono text-[12.5px] leading-7 text-[color:var(--color-text)]">
+          <span className="text-[color:var(--color-text)]">you {'▸'} </span>
+          Read my-team-setup.md and follow it. Confirm with me{'\n'}
+          {'      '}before installing anything.
+        </pre>
+      </div>
+    </div>
+  );
+}
+
 // ---------- Section ----------
 
 function renderPanel(id: TabId): React.ReactNode {
@@ -464,6 +574,8 @@ function renderPanel(id: TabId): React.ReactNode {
       return <RemotePanel />;
     case 'worktree':
       return <WorktreePanel />;
+    case 'agent':
+      return <AgentPanel />;
   }
 }
 
@@ -483,7 +595,7 @@ export default function GettingStarted() {
             Get started
           </p>
           <h2 className="mt-3 text-balance text-3xl md:text-4xl font-semibold tracking-tight">
-            Install, run, inspect — in five tabs.
+            Install, run, inspect — or hand it to your agent.
           </h2>
           <p className="mt-4 text-[color:var(--color-muted)] leading-relaxed">
             From zero to a running team session, plus everything you need to come back
