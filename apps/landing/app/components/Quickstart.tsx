@@ -15,13 +15,13 @@ const STEPS: readonly CodeStep[] = [
   {
     index: 1,
     label: 'Clone',
-    command: 'git clone https://github.com/vik-srinivasan/my-team.git',
+    command: 'git clone https://github.com/vik-srinivasan/my-team.git ~/.my-team',
     note: 'Public repo. No auth needed.',
   },
   {
     index: 2,
     label: 'Install',
-    command: 'cd my-team && ./setup.sh',
+    command: 'cd ~/.my-team && ./setup.sh',
     note: 'Builds packages, links the team CLI globally. Needs Node 22 and pnpm 11.',
   },
   {
