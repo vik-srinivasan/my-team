@@ -67,9 +67,11 @@ export interface WsStateEvent {
   state: SessionState;
 }
 
+export type TeamFileName = 'plan' | 'tasks' | 'journal' | 'review';
+
 export interface WsTeamFileEvent {
   type: 'team_file';
-  file: string;
+  name: TeamFileName;
   content: string;
 }
 
