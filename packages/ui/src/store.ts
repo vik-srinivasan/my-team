@@ -4,16 +4,20 @@ import type {
   SessionSummary,
   SessionState,
   SessionPhase,
+  TeamFileName,
 } from '@my-team/shared';
 
 import { loadLastViewed, persistLastViewed } from './lib/last-viewed.js';
 
-export interface ChatMessage {
-  id: string;
-  role: 'user' | 'captain' | 'system';
-  text: string;
-  timestamp: string;
-}
+/** Live contents of the four watched `.team/*.md` files, by name. */
+export type TeamFiles = Record<TeamFileName, string>;
+
+const EMPTY_TEAM_FILES: TeamFiles = {
+  plan: '',
+  tasks: '',
+  journal: '',
+  review: '',
+};
 
 export interface SessionStore {
   // Session list
@@ -30,11 +34,9 @@ export interface SessionStore {
   sessionState: SessionState | null;
   setSessionState: (state: SessionState) => void;
 
-  // Captain output messages (for selected session)
-  messages: ChatMessage[];
-  addMessage: (msg: ChatMessage) => void;
-  appendToMessage: (id: string, text: string) => void;
-  clearMessages: () => void;
+  // Live `.team/*.md` contents broadcast by the wrapper.
+  teamFiles: TeamFiles;
+  setTeamFile: (name: TeamFileName, content: string) => void;
 
   // Remote control URL
   remoteUrl: string | null;
@@ -61,9 +63,9 @@ export const useSessionStore = create<SessionStore>((set) => ({
   selectSession: (id) =>
     set({
       selectedSessionId: id,
-      messages: [],
       sessionState: null,
       remoteUrl: null,
+      teamFiles: { ...EMPTY_TEAM_FILES },
     }),
 
   sessionState: null,
@@ -84,15 +86,9 @@ export const useSessionStore = create<SessionStore>((set) => ({
       return { sessionState: state, sessions };
     }),
 
-  messages: [],
-  addMessage: (msg) => set((s) => ({ messages: [...s.messages, msg] })),
-  appendToMessage: (id, text) =>
-    set((s) => ({
-      messages: s.messages.map((msg) =>
-        msg.id === id ? { ...msg, text: msg.text + text } : msg,
-      ),
-    })),
-  clearMessages: () => set({ messages: [] }),
+  teamFiles: { ...EMPTY_TEAM_FILES },
+  setTeamFile: (name, content) =>
+    set((s) => ({ teamFiles: { ...s.teamFiles, [name]: content } })),
 
   remoteUrl: null,
   setRemoteUrl: (url) => set({ remoteUrl: url }),
