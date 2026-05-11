@@ -44,6 +44,31 @@ export function phaseLabel(phase: string | undefined | null): string {
 }
 
 /**
+ * Tailwind classes for the pill-style phase badge in the header. The colour
+ * family matches the dot in `PHASE_DOT`: a soft tinted background plus a
+ * stronger text colour so the pill is legible at small sizes against
+ * `bg-zinc-900`.
+ */
+export const PHASE_PILL: Record<SessionPhase, string> = {
+  created: 'bg-zinc-400/15 text-zinc-300',
+  scouting: 'bg-cyan-400/15 text-cyan-300',
+  planning: 'bg-cyan-400/15 text-cyan-300',
+  awaiting_approval: 'bg-amber-400/15 text-amber-300',
+  executing: 'bg-blue-400/15 text-blue-300',
+  reviewing: 'bg-purple-400/15 text-purple-300',
+  done: 'bg-green-400/15 text-green-300',
+  blocked: 'bg-red-400/15 text-red-300',
+  killed: 'bg-zinc-500/15 text-zinc-400',
+  cleaned: 'bg-zinc-600/15 text-zinc-400',
+};
+
+/** Look up pill (bg + text) classes with a safe fallback. */
+export function phasePill(phase: string | undefined | null): string {
+  if (!phase) return 'bg-zinc-500/15 text-zinc-400';
+  return PHASE_PILL[phase as SessionPhase] ?? 'bg-zinc-500/15 text-zinc-400';
+}
+
+/**
  * Human-friendly, narrative status line for a session row.
  *
  * Most phases map to a fixed sentence. `executing` is dynamic: if we know
