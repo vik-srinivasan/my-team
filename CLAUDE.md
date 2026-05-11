@@ -59,14 +59,6 @@ If any of these come up, stop and tell the user before continuing:
 
 Better to surface a problem at line 100 than discover it at line 5000.
 
-## Implementation tracking
-
-- **Follow `implementation_plan.md` strictly.** It is the step-by-step build plan. Do not skip stages or reorder without user approval.
-- **Check off tasks in `tasks.md`** as each stage is completed. Use `[x]` format.
-- **Commit after every major stage** using the commit message specified in `implementation_plan.md`.
-- **Push after every phase** (Phase 1, 2, 3, 4).
-- **Keep docs updated throughout**: `tasks.md`, `implementation_plan.md` decision log, and `README.md` as features land.
-
 ## Environment
 
 - **Node**: v22 (required by pnpm 11)
