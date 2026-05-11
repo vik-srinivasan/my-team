@@ -50,6 +50,19 @@ describe('stripAnsi', () => {
   it('preserves the last segment when CR appears at the start of a line', () => {
     expect(stripAnsi('\rhello')).toBe('hello');
   });
+
+  it('normalizes Windows-style CRLF line endings to plain newlines', () => {
+    // Without normalization, the per-line CR-overwrite logic would
+    // treat the `\r` at the end of each line as an overwrite and drop
+    // every line's content.
+    expect(stripAnsi('a\r\nb\r\nc')).toBe('a\nb\nc');
+  });
+
+  it('handles CRLF mixed with bare CR overwrites', () => {
+    // The CRLF on line 1 is normalized to `\n`; the bare `\r` inside
+    // line 2 still triggers an overwrite, keeping only "done".
+    expect(stripAnsi('first line\r\nworking\rdone')).toBe('first line\ndone');
+  });
 });
 
 describe('cleanCaptainOutput drops PTY noise', () => {
@@ -79,16 +92,22 @@ describe('cleanCaptainOutput drops PTY noise', () => {
     '│ vertical bar leftover',
     '[38;5;7m residual color',
     '[0m  ',
-    // Claude Code spinner verbs (rotating vocabulary).
+    // Claude Code spinner verbs (rotating vocabulary). These appear as
+    // bare status lines, optionally prefixed by a spinner glyph and
+    // followed by an ellipsis — never as part of a prose sentence.
     'Billowing…',
     'Pondering…',
     'Cogitating...',
     'Ruminating',
-    'Deliberating on the plan',
+    'Deliberating',
     'Simmering',
     'Osmosing',
     'Musing',
-    'Mulling things over',
+    'Mulling',
+    // With spinner-glyph prefixes (verbatim from Claude Code spinner output).
+    '✲ Billowing',
+    '✺ Pondering…',
+    '↳ Deliberating',
     // Status counters.
     '1 active',
     '3 active',
@@ -169,6 +188,19 @@ describe('cleanCaptainOutput preserves real content', () => {
     'This is a template literal in TypeScript.',
     'The feature is fully implemented.',
     'Use a compatible Node version.',
+    // Regression: spinner-verb stems must not strip prose. These words
+    // are commonly used in normal captain output and the pre-fix
+    // pattern silently dropped any line containing them.
+    'This is a deliberate design choice.',
+    'I pondered the tradeoffs carefully.',
+    'The issue simmers beneath the surface.',
+    'Worth mulling over before we ship.',
+    'Musing about alternatives is useful.',
+    'A simmering pot of soup.',
+    'Ruminating coffee notes.',
+    'Cogitating on the design.',
+    'We deliberated on this for hours.',
+    'The team is pondering next steps.',
   ])('does NOT drop legitimate word: %j', (line) => {
     expect(pipeline(line)).toBe(line);
   });

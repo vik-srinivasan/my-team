@@ -31,12 +31,15 @@ const NOISE_LINE_PATTERNS: readonly RegExp[] = [
   // Claude Code spinner verb vocabulary. Stems chosen so that PTY
   // corruptions (dropped letters, joined glyphs) still match. These
   // appear as a rotating list with a spinner glyph prefix, e.g.
-  // "✲ Billowing…" / "✺ Pondering…". Match the stem rather than the
-  // exact word so we cover -ing / -ed / -es variants.
-  /\b(?:billow|ponder|cogitat|ruminat|deliberat|simmer|osmos|musing|mulling)\w*/i,
-  // Spinner verbs that share a prefix with common English need a tighter
-  // pattern. "muse"/"mull" only as the spinner status form ("…muse"
-  // following an ellipsis or a spinner glyph) — never inline.
+  // "✲ Billowing…" / "✺ Pondering…". The pattern is line-anchored so
+  // it only fires when the entire line is a spinner status word
+  // (optionally preceded by spinner glyphs/whitespace and followed by
+  // ellipsis/punctuation). This prevents false positives on common
+  // English words used in prose ("deliberate", "pondered", "simmers",
+  // "mulling", "musing") which previously got entire lines silently
+  // dropped. The invariant: a spinner line is short and isolated; a
+  // prose sentence has these words embedded in a longer string.
+  /^[\s✲✺✣↳◆►·⏵▸▶●○◯◌◍◎⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏]*(?:billow|ponder|cogitat|ruminat|deliberat|simmer|osmos|musing|mulling)\w*[\s…\.]*$/iu,
   /thinking\s+with\s+x?high\s+effort/,
   /thinking\s+on\s+\d/i,
   /\bthought\s+for\s+\d+\s*s?\b/,
@@ -99,6 +102,13 @@ function stripAnsi(text: string): string {
     // C0 control chars (except \n, \t, \r — \r handled below)
     // eslint-disable-next-line no-control-regex
     .replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '')
+    // Normalize Windows-style line endings to plain `\n` BEFORE the
+    // per-line CR-overwrite simulation. Without this, "a\r\nb" would
+    // split into a line ending in "\r" (whose CR-segment then keeps
+    // only the empty tail), silently dropping every CRLF-terminated
+    // line. PTYs on most platforms emit bare `\n`, but the wrapper
+    // running on Windows or some shells does emit `\r\n` — guard it.
+    .replace(/\r\n/g, '\n')
     // Simulate terminal CR-overwrite: within each physical line, a `\r`
     // returns the cursor to column 0 and subsequent text overwrites
     // whatever came before. After all overwrites only the last segment
