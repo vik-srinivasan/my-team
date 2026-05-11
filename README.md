@@ -1,50 +1,53 @@
 # my-team
 
-Multi-agent orchestrator for Claude Code. Turns Claude Code into a coordinated team of specialists that plan, implement, test, review, and ship code — all from a single command.
+Multi-agent orchestration for Claude Code. Spin up a team of AI specialists that plan, code, test, review, and ship a PR — all from one command.
 
-## Prerequisites
+Landing page → [landing-eosin-mu.vercel.app](https://landing-eosin-mu.vercel.app)
+
+## Quickstart
+
+Three commands. Then walk away.
+
+```bash
+git clone https://github.com/vik-srinivasan/my-team.git
+```
+> Public repo. No auth needed.
+
+```bash
+cd my-team && ./setup.sh
+```
+> Builds packages and links the `team` CLI globally. Needs Node 22 and pnpm 11.
+
+```bash
+team new "Add user authentication"
+```
+> From inside any git repo. Creates a worktree, spawns the captain, drops you into chat.
+
+Then start the daemon in a second terminal:
+
+```bash
+team start
+```
+
+Open [http://localhost:3001](http://localhost:3001) for the web dashboard, or `team attach <id>` to rejoin the chat.
+
+### Prerequisites
 
 - **Node.js 22+** (`node -v`)
 - **pnpm 11+** (`pnpm -v`)
 - **Claude Code** installed and authenticated (`claude --version`)
 - **GitHub CLI** authenticated (`gh auth status`)
 
-## Install
+## The team
 
-```bash
-git clone https://github.com/vik-srinivasan/my-team.git ~/.my-team
-cd ~/.my-team
-./setup.sh
-```
+Six agents share a session. The captain drives; the rest are dispatched as Claude Code subagents via the Task tool.
 
-This builds all packages and makes the `team` command available globally. Verify with:
-
-```bash
-team --help
-```
-
-## Quick Start
-
-**Terminal 1** — Start the daemon:
-
-```bash
-team start
-```
-
-**Terminal 2** — Create a session from any git repo:
-
-```bash
-cd /path/to/your/project
-team new "Add user authentication"
-```
-
-This creates an isolated worktree, spawns a captain agent, and drops you into the chat. The captain will:
-1. Scout the codebase
-2. Draft a plan and ask for your approval
-3. Dispatch engineers, testers, and reviewers
-4. Open a PR when everything passes
-
-**Web UI** — Open [http://localhost:3001](http://localhost:3001) for the full dashboard with live chat, diff viewer, and agent status.
+- **Captain** — The conversational anchor. Plans the work with you, dispatches specialists, ferries feedback, decides when the session is done.
+- **Scout** — Read-only. Maps the codebase before any code is written, surfacing the files, conventions, and gotchas that shape the plan.
+- **Engineer** — Implements the plan task by task. Writes unit tests beside the code, commits to the session branch, leaves a journal entry for the next agent.
+- **Tester** — Adds integration coverage, runs the full suite, files reproducible bug reports as severity-bucketed findings.
+- **Reviewer** — Quality gate. Reads the diff, flags blocking issues, leaves suggestions, and either approves or sends fixes back to the engineer.
+- **Git** — Final mile. Pushes the session branch, opens a pull request with a written summary, hands you back a link.
 
 ## Commands
 
@@ -91,31 +94,41 @@ This resolves `my-team` to its known path. If multiple recorded repos share the 
 Skip the manual `mkdir` + `git init` dance:
 
 ```bash
-team new my-app --new                  # local repo only
-team new my-app --new --github         # also runs `gh repo create --private` and pushes
+team new my-app --new                    # local repo only
+team new my-app --new --github           # also runs `gh repo create --private` and pushes
 team new my-app --new --github --public  # public GitHub repo
 ```
 
 The directory is created relative to your current working directory. Bootstrap errors leave the filesystem in place so you can inspect or fix and rerun.
 
-## How It Works
+## How it works
 
-Each session creates a git worktree at `~/team/sessions/<id>/` with a team of six agents:
+Each session creates a git worktree at `~/team/sessions/<id>/` and spawns a captain. Agents communicate through a small set of shared files under `.team/` — `plan.md`, `tasks.md`, `journal.md`, `review.md`, `decisions.md`, plus `meta.json` and `state.json`. The captain dispatches scout, engineer, tester, reviewer, and git as subagents via the Task tool, reading their output back from those files. You can read them too.
 
-- **Captain** — Orchestrates the session. Plans work, dispatches specialists, ferries feedback.
-- **Scout** — Read-only. Explores the codebase and produces context for the plan.
-- **Engineer** — Implements features, writes unit tests, commits to the session branch.
-- **Tester** — Writes integration tests, runs the full suite, reports bugs.
-- **Reviewer** — Reviews code with severity-bucketed findings. Quality gate.
-- **Git** — Pushes the branch and opens a PR. Final phase only.
+A live session looks roughly like this:
 
-Agents communicate via shared files in `.team/` (plan, tasks, journal, review, decisions). The captain dispatches specialists as Claude Code subagents via the Task tool.
+```
+$ team new "Add user authentication"
+  [my-team] creating worktree at ~/team/sessions/calm-river-12
+  [my-team] spawning captain (claude-opus-4)…
+  captain › I'll scout the repo, draft a plan, and check in. Anything specific to call out?
+$ > JWT, please. RS256.
+  captain › Got it. Dispatching scout.
+  [scout] reading 47 files in src/auth, src/middleware…
+  captain › Plan ready. Approve to dispatch the team?
+$ approve
+  [engineer] feat(auth): add JWT signing service
+  [tester] 14 specs passing, 1 flake fixed
+  [reviewer] approved — 0 blocking, 2 suggestions
+  [git] PR opened → github.com/you/repo/pull/482
+```
 
 See `SPEC.md` for the full specification.
 
 ## Web UI
 
-Three-column layout:
+Three-column layout served from the daemon at `http://localhost:3001`:
+
 - **Left** — Session list + agent status panel
 - **Middle** — Live chat with the captain (markdown rendered)
 - **Right** — Diff viewer with file tree (M/A/D indicators) + plan/review/journal tabs
@@ -135,6 +148,7 @@ agent-prompts/ — Specialist definitions (.claude/agents/*.md format)
 ## API
 
 The daemon binds to `127.0.0.1:3001`:
+
 - **HTTP** — REST endpoints for session CRUD, input, approve, diff, team files
 - **WebSocket** — `ws://127.0.0.1:3001/ws/sessions/:id` for live streaming
 
@@ -151,7 +165,7 @@ pnpm test          # Run all tests (vitest)
 cd packages/ui && pnpm dev   # Vite dev server with hot reload (proxies to wrapper)
 ```
 
-## Key Dependencies
+## Key dependencies
 
 - `node-pty` — Spawns `claude` with a real PTY for interactive output
 - `simple-git` — Git worktree operations
