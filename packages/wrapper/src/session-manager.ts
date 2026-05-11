@@ -10,6 +10,7 @@ import type {
   SessionState,
   SessionSummary,
   SessionDetail,
+  TeamFileName,
   TeamFiles,
   WsServerEvent,
 } from '@my-team/shared';
@@ -37,6 +38,16 @@ import {
 } from './team-files.js';
 
 const NOTIFICATIONS_DIR = join(homedir(), 'team', 'notifications');
+
+// Map of .team/ markdown filenames to the canonical TeamFileName broadcast
+// on `team_file` WebSocket events. Only these four files trigger a broadcast;
+// state.json/meta.json/context.md/decisions.md are intentionally excluded.
+const BROADCAST_FILES: Record<string, TeamFileName> = {
+  'plan.md': 'plan',
+  'tasks.md': 'tasks',
+  'journal.md': 'journal',
+  'review.md': 'review',
+};
 
 interface SessionManagerEventMap {
   event: [sessionId: string, event: WsServerEvent];
@@ -138,8 +149,11 @@ export class SessionManager extends EventEmitter<SessionManagerEventMap> {
     const watcher = watchTeamFiles(worktreePath, (filename, content) => {
       this.log.debug({ sessionId, filename }, 'Team file changed');
 
-      // Emit team_file event
-      this.emitEvent(sessionId, { type: 'team_file', file: filename, content });
+      // Emit team_file event for the four broadcast markdown files.
+      const broadcastName = BROADCAST_FILES[filename];
+      if (broadcastName) {
+        this.emitEvent(sessionId, { type: 'team_file', name: broadcastName, content });
+      }
 
       // Schedule a debounced diff recalculation on any file change
       this.scheduleDiffEmit(sessionId);
@@ -217,6 +231,38 @@ export class SessionManager extends EventEmitter<SessionManagerEventMap> {
       throw new SessionNotFoundError(id);
     }
     return managed.session;
+  }
+
+  /**
+   * Emit one `team_file` event per broadcast file (plan/tasks/journal/review)
+   * for the given session. Used to hydrate newly-connected WebSocket clients.
+   * Missing files emit empty content. Best-effort: a read error is logged
+   * and the event is emitted with empty content rather than thrown.
+   */
+  async emitInitialTeamFiles(sessionId: string): Promise<void> {
+    const managed = this.sessions.get(sessionId);
+    if (!managed) {
+      throw new SessionNotFoundError(sessionId);
+    }
+
+    const teamDir = join(managed.session.worktree_path, '.team');
+    await Promise.all(
+      Object.entries(BROADCAST_FILES).map(async ([filename, name]) => {
+        let content = '';
+        try {
+          content = await readFile(join(teamDir, filename), 'utf-8');
+        } catch (err) {
+          // File doesn't exist yet — emit empty content. Other read errors
+          // (e.g., permission) are logged but still emit empty content so
+          // the client hydrates rather than hanging.
+          const error = err as NodeJS.ErrnoException;
+          if (error.code !== 'ENOENT') {
+            this.log.warn({ sessionId, filename, err }, 'Failed to read team file for initial emit');
+          }
+        }
+        this.emitEvent(sessionId, { type: 'team_file', name, content });
+      }),
+    );
   }
 
   async getSessionDetail(id: string): Promise<SessionDetail> {

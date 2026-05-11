@@ -50,6 +50,15 @@ export function setupWebSocket(
     }
     sessionClients.get(sessionId)!.add(ws);
 
+    // Hydrate the new client with initial `team_file` events so the artifact
+    // panes render the current .team/ contents immediately on connect. The
+    // event handler below broadcasts to all currently-connected clients,
+    // including this one. Best-effort — a failed initial emit shouldn't
+    // sever the connection.
+    sessionManager.emitInitialTeamFiles(sessionId).catch((err) => {
+      log.warn({ sessionId, err }, 'Failed to emit initial team_file events');
+    });
+
     // Handle client messages
     ws.on('message', (data) => {
       try {
