@@ -59,6 +59,15 @@ If any of these come up, stop and tell the user before continuing:
 
 Better to surface a problem at line 100 than discover it at line 5000.
 
+## Deployments
+
+The public landing page deploys from the **`docs` Vercel project** at <https://docs-olive-eight-29.vercel.app/>. It is wired to GitHub with Git integration on `main` — every push auto-deploys to production. Root Directory is set to `apps/landing` in the project settings.
+
+Do NOT:
+- Create another Vercel project for `apps/landing`. There was a duplicate `landing` project; it has been deleted.
+- Add a repo-root `vercel.json` for the landing page — the `docs` project uses default Next.js settings from `apps/landing` and does not need one.
+- Reference the old `landing-eosin-mu.vercel.app` URL anywhere; it is no longer maintained.
+
 ## Environment
 
 - **Node**: v22 (required by pnpm 11)
