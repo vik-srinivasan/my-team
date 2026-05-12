@@ -8,6 +8,15 @@ import { setupWebSocket } from './api/websocket.js';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const CAPTAIN_PROMPT_PATH = resolve(__dirname, '..', '..', '..', 'agent-prompts', 'captain.md');
+const CLEAR_MUST_ASK_HOOK_PATH = resolve(
+  __dirname,
+  '..',
+  '..',
+  '..',
+  'agent-prompts',
+  'hooks',
+  'clear-must-ask.sh',
+);
 
 const HOST = '127.0.0.1';
 const PORT = 3001;
@@ -19,7 +28,7 @@ const log = pino({
     : undefined,
 });
 
-const sessionManager = new SessionManager(log, CAPTAIN_PROMPT_PATH);
+const sessionManager = new SessionManager(log, CAPTAIN_PROMPT_PATH, CLEAR_MUST_ASK_HOOK_PATH);
 const { app, start } = createServer({ sessionManager, log, host: HOST, port: PORT });
 
 const httpServer = await start();
