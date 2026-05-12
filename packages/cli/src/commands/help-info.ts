@@ -20,11 +20,18 @@ export function helpInfoCommand(): Command {
 
   \x1b[33mSession lifecycle:\x1b[0m
     team new <title>          Create a new session in the current repo
-    team list                 List all active sessions
+    team list [-a]            List active sessions (attention-first)
     team list-past            List source repos used in past sessions
     team status <id>          Show detailed session status
+    team watch                Live-refreshing list (Ctrl-C to quit)
     team attach <id>          Re-attach to a session's captain chat
-    team logs <id>            View the session journal
+
+  \x1b[33mInspect a session:\x1b[0m
+    team journal <id>         Recent journal entries (-n N, --all, -f)
+    team tasks <id>           Pretty-print .team/tasks.md with checkboxes
+    team plan <id>            Pretty-print .team/plan.md
+    team diff <id>            Git diff vs the session's source branch
+    team logs <id>            Tail the wrapper's pino log
 
   \x1b[33mSession management:\x1b[0m
     team kill <id>            Stop a running session (preserves worktree)
