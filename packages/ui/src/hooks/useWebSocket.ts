@@ -42,9 +42,17 @@ export function routeServerEvent(
     case 'remote_url':
       handlers.setRemoteUrl(event.url);
       return;
-    // `specialist` and `diff` events are not surfaced in the UI yet.
-    default:
+    // The following two variants are intentionally not surfaced in the UI yet.
+    // They are listed explicitly so adding a new `WsServerEvent` member fails
+    // the exhaustiveness check below at compile time.
+    case 'specialist':
       return;
+    case 'diff':
+      return;
+    default: {
+      const _exhaustive: never = event;
+      return _exhaustive;
+    }
   }
 }
 
