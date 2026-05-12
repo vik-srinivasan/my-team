@@ -1,3 +1,5 @@
+import type { SessionSummary } from '@my-team/shared';
+
 const BASE_URL = 'http://127.0.0.1:3001';
 
 export class ApiError extends Error {
@@ -53,8 +55,7 @@ export const api = {
   createSession: (source_repo: string, title: string, cols?: number, rows?: number) =>
     request<{ id: string; title: string; worktree_path: string; phase: string }>('POST', '/api/sessions', { source_repo, title, cols, rows }),
 
-  listSessions: () =>
-    request<Array<{ id: string; title: string; source_repo: string; phase: string; active_specialist: string | null; created_at: string }>>('GET', '/api/sessions'),
+  listSessions: () => request<SessionSummary[]>('GET', '/api/sessions'),
 
   getSession: (id: string) =>
     request<Record<string, unknown>>('GET', `/api/sessions/${id}`),
