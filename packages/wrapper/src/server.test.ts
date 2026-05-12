@@ -13,9 +13,12 @@ import { SessionManager } from './session-manager.js';
 import { createServer } from './server.js';
 import { getWorktreePath } from './worktree.js';
 
-// Mock claude process so tests don't actually spawn claude
-vi.mock('./claude-process.js', () => {
-  const { EventEmitter } = require('node:events');
+// Mock claude process so tests don't actually spawn claude.
+// The factory is async + dynamic-imports `node:events` because `vi.mock` is
+// hoisted above the file's top-level imports, so a static `import { EventEmitter }`
+// is not yet initialised when the factory runs.
+vi.mock('./claude-process.js', async () => {
+  const { EventEmitter } = await import('node:events');
 
   class MockCaptainProcess extends EventEmitter {
     pid = 99999;
