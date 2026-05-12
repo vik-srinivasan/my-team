@@ -2,7 +2,7 @@
 
 ## 1. Overview
 
-my-team is a local multi-agent orchestrator that turns Claude Code into a coordinated team of specialists. The user chats with a "captain" agent to plan a piece of work, approves the plan, then walks away. A team of specialists (engineer, tester, reviewer, git) executes the plan inside an isolated git worktree, communicates through shared files in a `.team/` directory, and opens a pull request when done. The user oversees through a CLI today and a local web UI as part of the same v1.
+my-team is a local multi-agent orchestrator that turns Claude Code into a coordinated team of specialists. The user chats with a "captain" agent to plan a piece of work, approves the plan, then walks away. A team of specialists (engineer, tester, reviewer, git) executes the plan inside an isolated git worktree, communicates through shared files in a `.team/` directory, and opens a pull request when done. The user oversees through a CLI (`team new`, `team attach`, `team status`, etc.).
 
 The system runs entirely on the user's Mac for v1. Long-running execution survives terminal closes, SSH disconnects, and wrapper restarts (via a daemon). It does not yet survive machine sleep or shutdown — that's a future "deploy to a small server" upgrade that does not change any of this code.
 
@@ -16,18 +16,17 @@ All Claude calls go through the `claude` CLI (Claude Code), which means the user
 - **Session**: One unit of work, from "I want feature X" through PR opened. Has its own git worktree, branch, and `.team/` directory.
 - **Worktree**: A git worktree created at `~/team/sessions/<session-id>/`, checked out to a session-specific branch off the source repo's main branch.
 - **`.team/` directory**: Shared file-based state inside the worktree. How specialists communicate without talking to each other directly.
-- **Wrapper**: The Node.js daemon that manages sessions, spawns `claude` processes, serves the CLI, and serves the web UI.
+- **Wrapper**: The Node.js daemon that manages sessions, spawns `claude` processes, and serves the CLI.
 - **Source repo**: The repo the user runs `team new` from. The session's worktree is created from this repo.
 - **Scout**: A read-only specialist used only during the planning phase to produce `context.md`. Never modifies files.
 
 ## 3. Architecture
 
 ```
-┌─────────────────────┐     ┌─────────────────────┐
-│  CLI (`team` cmd)   │     │  Web UI (browser)   │
-└──────────┬──────────┘     └──────────┬──────────┘
-           │ HTTP                       │ HTTP + WebSocket
-           └─────────────┬──────────────┘
+              ┌─────────────────────┐
+              │  CLI (`team` cmd)   │
+              └──────────┬──────────┘
+                         │ HTTP + WebSocket
                          ▼
               ┌──────────────────────┐
               │  Wrapper daemon      │
@@ -54,9 +53,7 @@ The wrapper is a long-running Node daemon. It owns:
 - The HTTP API and WebSocket server
 - Worktree creation and cleanup
 
-The CLI is a thin HTTP client. It calls the wrapper's API and prints output. It does not manage state itself.
-
-The web UI is a React SPA served by the wrapper at `http://localhost:3001`. Talks to the same HTTP API plus a WebSocket per session for live chat and diff updates.
+The CLI is a thin HTTP client. It calls the wrapper's API and prints output. It does not manage state itself. `team attach <id>` upgrades to a WebSocket so the user can stream captain output and send input from the terminal.
 
 Specialists are not separate processes. They are Claude Code subagents (`.claude/agents/*.md`) invoked by the captain via Claude Code's built-in Task tool. Specialists share the captain's token budget and inherit its working directory (the worktree). The captain can dispatch multiple specialists in parallel by including multiple Task tool calls in a single message — e.g., scouting the codebase while chatting with the user, or running multiple engineers on independent tasks simultaneously.
 
@@ -221,7 +218,7 @@ The five specialists plus captain:
   - Phase: awaiting_approval → presents plan, waits for explicit "approved"
   - Phase: executing → dispatches engineer, then tester, then reviewer; ferries `review.md` feedback back to engineer; loops until done criteria met
   - Phase: done → dispatches git agent for PR, then marks state done
-- **Stuck protocol**: When a specialist escalates, captain decides. When a must-ask item is hit, captain pauses session and writes a notification (v1: file at `~/team/notifications/`, the UI surfaces it).
+- **Stuck protocol**: When a specialist escalates, captain decides. When a must-ask item is hit, captain pauses session and writes a notification (v1: file at `~/team/notifications/`, surfaced via `team notifications`).
 
 ### 5.2 Scout
 - **Tools**: Read, Grep, Glob (no Write, no Edit, no Bash)
@@ -281,7 +278,7 @@ The end-to-end happy path:
 - Copies global `~/.claude/agents/*.md` into the worktree's `.claude/agents/` directory; if the source repo has its own `.claude/agents/`, those override
 - Initializes `.team/` with empty `tasks.md`, `journal.md`, `review.md`, `decisions.md`, and writes `meta.json` and initial `state.json` (phase: `scouting`)
 - Spawns `claude` in the worktree with the captain system prompt appended
-- Prints the session ID and either drops the user into the captain's chat (CLI) or returns the ID to the UI
+- Prints the session ID and drops the user into the captain's chat
 
 **2. Scouting + Planning.** Captain dispatches scout in the background and immediately begins chatting with the user (no waiting). Scout produces `context.md` which enriches the plan. Captain drafts `plan.md` and `tasks.md`. Captain identifies must-ask items and surfaces them in chat. State → `awaiting_approval`.
 
@@ -334,7 +331,7 @@ Working-directory rule for `team new`: must be inside a git repo; that repo is t
 
 ## 8. HTTP / WebSocket API
 
-The wrapper serves both. Same data model used by CLI and UI.
+The wrapper serves both. The CLI uses HTTP for everything except `team attach`, which upgrades to a WebSocket.
 
 ### 8.1 HTTP endpoints
 
@@ -372,6 +369,137 @@ Client → server events:
 ```
 
 The wrapper watches `.team/state.json` and `.team/*.md` via `chokidar` (filesystem watcher) and emits events on changes. Diff updates are debounced 500ms.
+
+## 9. Auth and binding
+
+Wrapper binds to `127.0.0.1:3001` only. No auth needed — the loopback interface is the boundary. v1.5 will add LAN binding plus a shared-secret token if accessed remotely.
+
+## 10. File layout
+
+Single repo, Node monorepo with workspaces.
+
+```
+my-team/
+├── package.json                     (root, defines workspaces)
+├── tsconfig.base.json
+├── SPEC.md                          (this file)
+├── CLAUDE.md                        (project conventions)
+├── README.md
+│
+├── packages/
+│   ├── wrapper/                     (the daemon)
+│   │   ├── package.json
+│   │   ├── src/
+│   │   │   ├── index.ts             (entry point)
+│   │   │   ├── server.ts            (HTTP + WS)
+│   │   │   ├── session-manager.ts   (lifecycle)
+│   │   │   ├── worktree.ts          (git worktree ops)
+│   │   │   ├── claude-process.ts    (node-pty wrapper)
+│   │   │   ├── team-files.ts        (.team/ readers/watchers)
+│   │   │   ├── api/
+│   │   │   │   ├── sessions.ts      (HTTP routes)
+│   │   │   │   └── websocket.ts     (WS handler)
+│   │   │   └── types.ts
+│   │   └── tests/
+│   │
+│   ├── cli/                         (the `team` command)
+│   │   ├── package.json
+│   │   ├── src/
+│   │   │   ├── index.ts             (commander setup)
+│   │   │   └── commands/
+│   │   │       ├── new.ts
+│   │   │       ├── list.ts
+│   │   │       ├── status.ts
+│   │   │       ├── attach.ts
+│   │   │       ├── kill.ts
+│   │   │       ├── clean.ts
+│   │   │       └── archive.ts
+│   │   └── tests/
+│   │
+│   └── shared/                      (types + utils used by all)
+│       ├── package.json
+│       └── src/
+│           └── types.ts             (Session, State, etc.)
+│
+└── agent-prompts/                   (specialist definitions)
+    ├── captain.md                   (injected via --append-system-prompt)
+    ├── scout.md
+    ├── engineer.md
+    ├── tester.md
+    ├── reviewer.md
+    └── git.md
+```
+
+The wrapper installs/copies `agent-prompts/*.md` into `~/.claude/agents/` on first run (and the captain prompt path is referenced when spawning each session's `claude`).
+
+## 11. Tech stack
+
+**Runtime**: Node.js 20+. TypeScript 5.x with strict mode. ESM modules.
+
+**Wrapper**:
+- `express` for HTTP
+- `ws` for WebSocket
+- `node-pty` for spawning `claude` with a real pty (line-buffered output, ANSI handling, etc.)
+- `simple-git` for worktree operations
+- `chokidar` for `.team/` file watching
+- `pino` for structured logging
+- `zod` for API schema validation
+- `commander` for CLI argument parsing
+
+**CLI**:
+- `commander`
+- `chalk` for colored output
+- `ora` for spinners
+- `ws` for `team attach`'s WebSocket connection
+
+**Other**:
+- `@github/gh` (the `gh` CLI) — required on the host. Git agent uses it for PR creation.
+- `pnpm` for the monorepo (workspace support is cleaner than npm).
+- `vitest` for tests across all packages.
+
+## 12. Phasing
+
+The build order is roughly:
+
+**Phase 1 — Wrapper core + CLI + happy path engineer-only.** No specialists beyond engineer. No reviewer, tester, or git. Captain plans → engineer executes → engineer commits → wrapper opens PR via direct `gh` call. This proves the architecture works end-to-end on a hello-world repo. Should fit one or two `claude` sessions.
+
+**Phase 2 — Full specialist roster.** Add scout, tester, reviewer, git. Implement the review iteration loop. Implement done criteria. Implement `team kill`/`status`/`logs`. Implement archiving and cleanup.
+
+**Phase 3 — Polish.** Better error messaging, recovery from common failure modes, rate-limit awareness (warn before exhausting Max usage), notification surface for blocked sessions, README and a short demo.
+
+Start each phase with a minimal end-to-end happy-path test, then layer in features and edge cases.
+
+## 13. Out of scope for v1
+
+Explicitly not building these now. Don't let scope creep happen mid-build:
+
+- Hetzner / DigitalOcean / cloud deployment. v1 runs on the user's Mac.
+- Tauri / Electron desktop wrapper. The web app is the deliverable; bundling comes later.
+- True parallel specialists (multi-process). Specialists run sequentially via Claude Code subagents.
+- Cross-machine session migration.
+- Multi-user support, permissions, or auth. Wrapper binds to `127.0.0.1`.
+- Mobile-specific UI. Responsive design is a v1.5 concern.
+- Cost tracking and rate-limit enforcement. v1 ignores token costs and Max usage windows.
+- Persistent across wrapper restart (in-flight conversation recovery). v1 only persists git state.
+- LLM-driven session resumption. Manual recovery is fine for v1.
+- Plugins, custom workflow phases, custom specialist roles. The 5-specialist + captain shape is fixed for v1.
+- Windows / Linux support beyond what works incidentally. Build for macOS first.
+- A `gh` alternative for non-GitHub forges. GitHub only.
+
+## 14. Open questions to resolve early
+
+These are flagged for the first build session — Claude Code should ask about them before writing too much code:
+
+1. **macOS keychain vs PAT in `.env`.** Where does `gh` get its token? Probably easiest to require the user to run `gh auth login` once, separately, and let `gh` find its own credentials. Confirm.
+2. **Session ID format.** 8-char hex (e.g., `a1b2c3d4`) or human-readable (e.g., `quiet-river-42`)? Lean readable so the CLI is easier to type — but a deterministic short hex might be easier. Pick one and stay consistent.
+3. **`claude` invocation flags.** Confirm what flags are needed to (a) inject the captain system prompt, (b) get clean machine-readable output for the wrapper to parse vs ANSI for the terminal to render. Try `--append-system-prompt`, `--output-format json` (if it exists in the version installed), and fall back to raw pty output otherwise.
+4. **Worktree base branch.** Default to the source repo's default branch (read via `gh repo view --json defaultBranch`). Allow override via `team new --base <branch>` later but not in v1.
+
+## Future / Out of Scope
+
+The following was descoped on 2026-05-12. It may return as a future phase. Captured here to preserve design intent.
+
+### Section 9 — UI (descoped)
 
 ## 9. UI
 
@@ -445,153 +573,6 @@ Wrapper binds to `127.0.0.1:3001` only. No auth needed — the loopback interfac
 
 Tailwind CSS. Dark mode default with light mode toggle. `lucide-react` for icons. Use the system's monospace font for code/diff areas. The aesthetic should be utilitarian, not decorative — this is a tool, not a marketing page.
 
-## 10. File layout
-
-Single repo, Node monorepo with workspaces.
-
-```
-my-team/
-├── package.json                     (root, defines workspaces)
-├── tsconfig.base.json
-├── SPEC.md                          (this file)
-├── CLAUDE.md                        (project conventions)
-├── README.md
-│
-├── packages/
-│   ├── wrapper/                     (the daemon)
-│   │   ├── package.json
-│   │   ├── src/
-│   │   │   ├── index.ts             (entry point)
-│   │   │   ├── server.ts            (HTTP + WS)
-│   │   │   ├── session-manager.ts   (lifecycle)
-│   │   │   ├── worktree.ts          (git worktree ops)
-│   │   │   ├── claude-process.ts    (node-pty wrapper)
-│   │   │   ├── team-files.ts        (.team/ readers/watchers)
-│   │   │   ├── api/
-│   │   │   │   ├── sessions.ts      (HTTP routes)
-│   │   │   │   └── websocket.ts     (WS handler)
-│   │   │   └── types.ts
-│   │   └── tests/
-│   │
-│   ├── cli/                         (the `team` command)
-│   │   ├── package.json
-│   │   ├── src/
-│   │   │   ├── index.ts             (commander setup)
-│   │   │   └── commands/
-│   │   │       ├── new.ts
-│   │   │       ├── list.ts
-│   │   │       ├── status.ts
-│   │   │       ├── attach.ts
-│   │   │       ├── kill.ts
-│   │   │       ├── clean.ts
-│   │   │       └── archive.ts
-│   │   └── tests/
-│   │
-│   ├── ui/                          (React app)
-│   │   ├── package.json
-│   │   ├── vite.config.ts
-│   │   ├── index.html
-│   │   ├── src/
-│   │   │   ├── main.tsx
-│   │   │   ├── App.tsx
-│   │   │   ├── components/
-│   │   │   │   ├── SessionList.tsx
-│   │   │   │   ├── AgentList.tsx
-│   │   │   │   ├── Chat.tsx
-│   │   │   │   ├── DiffPanel.tsx
-│   │   │   │   ├── TeamArtifactPanel.tsx
-│   │   │   │   └── NewSessionModal.tsx
-│   │   │   ├── hooks/
-│   │   │   │   ├── useSession.ts
-│   │   │   │   └── useWebSocket.ts
-│   │   │   └── api.ts               (HTTP client)
-│   │   └── tests/
-│   │
-│   └── shared/                      (types + utils used by all)
-│       ├── package.json
-│       └── src/
-│           └── types.ts             (Session, State, etc.)
-│
-└── agent-prompts/                   (specialist definitions)
-    ├── captain.md                   (injected via --append-system-prompt)
-    ├── scout.md
-    ├── engineer.md
-    ├── tester.md
-    ├── reviewer.md
-    └── git.md
-```
-
-The wrapper installs/copies `agent-prompts/*.md` into `~/.claude/agents/` on first run (and the captain prompt path is referenced when spawning each session's `claude`).
-
-## 11. Tech stack
-
-**Runtime**: Node.js 20+. TypeScript 5.x with strict mode. ESM modules.
-
-**Wrapper**:
-- `express` for HTTP
-- `ws` for WebSocket
-- `node-pty` for spawning `claude` with a real pty (line-buffered output, ANSI handling, etc.)
-- `simple-git` for worktree operations
-- `chokidar` for `.team/` file watching
-- `pino` for structured logging
-- `zod` for API schema validation
-- `commander` for CLI argument parsing
-
-**CLI**:
-- `commander`
-- `chalk` for colored output
-- `ora` for spinners
-- `ws` for `team attach`'s WebSocket connection
-
-**UI**:
-- React 18, Vite, TypeScript
-- Tailwind CSS
-- `react-markdown` + `remark-gfm` + `rehype-highlight`
-- `react-diff-viewer-continued`
-- `lucide-react`
-- `zustand` for client state (sessions list, selected session, etc.)
-
-**Other**:
-- `@github/gh` (the `gh` CLI) — required on the host. Git agent uses it for PR creation.
-- `pnpm` for the monorepo (workspace support is cleaner than npm).
-- `vitest` for tests across all packages.
-
-## 12. Phasing
-
-The build order is roughly:
-
-**Phase 1 — Wrapper core + CLI + happy path engineer-only.** No specialists beyond engineer. No reviewer, tester, or git. Captain plans → engineer executes → engineer commits → wrapper opens PR via direct `gh` call. This proves the architecture works end-to-end on a hello-world repo. Should fit one or two `claude` sessions.
-
-**Phase 2 — Full specialist roster.** Add scout, tester, reviewer, git. Implement the review iteration loop. Implement done criteria. Implement `team kill`/`status`/`logs`. Implement archiving and cleanup.
+### Phase 3 — Web UI (descoped)
 
 **Phase 3 — Web UI.** React app, three-column layout, live chat via WebSocket, live diff panel, agent status sidebar. Reads from existing wrapper API; no wrapper changes required (or only minor additions like the `/team/:file` endpoint).
-
-**Phase 4 — Polish.** Better error messaging, recovery from common failure modes, rate-limit awareness (warn before exhausting Max usage), notification surface for blocked sessions, README and a short demo.
-
-Start each phase with a minimal end-to-end happy-path test, then layer in features and edge cases.
-
-## 13. Out of scope for v1
-
-Explicitly not building these now. Don't let scope creep happen mid-build:
-
-- Hetzner / DigitalOcean / cloud deployment. v1 runs on the user's Mac.
-- Tauri / Electron desktop wrapper. The web app is the deliverable; bundling comes later.
-- True parallel specialists (multi-process). Specialists run sequentially via Claude Code subagents.
-- Cross-machine session migration.
-- Multi-user support, permissions, or auth. Wrapper binds to `127.0.0.1`.
-- Mobile-specific UI. Responsive design is a v1.5 concern.
-- Cost tracking and rate-limit enforcement. v1 ignores token costs and Max usage windows.
-- Persistent across wrapper restart (in-flight conversation recovery). v1 only persists git state.
-- LLM-driven session resumption. Manual recovery is fine for v1.
-- Plugins, custom workflow phases, custom specialist roles. The 5-specialist + captain shape is fixed for v1.
-- Windows / Linux support beyond what works incidentally. Build for macOS first.
-- A `gh` alternative for non-GitHub forges. GitHub only.
-
-## 14. Open questions to resolve early
-
-These are flagged for the first build session — Claude Code should ask about them before writing too much code:
-
-1. **macOS keychain vs PAT in `.env`.** Where does `gh` get its token? Probably easiest to require the user to run `gh auth login` once, separately, and let `gh` find its own credentials. Confirm.
-2. **Session ID format.** 8-char hex (e.g., `a1b2c3d4`) or human-readable (e.g., `quiet-river-42`)? Lean readable for the UI — but a deterministic short hex might be easier. Pick one and stay consistent.
-3. **`claude` invocation flags.** Confirm what flags are needed to (a) inject the captain system prompt, (b) get clean machine-readable output for the wrapper to parse vs ANSI for the UI to render. Try `--append-system-prompt`, `--output-format json` (if it exists in the version installed), and fall back to raw pty output otherwise.
-4. **Worktree base branch.** Default to the source repo's default branch (read via `gh repo view --json defaultBranch`). Allow override via `team new --base <branch>` later but not in v1.
