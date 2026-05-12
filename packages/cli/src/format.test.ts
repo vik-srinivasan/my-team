@@ -174,4 +174,30 @@ describe('getAttention parity with UI attention.ts priority order', () => {
       getAttention({ phase: 'blocked', must_ask_count: 5 }).label,
     ).toBe('blocked');
   });
+
+  // Regression guard: must_ask_count > 0 must light the AT column in EVERY
+  // non-terminal phase, not just the ones whose phase column already signals.
+  // If someone refactors getAttention's phase precedence (e.g., adds an early
+  // return for 'executing' or 'planning'), these cases catch it.
+  describe('ask (N) regardless of phase', () => {
+    for (const phase of ['created', 'planning', 'executing'] as const) {
+      it(`phase=${phase} + must_ask_count=1 -> needsInput glyph + ask label`, () => {
+        const a = getAttention({ phase, must_ask_count: 1 });
+        expect(a.glyph).toBe(ATTN_GLYPHS.needsInput);
+        expect(a.critical).toBe(true);
+        expect(a.done).toBe(false);
+        // Label starts with "ask" — exact format (`ask` vs `ask (1)`) is
+        // covered by the earlier must_ask_count case; here we only defend
+        // the cross-phase contract.
+        expect(a.label.startsWith('ask')).toBe(true);
+      });
+
+      it(`phase=${phase} + must_ask_count=3 -> ask (3)`, () => {
+        const a = getAttention({ phase, must_ask_count: 3 });
+        expect(a.glyph).toBe(ATTN_GLYPHS.needsInput);
+        expect(a.critical).toBe(true);
+        expect(a.label).toBe('ask (3)');
+      });
+    }
+  });
 });
