@@ -411,6 +411,62 @@ describe('HTTP API integration', () => {
     }
   });
 
+  it('GET /api/sessions reflects out-of-band state.json edits even if chokidar misses them', async () => {
+    // Regression for stale-state bug: chokidar on macOS sometimes drops
+    // file-system events, leaving the in-memory state Map out of sync with
+    // disk. listSessions() must re-read state.json so `team list` and
+    // `team watch` always show the truth.
+    const createRes = await request(app)
+      .post('/api/sessions')
+      .send({ source_repo: tempRepo, title: 'Stale State Test' });
+    expect(createRes.status).toBe(201);
+    const sessionId = createRes.body.id;
+    const worktreePath = createRes.body.worktree_path;
+
+    // Sanity: initial phase visible in list.
+    const initialList = await request(app).get('/api/sessions');
+    const initialRow = initialList.body.find((s: { id: string }) => s.id === sessionId);
+    expect(initialRow.phase).toBe('created');
+
+    // Write state.json directly with a new phase. chokidar's awaitWriteFinish
+    // debounce is 200ms, so the very next GET happens before it fires —
+    // proving the response came from a fresh disk read, not in-memory state.
+    const checkpoint = '2099-01-01T00:00:00.000Z';
+    await writeFile(
+      join(worktreePath, '.team', 'state.json'),
+      JSON.stringify(
+        {
+          phase: 'executing',
+          active_specialist: 'engineer',
+          review_iterations: 0,
+          max_review_iterations: 8,
+          last_checkpoint: checkpoint,
+          blockers: [],
+          must_ask_pending: ['Does this work?'],
+        },
+        null,
+        2,
+      ),
+    );
+
+    // No sleep — request immediately, before chokidar can debounce.
+    const listAfterWrite = await request(app).get('/api/sessions');
+    const row = listAfterWrite.body.find((s: { id: string }) => s.id === sessionId);
+    expect(row.phase).toBe('executing');
+    expect(row.active_specialist).toBe('engineer');
+    expect(row.last_checkpoint).toBe(checkpoint);
+    expect(row.must_ask_count).toBe(1);
+
+    // Clean up
+    await sessionManager.killSession(sessionId);
+    try {
+      execSync(`git worktree remove "${worktreePath}" --force`, { cwd: tempRepo });
+      execSync(`git branch -D my-team/${sessionId}`, { cwd: tempRepo });
+    } catch {
+      // Best effort
+    }
+  });
+
   it('full lifecycle: create → list → status → kill', async () => {
     // Create
     const createRes = await request(app)

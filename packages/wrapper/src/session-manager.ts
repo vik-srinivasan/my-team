@@ -271,12 +271,22 @@ export class SessionManager extends EventEmitter<SessionManagerEventMap> {
       throw new SessionNotFoundError(id);
     }
 
+    // Refresh in-memory state from disk in case chokidar missed an event.
+    await this.refreshStateFromDisk(managed);
+
     const team = await readAllTeamFiles(managed.session.worktree_path);
     return { ...managed.session, team };
   }
 
-  listSessions(): SessionSummary[] {
-    return Array.from(this.sessions.values()).map(({ session }) => ({
+  async listSessions(): Promise<SessionSummary[]> {
+    const managed = Array.from(this.sessions.values());
+
+    // Refresh every session's state from disk first — fsevents on macOS
+    // can drop chokidar events, so we don't trust in-memory state for the
+    // list view.
+    await Promise.all(managed.map((m) => this.refreshStateFromDisk(m)));
+
+    return managed.map(({ session }) => ({
       id: session.meta.id,
       title: session.meta.title,
       source_repo: session.meta.source_repo,
@@ -286,6 +296,17 @@ export class SessionManager extends EventEmitter<SessionManagerEventMap> {
       last_checkpoint: session.state.last_checkpoint,
       must_ask_count: session.state.must_ask_pending.length,
     }));
+  }
+
+  // Reads state.json from disk and updates the in-memory copy. Silent no-op
+  // on read/parse failure — fall back to whatever in-memory state we have.
+  private async refreshStateFromDisk(managed: ManagedSession): Promise<void> {
+    try {
+      const fresh = await readTeamState(managed.session.worktree_path);
+      managed.session.state = fresh;
+    } catch {
+      // ignore — disk state unreadable, keep in-memory copy
+    }
   }
 
   sendInput(id: string, text: string): void {
@@ -442,7 +463,16 @@ export class SessionManager extends EventEmitter<SessionManagerEventMap> {
         await this.cleanSession(sessionId);
         this.log.info({ sessionId }, 'Auto-cleanup completed for done session');
       } catch (err) {
-        this.log.error({ sessionId, err }, 'Auto-cleanup failed');
+        // Captain still alive (e.g. sitting at "PR opened" prompt) — drop
+        // the session from the in-memory registry anyway so it stops
+        // showing up in `team list` / `team watch`. The worktree is left
+        // for the user to inspect or clean manually.
+        const managed = this.sessions.get(sessionId);
+        if (managed?.watcher) {
+          await managed.watcher.close().catch(() => {});
+        }
+        this.sessions.delete(sessionId);
+        this.log.warn({ sessionId, err }, 'Auto-cleanup blocked (captain alive?); dropped from registry without archiving');
       }
     }, GRACE_PERIOD);
   }
