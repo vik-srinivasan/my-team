@@ -35,7 +35,6 @@ export function helpInfoCommand(): Command {
   \x1b[33mOther:\x1b[0m
     team notifications        Check for blocked sessions needing attention
     team notifications --clear  Clear all notifications
-    team ui                   Open the web dashboard in your browser
     team open <id>            Open a session worktree in VS Code
     team help                 Show this help
     team start                Start the wrapper daemon
@@ -58,7 +57,7 @@ export function helpInfoCommand(): Command {
   ~/team/sessions/       Active session worktrees
   ~/team/archives/       Archived .team/ directories
   ~/team/notifications/  Blocked session alerts
-  http://localhost:3001   Web dashboard (when daemon is running)
+  http://localhost:3001   Wrapper daemon API (for team CLI + Claude Code remote)
 `);
 
       // Show daemon status
