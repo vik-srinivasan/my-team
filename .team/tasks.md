@@ -1,31 +1,45 @@
-# Tasks — ui-rework
+# Tasks — team-status-list-rework
 
 ## Engineering
 
-### Phase A — stream rendering correctness
-- [x] @engineer Fix `stripAnsi` in `packages/ui/src/hooks/useWebSocket.ts` to simulate terminal CR-overwrite (split each line on `\r`, keep last segment), removing the `.replace(/\r/g, '')` step. _(7a907df)_
-- [x] @engineer Expand `NOISE_LINE_PATTERNS` to cover Claude Code spinner verbs (billow/ponder/cogitat/ruminat/muse/mull/deliberat/simmer/osmos), Unicode glyph spinner lines, `N active` / `thinking on N` counters, and `(Ns ↑/↓ Nk tokens · thought for Ns)` footers. _(7a907df)_
-- [x] @engineer Fix the append behavior at `useWebSocket.ts:184`: do not unconditionally prepend `\n`. Use a separator that respects prior text ending and markdown-structural starts. _(7a907df — new `joinChunks` helper)_
-- [x] @engineer Add a server-side line buffer in `packages/wrapper/src/claude-process.ts` that flushes on `\n` or after a short timeout (~50ms), so the WS emits whole lines rather than per-byte chunks. _(2b24f83)_
+### Shared infra
+- [x] @engineer Create `packages/cli/src/format.ts` with: `padEndVisible(str, n)` (ANSI-aware), `humanizeAgo(iso)`, `abbreviatePhase(p)`, `phaseColor(p)`, `getAttention(summary)` (mirrors `packages/ui/src/lib/attention.ts`), glyph map. Add `format.test.ts`.
+- [x] @engineer Create `packages/cli/src/session-paths.ts` exporting `resolveSessionDir(id)` and `readSessionFile(id, relpath)` helpers.
+- [x] @engineer Widen `packages/cli/src/api-client.ts` `listSessions()` return type to `SessionSummary` from `@my-team/shared`.
 
-### Phase B — dashboard visual polish
-- [x] @engineer Polish the header bar in `packages/ui/src/App.tsx`: larger padding, bigger title, phase as colored pill, drop raw session ID (move to title tooltip). _(6f53a7b — added `phasePill` helper)_
-- [x] @engineer Polish session list items in `packages/ui/src/components/SessionList.tsx`: bigger tap target, dim relative time, accent border on active item. _(c8a777d — left-accent already present, bumped padding + dimmed time)_
-- [x] @engineer Polish captain message styling and empty state in `packages/ui/src/components/OutputLog.tsx`: relaxed line-height, subtle separators between messages, friendlier empty state. _(b253ec1 — hairline only between consecutive captain messages)_
+### Rewrites
+- [x] @engineer Rewrite `packages/cli/src/commands/list.ts`: width-aware rendering, ATTN column, abbreviated phase labels, REPO column (basename of `source_repo`, truncated to 14, dropped on terminals < 80 cols), attention-first sort, footer line, `--json`, `--needs-attention/-a`. Add `list.test.ts`.
+- [x] @engineer Rewrite `packages/cli/src/commands/status.ts`: full triage view per `plan.md` (sections, task progress from `.team/tasks.md`, pending questions, **single most recent journal entry**, PR url from `.team/pr.url` if present), `--json`. Add `status.test.ts`.
+
+### New commands
+- [x] @engineer `packages/cli/src/commands/journal.ts` — last 5 entries default, `-n N`, `--all`, `--follow/-f` via `fs.watch`. Register in `index.ts`. Add `journal.test.ts`.
+- [x] @engineer `packages/cli/src/commands/tasks.ts` — pretty-print `.team/tasks.md`: color headers, render checkboxes, summary line. Add `tasks.test.ts`.
+- [x] @engineer `packages/cli/src/commands/plan.ts` — pretty-print `.team/plan.md`: color markdown headers; otherwise passthrough. Add `plan.test.ts`.
+- [x] @engineer `packages/cli/src/commands/diff.ts` — `git -C <worktree> diff <source_branch>...HEAD`, pipe through `$PAGER` (fallback `less -R`); plain stdout if no tty. Base branch from `meta.json.source_branch`.
+- [x] @engineer `packages/cli/src/commands/logs.ts` — locate wrapper pino log destination (grep wrapper source for pino transport config), tail it. `-n N`, `-f` to follow. If no log exists, print friendly "no logs yet".
+- [x] @engineer `packages/cli/src/commands/watch.ts` — auto-refresh list every 2s. ANSI clear+home between draws. Quit on `q` / Ctrl-C / SIGINT. `--interval N`.
+
+### Wiring
+- [x] @engineer Register all 6 new commands in `packages/cli/src/index.ts` with one-line `.description()`. Verify `team --help` lists every command with its description.
 
 ## Testing
-
-- [x] @engineer Fix the test `stripAnsi('working\rdone\n')` in `useWebSocket.test.ts` to expect `'done'` (was wrongly encoded as `'workingdone'`). _(7a907df)_
-- [x] @engineer Add tests in `useWebSocket.test.ts` for multi-segment CR overwrites, spinner-glyph clusters, and Billowing-style status words. _(7a907df)_
-- [x] @engineer Add tests in `useWebSocket.test.ts` for the append-merge behavior on streamed chunks (no fragmenting to one-word paragraphs). _(7a907df — `joinChunks` + full-pipeline blocks)_
-- [x] @engineer Add `packages/wrapper/src/claude-process.test.ts` covering the new line-buffer emitter. _(2b24f83 — added "CaptainProcess line buffer" describe block)_
-- [x] @tester Run `pnpm test` and `pnpm typecheck` across the workspace; report any failures.
-- [ ] @tester Smoke-check the UI: `pnpm dev`, open the dashboard, verify captain output is readable and the header/sidebar look polished.
+- [x] @tester Run the full vitest suite from the repo root.
+- [x] @tester Manual: `team list` in an 80-col terminal — no row wrap; ATTN glyph appears for a known `awaiting_approval` session (this one). `team list -a` filters. `team list --json` parses.
+- [x] @tester Manual: `team status mild-moon-80`, `team journal mild-moon-80`, `team tasks mild-moon-80`, `team plan mild-moon-80` all render readably.
+- [x] @tester Manual: `team diff mild-moon-80` outputs git diff. `team logs mild-moon-80` either tails or prints "no logs yet". `team watch` redraws on interval and Ctrl-C exits cleanly.
+- [x] @tester Manual: `team --help` lists all commands with descriptions; `team help status` shows flags.
 
 ## Review
+- [x] @reviewer Code review pass — focus: ANSI-safe padding correctness, attention-derivation parity with `packages/ui/src/lib/attention.ts`, missing-file error handling (`.team/*.md` may be empty/absent), `--json` output shape stability, no shell-injection in `diff` (worktree path).
 
-- [ ] @reviewer Code review pass — focus areas: stream pipeline correctness, no regressions in noise-filtering of legitimate words ("complete", "completion", etc.), append-merge edge cases, UI accessibility (contrast, keyboard).
+## Review iteration 1 fixes
+- [x] @engineer Thread `worktree_path` from the API response through `RenderArgs` → `renderStatus`; render it as the "Worktree:" line and add to `--json`. Falls back to `meta.source_repo` only when the API doesn't return it.
+- [x] @engineer Sanitize `remote_url` from the API by stripping anything at/after the first BEL byte (OSC 8 hyperlink contamination from the wrapper's URL regex).
+- [x] @engineer Replace `heading.length` with `visibleLength(heading)` for the status heading separator bar — chalk.bold escapes were inflating the width by ~9 chars.
+- [x] @engineer Extract `compareByAttention` and `LIST_COL_WIDTHS` into `format.ts`; `list.ts` and `watch.ts` now import the shared helpers instead of duplicating them.
+- [x] @engineer Wrap `journal`/`tasks`/`plan` actions in top-level try/catch so non-ENOENT I/O errors print a clean chalk-red message and exit 1.
+- [x] @engineer `diff.ts` now sets a non-zero exit code when git or the pager fails to spawn.
+- [x] @engineer Add regression test in `format.test.ts` verifying `visibleLength` is unaffected by `chalk.bold` (the chalk-escape-inflated-length bug that motivated the separator fix).
 
 ## Git
-
-- [ ] @git Push branch `my-team/quick-ford-81` and open a PR titled "fix(ui): unmangle captain stream + dashboard polish".
+- [ ] @git Push the session branch and open a PR titled `feat(cli): responsive list, richer status, new journal/tasks/plan/diff/logs/watch`.
