@@ -13,9 +13,12 @@ import { SessionManager } from './session-manager.js';
 import { createServer } from './server.js';
 import { getWorktreePath } from './worktree.js';
 
-// Mock claude process so tests don't actually spawn claude
-vi.mock('./claude-process.js', () => {
-  const { EventEmitter } = require('node:events');
+// Mock claude process so tests don't actually spawn claude.
+// The factory is async + dynamic-imports `node:events` because `vi.mock` is
+// hoisted above the file's top-level imports, so a static `import { EventEmitter }`
+// is not yet initialised when the factory runs.
+vi.mock('./claude-process.js', async () => {
+  const { EventEmitter } = await import('node:events');
 
   class MockCaptainProcess extends EventEmitter {
     pid = 99999;
@@ -270,6 +273,135 @@ describe('HTTP API integration', () => {
     await rm(notificationPath, { force: true });
 
     // Clean up session
+    await sessionManager.killSession(sessionId);
+    try {
+      execSync(`git worktree remove "${worktreePath}" --force`, { cwd: tempRepo });
+      execSync(`git branch -D my-team/${sessionId}`, { cwd: tempRepo });
+    } catch {
+      // Best effort
+    }
+  });
+
+  it('emitInitialTeamFiles emits one team_file event per broadcast file', async () => {
+    const createRes = await request(app)
+      .post('/api/sessions')
+      .send({ source_repo: tempRepo, title: 'Team File Hydration Test' });
+    expect(createRes.status).toBe(201);
+    const sessionId = createRes.body.id;
+    const worktreePath = createRes.body.worktree_path;
+
+    // Seed each of the four broadcast files with distinguishable content
+    const teamDir = join(worktreePath, '.team');
+    await Promise.all([
+      writeFile(join(teamDir, 'plan.md'), 'PLAN_BODY'),
+      writeFile(join(teamDir, 'tasks.md'), 'TASKS_BODY'),
+      writeFile(join(teamDir, 'journal.md'), 'JOURNAL_BODY'),
+      writeFile(join(teamDir, 'review.md'), 'REVIEW_BODY'),
+    ]);
+
+    const events: WsServerEvent[] = [];
+    sessionManager.on('event', (_id, event) => {
+      events.push(event);
+    });
+
+    await sessionManager.emitInitialTeamFiles(sessionId);
+
+    const teamFileEvents = events.filter((e) => e.type === 'team_file');
+    expect(teamFileEvents).toHaveLength(4);
+
+    const byName = new Map(
+      teamFileEvents.map((e) => {
+        if (e.type !== 'team_file') throw new Error('unreachable');
+        return [e.name, e.content];
+      }),
+    );
+    expect(byName.get('plan')).toBe('PLAN_BODY');
+    expect(byName.get('tasks')).toBe('TASKS_BODY');
+    expect(byName.get('journal')).toBe('JOURNAL_BODY');
+    expect(byName.get('review')).toBe('REVIEW_BODY');
+
+    // Clean up
+    await sessionManager.killSession(sessionId);
+    try {
+      execSync(`git worktree remove "${worktreePath}" --force`, { cwd: tempRepo });
+      execSync(`git branch -D my-team/${sessionId}`, { cwd: tempRepo });
+    } catch {
+      // Best effort
+    }
+  });
+
+  it('emitInitialTeamFiles emits empty content for missing files', async () => {
+    const createRes = await request(app)
+      .post('/api/sessions')
+      .send({ source_repo: tempRepo, title: 'Missing Team Files Test' });
+    expect(createRes.status).toBe(201);
+    const sessionId = createRes.body.id;
+    const worktreePath = createRes.body.worktree_path;
+
+    // Delete review.md to simulate the "not created yet" case
+    await rm(join(worktreePath, '.team', 'review.md'), { force: true });
+
+    const events: WsServerEvent[] = [];
+    sessionManager.on('event', (_id, event) => {
+      events.push(event);
+    });
+
+    await sessionManager.emitInitialTeamFiles(sessionId);
+
+    const reviewEvent = events.find(
+      (e) => e.type === 'team_file' && e.name === 'review',
+    );
+    expect(reviewEvent).toBeTruthy();
+    if (reviewEvent?.type === 'team_file') {
+      expect(reviewEvent.content).toBe('');
+    }
+
+    // Clean up
+    await sessionManager.killSession(sessionId);
+    try {
+      execSync(`git worktree remove "${worktreePath}" --force`, { cwd: tempRepo });
+      execSync(`git branch -D my-team/${sessionId}`, { cwd: tempRepo });
+    } catch {
+      // Best effort
+    }
+  });
+
+  it('emits team_file event with canonical name when watched markdown file changes', async () => {
+    const createRes = await request(app)
+      .post('/api/sessions')
+      .send({ source_repo: tempRepo, title: 'Team File Change Test' });
+    expect(createRes.status).toBe(201);
+    const sessionId = createRes.body.id;
+    const worktreePath = createRes.body.worktree_path;
+
+    const events: WsServerEvent[] = [];
+    sessionManager.on('event', (_id, event) => {
+      events.push(event);
+    });
+
+    // Mutate plan.md and wait for the chokidar debounce
+    await writeFile(join(worktreePath, '.team', 'plan.md'), 'updated plan body');
+    await new Promise((resolve) => setTimeout(resolve, 800));
+
+    const planEvents = events.filter(
+      (e) => e.type === 'team_file' && e.name === 'plan',
+    );
+    expect(planEvents.length).toBeGreaterThanOrEqual(1);
+    const last = planEvents[planEvents.length - 1];
+    if (last?.type === 'team_file') {
+      expect(last.content).toBe('updated plan body');
+    }
+
+    // No team_file event should be emitted for non-broadcast files like
+    // context.md, even though the watcher tracks them. We capture the count
+    // before the mutation and assert it doesn't grow.
+    const teamFileCountBefore = events.filter((e) => e.type === 'team_file').length;
+    await writeFile(join(worktreePath, '.team', 'context.md'), 'context change');
+    await new Promise((resolve) => setTimeout(resolve, 800));
+    const teamFileCountAfter = events.filter((e) => e.type === 'team_file').length;
+    expect(teamFileCountAfter).toBe(teamFileCountBefore);
+
+    // Clean up
     await sessionManager.killSession(sessionId);
     try {
       execSync(`git worktree remove "${worktreePath}" --force`, { cwd: tempRepo });
