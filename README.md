@@ -4,7 +4,7 @@ Multi-agent orchestration for Claude Code. Spin up a team of AI specialists that
 
 Landing page → [docs-olive-eight-29.vercel.app](https://docs-olive-eight-29.vercel.app/)
 
-The live site has a tabbed "Get started" walkthrough — Quickstart, Agent (use my-team to set up my-team), and Remote (control sessions from your phone).
+The live site has a tabbed "Get started" walkthrough — Quickstart, Agent (use my-team to set up my-team), and Remote (control sessions from your phone via Claude Code remote, or re-attach from any terminal).
 
 ## Quickstart
 
@@ -31,7 +31,7 @@ Then start the daemon in a second terminal:
 team start
 ```
 
-Open [http://localhost:3001](http://localhost:3001) for the web dashboard, or `team attach <id>` to rejoin the chat.
+Then `team attach <id>` from any terminal to rejoin the chat.
 
 ### Prerequisites
 
@@ -71,7 +71,6 @@ Six agents share a session. The captain drives; the rest are dispatched as Claud
 | `team purge <id>` | Kill and clean a session in one step |
 | `team notifications` | Show blocked session alerts |
 | `team notifications --clear` | Clear all notifications |
-| `team ui` | Open the web dashboard in your browser |
 | `team help` | Show this help summary |
 
 ### Recents and shortcuts
@@ -127,22 +126,13 @@ $ approve
 
 See `SPEC.md` for the full specification.
 
-## Web UI
-
-Three-column layout served from the daemon at `http://localhost:3001`:
-
-- **Left** — Session list + agent status panel
-- **Middle** — Live chat with the captain (markdown rendered)
-- **Right** — Diff viewer with file tree (M/A/D indicators) + plan/review/journal tabs
-
 ## Architecture
 
 ```
 packages/
 ├── shared/    — Core types, errors, session ID generator
 ├── wrapper/   — Daemon: HTTP API, WebSocket, session & worktree management
-├── cli/       — 'team' CLI (thin HTTP client)
-└── ui/        — React SPA (Vite + Tailwind + Zustand)
+└── cli/       — 'team' CLI (thin HTTP client)
 
 agent-prompts/ — Specialist definitions (.claude/agents/*.md format)
 ```
@@ -151,8 +141,8 @@ agent-prompts/ — Specialist definitions (.claude/agents/*.md format)
 
 The daemon binds to `127.0.0.1:3001`:
 
-- **HTTP** — REST endpoints for session CRUD, input, approve, diff, team files
-- **WebSocket** — `ws://127.0.0.1:3001/ws/sessions/:id` for live streaming
+- **HTTP** — REST endpoints for session CRUD, input, approve, diff, team files (the `team` CLI is the primary consumer)
+- **WebSocket** — `ws://127.0.0.1:3001/ws/sessions/:id` — the channel `team attach` uses to stream captain output and send input back
 
 See `SPEC.md` section 8 for full API documentation.
 
@@ -162,9 +152,6 @@ See `SPEC.md` section 8 for full API documentation.
 pnpm install
 pnpm -r build
 pnpm test          # Run all tests (vitest)
-
-# Dev mode for UI
-cd packages/ui && pnpm dev   # Vite dev server with hot reload (proxies to wrapper)
 ```
 
 ## Key dependencies
@@ -173,5 +160,3 @@ cd packages/ui && pnpm dev   # Vite dev server with hot reload (proxies to wrapp
 - `simple-git` — Git worktree operations
 - `chokidar` — Filesystem watching for `.team/` state changes
 - `express` + `ws` — HTTP and WebSocket server
-- `zustand` — Client state management
-- `react-markdown` — Markdown rendering in chat

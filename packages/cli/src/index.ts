@@ -19,7 +19,6 @@ import { purgeCommand } from './commands/purge.js';
 import { startCommand } from './commands/start.js';
 import { statusCommand } from './commands/status.js';
 import { tasksCommand } from './commands/tasks.js';
-import { uiCommand } from './commands/ui.js';
 import { watchCommand } from './commands/watch.js';
 
 const program = new Command();
@@ -48,7 +47,6 @@ program.addCommand(purgeCommand());
 program.addCommand(startCommand());
 program.addCommand(statusCommand());
 program.addCommand(tasksCommand());
-program.addCommand(uiCommand());
 program.addCommand(watchCommand());
 
 program.parse();

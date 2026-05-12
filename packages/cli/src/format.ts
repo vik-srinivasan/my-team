@@ -110,8 +110,7 @@ export const ATTN_GLYPHS = {
 } as const;
 
 /**
- * Mirrors the priority used in `packages/ui/src/lib/attention.ts`:
- *   awaiting_approval > blocked > must_ask_count > done > (idle)
+ * Priority: awaiting_approval > blocked > must_ask_count > done > (idle).
  * Returns the glyph + label to show in the ATTN column.
  */
 export function getAttention(s: Pick<SessionSummary, 'phase' | 'must_ask_count'>): AttentionInfo {
