@@ -104,7 +104,7 @@ After approval, the captain autonomously:
 - Dispatches the **tester** for integration tests
 - Dispatches the **reviewer** for code review
 - Loops through review iterations if there are blockers
-- Dispatches the **git agent** to push and open a PR
+- Pushes the branch and opens a PR itself
 
 ### 5. Check on progress
 

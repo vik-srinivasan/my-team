@@ -42,14 +42,13 @@ Then `team attach <id>` from any terminal to rejoin the chat.
 
 ## The team
 
-Six agents share a session. The captain drives; the rest are dispatched as Claude Code subagents via the Task tool.
+Five agents share a session. The captain drives; the rest are dispatched as Claude Code subagents via the Task tool.
 
-- **Captain** — The conversational anchor. Plans the work with you, dispatches specialists, ferries feedback, decides when the session is done.
+- **Captain** — The conversational anchor. Plans the work with you, dispatches specialists, ferries feedback, decides when the session is done, and handles the final mile itself: pushes the session branch and opens the pull request.
 - **Scout** — Read-only. Maps the codebase before any code is written, surfacing the files, conventions, and gotchas that shape the plan.
 - **Engineer** — Implements the plan task by task. Writes unit tests beside the code, commits to the session branch, leaves a journal entry for the next agent.
 - **Tester** — Adds integration coverage, runs the full suite, files reproducible bug reports as severity-bucketed findings.
 - **Reviewer** — Quality gate. Reads the diff, flags blocking issues, leaves suggestions, and either approves or sends fixes back to the engineer.
-- **Git** — Final mile. Pushes the session branch, opens a pull request with a written summary, hands you back a link.
 
 ## Commands
 
@@ -104,7 +103,7 @@ The directory is created relative to your current working directory. Bootstrap e
 
 ## How it works
 
-Each session creates a git worktree at `~/team/sessions/<id>/` and spawns a captain. Agents communicate through a small set of shared files under `.team/` — `plan.md`, `tasks.md`, `journal.md`, `review.md`, `decisions.md`, plus `meta.json` and `state.json`. The captain dispatches scout, engineer, tester, reviewer, and git as subagents via the Task tool, reading their output back from those files. You can read them too.
+Each session creates a git worktree at `~/team/sessions/<id>/` and spawns a captain. Agents communicate through a small set of shared files under `.team/` — `plan.md`, `tasks.md`, `journal.md`, `review.md`, `decisions.md`, plus `meta.json` and `state.json`. The captain dispatches scout, engineer, tester, and reviewer as subagents via the Task tool, reading their output back from those files. The captain itself handles the final push and opens the PR. You can read every `.team/` file too.
 
 A live session looks roughly like this:
 
@@ -121,7 +120,7 @@ $ approve
   [engineer] feat(auth): add JWT signing service
   [tester] 14 specs passing, 1 flake fixed
   [reviewer] approved — 0 blocking, 2 suggestions
-  [git] PR opened → github.com/you/repo/pull/482
+  captain › PR opened → github.com/you/repo/pull/482
 ```
 
 See `SPEC.md` for the full specification.
