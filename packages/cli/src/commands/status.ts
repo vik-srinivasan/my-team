@@ -3,7 +3,7 @@ import chalk from 'chalk';
 import type { SessionMeta, SessionState } from '@my-team/shared';
 import { api, ApiError } from '../api-client.js';
 import { readTeamFile } from '../session-paths.js';
-import { humanizeAgo, getAttention, abbreviatePhase } from '../format.js';
+import { humanizeAgo, getAttention, abbreviatePhase, visibleLength } from '../format.js';
 
 interface StatusOptions {
   json?: boolean;
@@ -36,7 +36,15 @@ export function statusCommand(): Command {
         const session = await api.getSession(id) as Record<string, unknown>;
         const meta = session.meta as SessionMeta;
         const state = session.state as SessionState;
-        const remoteUrl = (session.remote_url as string | null) ?? null;
+        // The wrapper's claude-process URL regex can capture OSC 8 hyperlink
+        // escape sequences (BEL-delimited), so strip anything at or after
+        // the first BEL byte before display.
+        const rawRemoteUrl = (session.remote_url as string | null) ?? null;
+        const remoteUrl = rawRemoteUrl?.split('\x07')[0] ?? null;
+        // Worktree path lives on the top-level Session object; meta.source_repo
+        // is the user's source repo, not the session worktree. Fall back to
+        // source_repo only when the API doesn't return a worktree_path.
+        const worktreePath = (session.worktree_path as string | undefined) ?? meta.source_repo;
 
         // Read .team/ artefacts from the local worktree.
         const [tasksRaw, planRaw, reviewRaw, journalRaw, prUrlRaw] = await Promise.all([
@@ -61,6 +69,7 @@ export function statusCommand(): Command {
               {
                 meta,
                 state,
+                worktree_path: worktreePath,
                 pr_url: prUrl,
                 tasks,
                 plan_present: planPresent,
@@ -83,6 +92,7 @@ export function statusCommand(): Command {
         renderStatus({
           meta,
           state,
+          worktreePath,
           prUrl,
           tasks,
           planPresent,
@@ -105,6 +115,7 @@ export function statusCommand(): Command {
 interface RenderArgs {
   meta: SessionMeta;
   state: SessionState;
+  worktreePath: string;
   prUrl: string | null;
   tasks: TaskCounts;
   planPresent: boolean;
@@ -115,11 +126,13 @@ interface RenderArgs {
 }
 
 function renderStatus(a: RenderArgs): void {
-  const { meta, state, prUrl, tasks, planPresent, review, latest, attention, mustAskPending } = a;
+  const { meta, state, worktreePath, prUrl, tasks, planPresent, review, latest, attention, mustAskPending } = a;
 
   const heading = `${chalk.bold(meta.id)} · ${meta.title}`;
   console.log(heading);
-  console.log(chalk.dim('─'.repeat(Math.min(60, Math.max(heading.length, 20)))));
+  // Use the visible (ANSI-stripped) width of the heading — chalk.bold adds
+  // escape bytes to .length that would otherwise inflate the separator.
+  console.log(chalk.dim('─'.repeat(Math.min(60, Math.max(visibleLength(heading), 20)))));
 
   const phaseLabel = abbreviatePhase(state.phase);
   console.log(
@@ -138,7 +151,7 @@ function renderStatus(a: RenderArgs): void {
       `   ${label('Review iter:')} ${state.review_iterations} / ${state.max_review_iterations}`,
   );
 
-  console.log(`${label('Worktree:')}   ${chalk.dim(meta.source_repo)}`);
+  console.log(`${label('Worktree:')}   ${chalk.dim(worktreePath)}`);
   console.log(`${label('Branch:')}     ${meta.session_branch}`);
   if (prUrl) console.log(`${label('PR:')}         ${chalk.cyan(prUrl)}`);
 

@@ -26,6 +26,19 @@ describe('stripAnsi / visibleLength', () => {
     expect(stripAnsi('plain')).toBe('plain');
     expect(visibleLength('plain')).toBe(5);
   });
+
+  it('returns visible width unaffected by chalk.bold (regression: status heading separator)', () => {
+    // status.ts uses visibleLength(heading) to size the `─` underline.
+    // chalk.bold adds ~9 bytes of ANSI escapes to .length without changing
+    // the visible width; if visibleLength regressed to .length the bar
+    // would render ~9 cols too wide.
+    const heading = `${chalk.bold('mild-moon-80')} · review iter 1`;
+    expect(visibleLength(heading)).toBe('mild-moon-80 · review iter 1'.length);
+    // Sanity: with chalk enabled, .length is strictly larger.
+    if (chalk.level > 0) {
+      expect(heading.length).toBeGreaterThan(visibleLength(heading));
+    }
+  });
 });
 
 describe('padEndVisible', () => {
