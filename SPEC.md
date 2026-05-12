@@ -2,7 +2,7 @@
 
 ## 1. Overview
 
-my-team is a local multi-agent orchestrator that turns Claude Code into a coordinated team of specialists. The user chats with a "captain" agent to plan a piece of work, approves the plan, then walks away. A team of specialists (engineer, tester, reviewer, git) executes the plan inside an isolated git worktree, communicates through shared files in a `.team/` directory, and opens a pull request when done. The user oversees through a CLI (`team new`, `team attach`, `team status`, etc.).
+my-team is a local multi-agent orchestrator that turns Claude Code into a coordinated team of specialists. The user chats with a "captain" agent to plan a piece of work, approves the plan, then walks away. A team of specialists (engineer, tester, reviewer) executes the plan inside an isolated git worktree, communicates through shared files in a `.team/` directory, and the captain opens a pull request when done. The user oversees through a CLI (`team new`, `team attach`, `team status`, etc.).
 
 The system runs entirely on the user's Mac for v1. Long-running execution survives terminal closes, SSH disconnects, and wrapper restarts (via a daemon). It does not yet survive machine sleep or shutdown — that's a future "deploy to a small server" upgrade that does not change any of this code.
 
@@ -12,7 +12,7 @@ All Claude calls go through the `claude` CLI (Claude Code), which means the user
 
 - **Captain**: The main `claude` process the user chats with. Plans the work, dispatches specialists, ferries feedback, decides when the session is done. One per session.
 - **Specialist**: A Claude Code subagent defined in `.claude/agents/<name>.md`. Has its own system prompt, tool allowlist, and model. Invoked by the captain via the Task tool.
-- **Team**: The captain plus its specialists for one session. Always: captain + scout + engineer + tester + reviewer + git.
+- **Team**: The captain plus its specialists for one session. Always: captain + scout + engineer + tester + reviewer.
 - **Session**: One unit of work, from "I want feature X" through PR opened. Has its own git worktree, branch, and `.team/` directory.
 - **Worktree**: A git worktree created at `~/team/sessions/<session-id>/`, checked out to a session-specific branch off the source repo's main branch.
 - **`.team/` directory**: Shared file-based state inside the worktree. How specialists communicate without talking to each other directly.
@@ -115,7 +115,7 @@ The session branch is `my-team/<session-id>` off the source repo's default branc
 - [ ] @reviewer Final approval pass
 
 ## Git
-- [ ] @git Open PR
+- [ ] @captain Open PR
 ```
 Specialists mark `[x]` when complete and add brief notes if needed. Captain may add tasks during execution if scope grows.
 
@@ -206,7 +206,7 @@ tools:
 [detailed system prompt]
 ```
 
-The five specialists plus captain:
+The four specialists plus captain (the captain also handles the final push + PR itself):
 
 ### 5.1 Captain
 - **Where defined**: Not as a subagent. The captain's system prompt is injected via `--append-system-prompt` when the wrapper spawns `claude`.
@@ -217,7 +217,7 @@ The five specialists plus captain:
   - Phase: planning → chats with user, drafts `plan.md` and `tasks.md`, flags must-ask items
   - Phase: awaiting_approval → presents plan, waits for explicit "approved"
   - Phase: executing → dispatches engineer, then tester, then reviewer; ferries `review.md` feedback back to engineer; loops until done criteria met
-  - Phase: done → dispatches git agent for PR, then marks state done
+  - Phase: done → pushes the session branch and opens the PR itself (no subagent), then marks state done
 - **Stuck protocol**: When a specialist escalates, captain decides. When a must-ask item is hit, captain pauses session and writes a notification (v1: file at `~/team/notifications/`, surfaced via `team notifications`).
 
 ### 5.2 Scout
@@ -233,7 +233,7 @@ The five specialists plus captain:
 - **Tools**: Read, Write, Edit, Grep, Glob, Bash
 - **Model**: most recent opus model with highest context
 - **Role**: Implements the plan. Writes feature code and accompanying unit tests. Commits to the session branch. Marks tasks done in `tasks.md`. Logs ambiguous decisions in `decisions.md`. Reads `review.md` and addresses blockers when captain re-dispatches.
-- **Bash restrictions** (prompt-level, not enforced): may run `git add`, `git commit`, build commands, test commands. Must not run `git push`, `git checkout`, `git rebase`, `git merge`, `git reset --hard`, or anything that mutates branch structure. Those are git agent's job.
+- **Bash restrictions** (prompt-level, not enforced): may run `git add`, `git commit`, build commands, test commands. Must not run `git push`, `git checkout`, `git rebase`, `git merge`, `git reset --hard`, or anything that mutates branch structure. Those are reserved for the captain.
 - **Stuck protocol**: Make the most reasonable choice based on `plan.md` and `context.md`, log the decision in `decisions.md`, continue. Only escalate to captain if the choice would meaningfully change scope or break the plan.
 - **System prompt highlights**:
   - "You implement features. You commit your work. You do not push branches or open PRs."
@@ -258,15 +258,6 @@ The five specialists plus captain:
   - "You may write to `.team/review.md` and nowhere else. Never modify source files."
   - "Be thorough on first pass. Subsequent passes only check whether prior blockers were addressed plus any new code."
   - "Format: file:line headers, severity buckets (Blocking, Suggestion, Approved)."
-
-### 5.6 Git
-- **Tools**: Read, Bash (scoped to git and gh commands)
-- **Model**: most recent haiku model (operations are formulaic; cheap and fast is right)
-- **Role**: Final phase only. Runs final commit if any uncommitted changes remain (rare; engineer should have committed). Pushes the session branch. Opens a PR with title from session title and description summarizing journal highlights. Marks the git task done in `tasks.md`. Cleanup is the wrapper's job, not git's.
-- **System prompt highlights**:
-  - "You are the only specialist allowed to push branches and open PRs."
-  - "PR title comes from session meta.json. PR body summarizes the plan and key decisions from journal.md and decisions.md."
-  - "Use `gh pr create`. The PAT is in the environment."
 
 ## 6. Workflow phases
 
@@ -298,9 +289,9 @@ If tester reports failures during the loop, captain may insert another engineer 
 - `review.md` has a final "approved, no blockers" verdict
 - Tester reports the full suite green
 
-State → `done`. Captain dispatches git agent.
+State → `done`. Captain handles the PR phase itself (no subagent dispatch).
 
-**7. PR.** Git agent pushes the branch, opens the PR, marks the git task done. Captain writes a final journal entry. State → `done` (final).
+**7. PR.** Captain pushes the session branch, runs `gh pr create` with a body built from `plan.md`, `journal.md`, `decisions.md`, and `review.md`, marks the PR task done, and writes a final journal entry. State → `done` (final).
 
 **8. Cleanup.** Wrapper detects state `done` and (after a brief grace period) runs `team archive` (saves `.team/` to `~/team/archives/<id>/`) followed by `git worktree remove`. Worktree is gone; PR remains for the user.
 
@@ -426,8 +417,7 @@ my-team/
     ├── scout.md
     ├── engineer.md
     ├── tester.md
-    ├── reviewer.md
-    └── git.md
+    └── reviewer.md
 ```
 
 The wrapper installs/copies `agent-prompts/*.md` into `~/.claude/agents/` on first run (and the captain prompt path is referenced when spawning each session's `claude`).
@@ -453,7 +443,7 @@ The wrapper installs/copies `agent-prompts/*.md` into `~/.claude/agents/` on fir
 - `ws` for `team attach`'s WebSocket connection
 
 **Other**:
-- `@github/gh` (the `gh` CLI) — required on the host. Git agent uses it for PR creation.
+- `@github/gh` (the `gh` CLI) — required on the host. Captain uses it for PR creation.
 - `pnpm` for the monorepo (workspace support is cleaner than npm).
 - `vitest` for tests across all packages.
 
