@@ -1,54 +1,83 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
+import { basename } from 'node:path';
+import type { SessionSummary } from '@my-team/shared';
 import { api, ApiError } from '../api-client.js';
+import {
+  padEndVisible,
+  truncate,
+  humanizeAgo,
+  phaseColor,
+  getAttention,
+  colorAttnGlyph,
+  type AttentionInfo,
+} from '../format.js';
 
-function formatAge(isoDate: string): string {
-  const diffMs = Date.now() - new Date(isoDate).getTime();
-  const minutes = Math.floor(diffMs / 60000);
-  if (minutes < 60) return `${minutes}m`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h`;
-  const days = Math.floor(hours / 24);
-  return `${days}d`;
+interface ListOptions {
+  json?: boolean;
+  needsAttention?: boolean;
 }
 
-function phaseColor(phase: string): string {
-  switch (phase) {
-    case 'executing': return chalk.yellow(phase);
-    case 'done': return chalk.green(phase);
-    case 'blocked': return chalk.red(phase);
-    case 'killed': return chalk.gray(phase);
-    case 'planning':
-    case 'awaiting_approval': return chalk.cyan(phase);
-    default: return phase;
-  }
+// Column widths (visible characters). Single-space separators between columns.
+const W_ATTN = 2;
+const W_ID = 18;
+const W_PHASE = 8;
+const W_REPO = 14;
+const W_AGE = 4;
+
+interface RenderedRow {
+  attn: AttentionInfo;
+  id: string;
+  title: string;
+  phase: string;
+  repo: string;
+  age: string;
 }
 
 export function listCommand(): Command {
   return new Command('list')
-    .description('List all sessions')
-    .action(async () => {
+    .description('List active sessions with an attention-first overview')
+    .option('--json', 'Output as JSON instead of a table')
+    .option('-a, --needs-attention', 'Show only sessions that need attention')
+    .action(async (options: ListOptions) => {
       try {
         const sessions = await api.listSessions();
+        const filtered = options.needsAttention
+          ? sessions.filter((s) => getAttention(s).critical)
+          : sessions;
 
-        if (sessions.length === 0) {
-          console.log(chalk.dim('No active sessions.'));
+        if (options.json) {
+          const payload = filtered.map((s) => {
+            const attn = getAttention(s);
+            return {
+              ...s,
+              attention: {
+                glyph: attn.glyph,
+                label: attn.label,
+                critical: attn.critical,
+              },
+            };
+          });
+          console.log(JSON.stringify(payload, null, 2));
           return;
         }
 
-        // Header
-        console.log(
-          chalk.bold(
-            `${'ID'.padEnd(22)} ${'TITLE'.padEnd(30)} ${'PHASE'.padEnd(20)} ${'REPO'.padEnd(20)} ${'AGE'.padEnd(5)}`
-          )
-        );
-
-        for (const s of sessions) {
-          const repoName = s.source_repo.split('/').pop() ?? s.source_repo;
-          console.log(
-            `${s.id.padEnd(22)} ${s.title.slice(0, 28).padEnd(30)} ${phaseColor(s.phase).padEnd(20)} ${repoName.slice(0, 18).padEnd(20)} ${formatAge(s.created_at)}`
-          );
+        if (filtered.length === 0) {
+          if (options.needsAttention) {
+            console.log(chalk.dim('No sessions need attention.'));
+          } else {
+            console.log(chalk.dim('No active sessions.'));
+          }
+          return;
         }
+
+        const cols = process.stdout.columns ?? 80;
+        const showRepo = cols >= 80;
+
+        // Attention sort: critical first (in priority order), then done, then idle, then by age.
+        const sorted = [...filtered].sort(compareByAttention);
+
+        renderTable(sorted, { cols, showRepo });
       } catch (err) {
         if (err instanceof ApiError) {
           console.error(chalk.red(err.message));
@@ -59,3 +88,83 @@ export function listCommand(): Command {
       }
     });
 }
+
+function compareByAttention(a: SessionSummary, b: SessionSummary): number {
+  const rank = (s: SessionSummary): number => {
+    const att = getAttention(s);
+    if (att.critical) {
+      // Within critical, awaiting_approval (●) before blocked (⚠) before ask
+      if (s.phase === 'awaiting_approval') return 0;
+      if (s.phase === 'blocked') return 1;
+      return 2; // must_ask
+    }
+    if (att.done) return 4;
+    return 3; // idle / running
+  };
+  const ra = rank(a);
+  const rb = rank(b);
+  if (ra !== rb) return ra - rb;
+  // Newer first within the same bucket.
+  return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+}
+
+function renderTable(
+  sessions: SessionSummary[],
+  ctx: { cols: number; showRepo: boolean },
+): void {
+  const { cols, showRepo } = ctx;
+
+  // Fixed widths summed, plus single-space separators.
+  // Layout: ATTN ID TITLE PHASE [REPO] AGE
+  const separatorCount = showRepo ? 5 : 4;
+  const fixed = W_ATTN + W_ID + W_PHASE + (showRepo ? W_REPO : 0) + W_AGE + separatorCount;
+  const titleWidth = Math.max(10, cols - fixed);
+
+  const rows: RenderedRow[] = sessions.map((s) => ({
+    attn: getAttention(s),
+    id: truncate(s.id, W_ID),
+    title: truncate(s.title, titleWidth),
+    phase: s.phase,
+    repo: truncate(basename(s.source_repo), W_REPO),
+    age: humanizeAgo(s.created_at),
+  }));
+
+  // Header
+  const headerParts: string[] = [
+    padEndVisible(chalk.dim('AT'), W_ATTN),
+    padEndVisible(chalk.bold('ID'), W_ID),
+    padEndVisible(chalk.bold('TITLE'), titleWidth),
+    padEndVisible(chalk.bold('PHASE'), W_PHASE),
+  ];
+  if (showRepo) headerParts.push(padEndVisible(chalk.bold('REPO'), W_REPO));
+  headerParts.push(padEndVisible(chalk.bold('AGE'), W_AGE));
+  console.log(headerParts.join(' '));
+
+  // Rows
+  for (const row of rows) {
+    const parts: string[] = [
+      padEndVisible(colorAttnGlyph(row.attn), W_ATTN),
+      padEndVisible(row.id, W_ID),
+      padEndVisible(row.title, titleWidth),
+      padEndVisible(phaseColor(row.phase), W_PHASE),
+    ];
+    if (showRepo) parts.push(padEndVisible(chalk.dim(row.repo), W_REPO));
+    parts.push(padEndVisible(row.age, W_AGE));
+    console.log(parts.join(' '));
+  }
+
+  // Footer
+  const critical = sessions.filter((s) => getAttention(s).critical).length;
+  const footer =
+    critical > 0
+      ? `${sessions.length} sessions · ${chalk.red(`${critical} need attention`)}`
+      : `${sessions.length} sessions · 0 need attention`;
+  console.log();
+  console.log(chalk.dim(footer));
+}
+
+// ── Exports for testing ────────────────────────────────────────────────
+
+export const __test__ = {
+  compareByAttention,
+};
