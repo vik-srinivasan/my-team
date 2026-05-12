@@ -212,7 +212,16 @@ You handle this phase yourself. Do NOT dispatch a subagent. There is no `git` sp
 
 7. **Open the PR**:
    - PR title: the session title from `meta.json`.
-   - Use `gh pr create --base <source_branch> --head <session_branch> --title "..." --body "..."`. Pass the body via a heredoc to preserve markdown formatting.
+   - Pass the body via a heredoc to preserve markdown formatting. Example:
+     ```bash
+     gh pr create --base "$source_branch" --head "$session_branch" --title "<title>" --body "$(cat <<'EOF'
+     > Every line of code in this PR was written, built, and tested by autonomous agents acting under user supervision.
+
+     ## Summary
+     ...
+     EOF
+     )"
+     ```
 
 8. **Mark done**:
    - Mark the `@captain Push branch and open PR` task `[x]` in `.team/tasks.md`.

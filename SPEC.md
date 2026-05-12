@@ -451,9 +451,9 @@ The wrapper installs/copies `agent-prompts/*.md` into `~/.claude/agents/` on fir
 
 The build order is roughly:
 
-**Phase 1 — Wrapper core + CLI + happy path engineer-only.** No specialists beyond engineer. No reviewer, tester, or git. Captain plans → engineer executes → engineer commits → wrapper opens PR via direct `gh` call. This proves the architecture works end-to-end on a hello-world repo. Should fit one or two `claude` sessions.
+**Phase 1 — Wrapper core + CLI + happy path engineer-only.** No specialists beyond engineer. No reviewer or tester. Captain plans → engineer executes → engineer commits → wrapper opens PR via direct `gh` call. This proves the architecture works end-to-end on a hello-world repo. Should fit one or two `claude` sessions.
 
-**Phase 2 — Full specialist roster.** Add scout, tester, reviewer, git. Implement the review iteration loop. Implement done criteria. Implement `team kill`/`status`/`logs`. Implement archiving and cleanup.
+**Phase 2 — Full specialist roster.** Add scout, tester, reviewer. Implement the review iteration loop. Implement done criteria. Implement `team kill`/`status`/`logs`. Implement archiving and cleanup.
 
 **Phase 3 — Polish.** Better error messaging, recovery from common failure modes, rate-limit awareness (warn before exhausting Max usage), notification surface for blocked sessions, README and a short demo.
 
@@ -472,7 +472,7 @@ Explicitly not building these now. Don't let scope creep happen mid-build:
 - Cost tracking and rate-limit enforcement. v1 ignores token costs and Max usage windows.
 - Persistent across wrapper restart (in-flight conversation recovery). v1 only persists git state.
 - LLM-driven session resumption. Manual recovery is fine for v1.
-- Plugins, custom workflow phases, custom specialist roles. The 5-specialist + captain shape is fixed for v1.
+- Plugins, custom workflow phases, custom specialist roles. The 4-specialist + captain shape is fixed for v1.
 - Windows / Linux support beyond what works incidentally. Build for macOS first.
 - A `gh` alternative for non-GitHub forges. GitHub only.
 
@@ -516,7 +516,6 @@ A React SPA served by the wrapper. Three columns, full viewport height, dark mod
 │ - eng   │  └────────────────────┘  │                      │
 │ - tester│                          │                      │
 │ - rev   │                          │                      │
-│ - git   │                          │                      │
 └─────────┴──────────────────────────┴──────────────────────┘
 ```
 
@@ -526,7 +525,7 @@ Two stacked sections.
 
 **Sessions** (top): list of all sessions ordered by most recent activity. Each row shows title (truncated), phase badge, source repo name. Click selects.
 
-**Agents** (bottom, only when a session is selected): six rows — captain, scout, engineer, tester, reviewer, git. Each shows current status: `idle`, `active` (currently running), `done`, `blocked`. Clicking does not switch chats — there's only one chat (with captain). It scrolls the middle column to the most recent message from that specialist if any.
+**Agents** (bottom, only when a session is selected): five rows — captain, scout, engineer, tester, reviewer. Each shows current status: `idle`, `active` (currently running), `done`, `blocked`. Clicking does not switch chats — there's only one chat (with captain). It scrolls the middle column to the most recent message from that specialist if any.
 
 A `+ New session` button at the bottom opens a modal: source repo picker (file dialog), title input, submit. The wrapper validates the path is a git repo and creates the session.
 
