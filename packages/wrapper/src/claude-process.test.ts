@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { IPty } from 'node-pty';
 import { CaptainProcess } from './claude-process.js';
 
@@ -38,13 +38,15 @@ function createMockPty(): IPty & {
   };
 }
 
-describe('CaptainProcess', () => {
+describe('CaptainProcess (unbuffered)', () => {
   let mockPty: ReturnType<typeof createMockPty>;
   let captain: CaptainProcess;
 
   beforeEach(() => {
     mockPty = createMockPty();
-    captain = new CaptainProcess(mockPty);
+    // Disable the line buffer so existing test contracts (raw passthrough)
+    // remain meaningful. Buffer behavior is exercised in its own block.
+    captain = new CaptainProcess(mockPty, { bufferLines: false });
   });
 
   it('exposes pid from pty process', () => {
@@ -95,5 +97,91 @@ describe('CaptainProcess', () => {
   it('resizes the pty', () => {
     captain.resize(200, 50);
     expect(mockPty.resize).toHaveBeenCalledWith(200, 50);
+  });
+});
+
+describe('CaptainProcess line buffer', () => {
+  let mockPty: ReturnType<typeof createMockPty>;
+  let captain: CaptainProcess;
+  let handler: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    mockPty = createMockPty();
+    captain = new CaptainProcess(mockPty, { bufferLines: true, flushMs: 50 });
+    handler = vi.fn();
+    captain.on('data', handler);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('holds a partial line until a newline arrives', () => {
+    mockPty._emitData('a');
+    mockPty._emitData('b');
+    expect(handler).not.toHaveBeenCalled();
+
+    mockPty._emitData('\n');
+    expect(handler).toHaveBeenCalledTimes(1);
+    expect(handler).toHaveBeenCalledWith('ab\n');
+  });
+
+  it('emits everything up to the last newline as one chunk', () => {
+    mockPty._emitData('line one\nline two\npartial');
+    expect(handler).toHaveBeenCalledTimes(1);
+    expect(handler).toHaveBeenCalledWith('line one\nline two\n');
+  });
+
+  it('flushes a stalled partial line after the idle timeout', () => {
+    mockPty._emitData('still typing');
+    expect(handler).not.toHaveBeenCalled();
+
+    vi.advanceTimersByTime(49);
+    expect(handler).not.toHaveBeenCalled();
+
+    vi.advanceTimersByTime(1);
+    expect(handler).toHaveBeenCalledTimes(1);
+    expect(handler).toHaveBeenCalledWith('still typing');
+  });
+
+  it('does not flush twice when the buffer is already empty', () => {
+    mockPty._emitData('full line\n');
+    expect(handler).toHaveBeenCalledTimes(1);
+    vi.advanceTimersByTime(100);
+    expect(handler).toHaveBeenCalledTimes(1);
+  });
+
+  it('flushes any tail buffer on exit', () => {
+    mockPty._emitData('goodbye');
+    expect(handler).not.toHaveBeenCalled();
+    mockPty._emitExit(0);
+    // The buffered tail must surface before listeners tear down.
+    expect(handler).toHaveBeenCalledWith('goodbye');
+  });
+
+  it('flushes any tail buffer on kill', () => {
+    mockPty._emitData('cut short');
+    captain.kill();
+    expect(handler).toHaveBeenCalledWith('cut short');
+  });
+
+  it('resets the idle timer on each new chunk', () => {
+    mockPty._emitData('typ');
+    vi.advanceTimersByTime(40);
+    mockPty._emitData('ing');
+    vi.advanceTimersByTime(40);
+    // 80ms total elapsed but timer was reset at 40ms — no flush yet.
+    expect(handler).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(10);
+    expect(handler).toHaveBeenCalledTimes(1);
+    expect(handler).toHaveBeenCalledWith('typing');
+  });
+
+  it('still detects the remote control URL on the raw chunk', () => {
+    const urlHandler = vi.fn();
+    captain.on('remoteUrl', urlHandler);
+    mockPty._emitData('Open https://claude.ai/code/abc123 to control\n');
+    expect(urlHandler).toHaveBeenCalledWith('https://claude.ai/code/abc123');
   });
 });

@@ -8,6 +8,9 @@ export default function Footer() {
   return (
     <footer className="relative border-t border-[color:var(--color-border)] py-12">
       <div className="mx-auto max-w-[1100px] px-6">
+        <p className="mb-8 font-mono text-xs text-[color:var(--color-dim)]">
+          Coming soon: remote droplet hosts so the team runs while your laptop sleeps.
+        </p>
         <div className="flex flex-col items-start justify-between gap-6 md:flex-row md:items-center">
           <div>
             <div className="font-mono text-sm text-[color:var(--color-text)]">my-team</div>

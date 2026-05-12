@@ -11,7 +11,7 @@ interface TerminalLine {
 const TERMINAL_LINES: readonly TerminalLine[] = [
   { kind: 'prompt', text: 'team new "Add user authentication"' },
   { kind: 'system', text: '[my-team] creating worktree at ~/team/sessions/calm-river-12' },
-  { kind: 'system', text: '[my-team] spawning captain (claude-opus-4)…' },
+  { kind: 'system', text: '[my-team] spawning captain (claude)…' },
   {
     kind: 'output',
     text:

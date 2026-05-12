@@ -1,5 +1,0 @@
-{
-  "buildCommand": "pnpm --filter @my-team/landing build",
-  "outputDirectory": ".next",
-  "installCommand": "pnpm install"
-}
