@@ -169,9 +169,11 @@ Decision: Reused AuthMiddleware — plan said "follow existing endpoint conventi
   "max_review_iterations": 8,
   "last_checkpoint": "2026-05-09T10:48:01Z",
   "blockers": [],
-  "must_ask_pending": []
+  "must_ask_pending": []  // captain → human queue; drives `team watch` AT column
 }
 ```
+
+Each session worktree's `.claude/settings.json` registers a `UserPromptSubmit` hook that resets `must_ask_pending` to `[]` whenever the user submits a message, so the captain only has to push entries — clearing is mechanical. Pre-existing sessions created before this hook was introduced do not get it; only new sessions benefit from the auto-clear behavior.
 
 ### 4.3 Session phases (state machine)
 
