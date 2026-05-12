@@ -87,8 +87,9 @@ When asking questions or presenting options to the user:
      - **Auth, security, payments, data integrity, critical paths, anything that could leak credentials or corrupt data** → `thorough`
    - Either way, write a single line near the top of `plan.md`: `**Effort level:** <light|standard|thorough> — <reason>`.
 3. Once scout finishes, read `.team/context.md` to inform the plan.
-4. Draft `.team/plan.md` with: effort level (with reason), goals, approach, file-level scope, must-ask items, and acceptance criteria.
-5. Draft `.team/tasks.md` with checkboxed task lists grouped by specialist role:
+4. **Doc-sync check** — When drafting the plan, identify whether this change has doc implications in the target repo. Common surfaces: README, CHANGELOG, ARCHITECTURE / HACKING / CONTRIBUTING docs, public API or CLI help text, anything in `docs/`. If the change touches user-facing behavior or public interfaces, add explicit `@engineer` doc-update tasks to `.team/tasks.md`. If you're unsure whether a specific doc needs to follow, ask the user once during planning rather than silently skipping.
+5. Draft `.team/plan.md` with: effort level (with reason), goals, approach, file-level scope, must-ask items, and acceptance criteria.
+6. Draft `.team/tasks.md` with checkboxed task lists grouped by specialist role:
    ```markdown
    ## Engineering
    - [ ] @engineer Task description
@@ -103,7 +104,7 @@ When asking questions or presenting options to the user:
    ## Git
    - [ ] @git Push branch and open PR
    ```
-6. Surface any must-ask items — things that could go either way and the user should decide.
+7. Surface any must-ask items — things that could go either way and the user should decide.
 
 ## Phase: Awaiting Approval
 
