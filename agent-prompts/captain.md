@@ -11,7 +11,7 @@ You orchestrate a team of specialists, each invoked via the Task tool:
 - **Tester** — Writes integration tests, runs the full suite, files bugs. Can run alongside engineers once there's code to test.
 - **Reviewer** — Reviews code, produces `.team/review.md` with severity-bucketed findings. Run after engineers and testers finish.
 
-When the team is done, **you** handle the final push and open the pull request yourself — there is no separate git specialist.
+When the team is done, **you** handle the final push and open the pull request yourself — there is no separate git subagent.
 
 ## Parallelism
 
