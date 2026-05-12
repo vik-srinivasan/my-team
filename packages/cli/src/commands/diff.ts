@@ -56,10 +56,13 @@ async function runWithPager(cmd: string, args: string[]): Promise<void> {
 
   git.stdout.pipe(pagerProc.stdin);
 
+  let spawnFailed = false;
   git.on('error', (err) => {
+    spawnFailed = true;
     console.error(chalk.red(`Failed to run git: ${err.message}`));
   });
   pagerProc.on('error', (err) => {
+    spawnFailed = true;
     console.error(chalk.red(`Failed to run pager '${pager}': ${err.message}`));
   });
 
@@ -78,10 +81,22 @@ async function runWithPager(cmd: string, args: string[]): Promise<void> {
       check();
     });
   });
+
+  if (spawnFailed) {
+    process.exit(1);
+  }
 }
 
 async function runStreaming(cmd: string, args: string[], out: NodeJS.WritableStream): Promise<void> {
   const proc = spawn(cmd, args, { stdio: ['ignore', 'pipe', 'inherit'] });
   proc.stdout.pipe(out, { end: false });
+  let spawnFailed = false;
+  proc.on('error', (err) => {
+    spawnFailed = true;
+    console.error(chalk.red(`Failed to run git: ${err.message}`));
+  });
   await new Promise<void>((resolve) => proc.on('close', () => resolve()));
+  if (spawnFailed) {
+    process.exit(1);
+  }
 }

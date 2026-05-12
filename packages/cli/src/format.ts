@@ -138,3 +138,39 @@ export function colorAttnGlyph(info: AttentionInfo): string {
   if (info.glyph === ATTN_GLYPHS.done) return chalk.green(info.glyph);
   return info.glyph;
 }
+
+// ── Shared list/watch table layout ─────────────────────────────────────
+//
+// Column widths (visible characters) and attention-first sort order for the
+// `list` and `watch` table renderers. Kept here so a single change updates
+// both views and they never drift apart.
+
+export const LIST_COL_WIDTHS = {
+  attn: 2,
+  id: 18,
+  phase: 8,
+  repo: 14,
+  age: 4,
+} as const;
+
+/**
+ * Attention-first comparator for `SessionSummary` rows:
+ *   awaiting_approval → blocked → must_ask → idle/running → done
+ * Tie-break by `created_at` (newest first within each bucket).
+ */
+export function compareByAttention(a: SessionSummary, b: SessionSummary): number {
+  const rank = (s: SessionSummary): number => {
+    const att = getAttention(s);
+    if (att.critical) {
+      if (s.phase === 'awaiting_approval') return 0;
+      if (s.phase === 'blocked') return 1;
+      return 2; // must_ask
+    }
+    if (att.done) return 4;
+    return 3; // idle / running
+  };
+  const ra = rank(a);
+  const rb = rank(b);
+  if (ra !== rb) return ra - rb;
+  return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+}

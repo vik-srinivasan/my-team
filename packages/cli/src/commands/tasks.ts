@@ -8,22 +8,28 @@ export function tasksCommand(): Command {
     .description("Pretty-print a session's .team/tasks.md with checkbox highlights")
     .argument('<id>', 'Session ID')
     .action(async (id: string) => {
-      const raw = await readTeamFile(id, 'tasks.md');
-      if (raw === null) {
-        console.log(chalk.dim(`No tasks file for ${id}.`));
-        return;
-      }
-      const trimmed = raw.trim();
-      if (trimmed.length === 0) {
-        console.log(chalk.dim('Tasks file is empty.'));
-        return;
-      }
-      console.log(renderTasks(raw));
-      const { done, total } = countTasks(raw);
-      if (total > 0) {
-        const pct = Math.round((done / total) * 100);
-        console.log();
-        console.log(chalk.dim(`${done} / ${total} done (${pct}%)`));
+      try {
+        const raw = await readTeamFile(id, 'tasks.md');
+        if (raw === null) {
+          console.log(chalk.dim(`No tasks file for ${id}.`));
+          return;
+        }
+        const trimmed = raw.trim();
+        if (trimmed.length === 0) {
+          console.log(chalk.dim('Tasks file is empty.'));
+          return;
+        }
+        console.log(renderTasks(raw));
+        const { done, total } = countTasks(raw);
+        if (total > 0) {
+          const pct = Math.round((done / total) * 100);
+          console.log();
+          console.log(chalk.dim(`${done} / ${total} done (${pct}%)`));
+        }
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        console.error(chalk.red(`Failed to read tasks: ${message}`));
+        process.exit(1);
       }
     });
 }

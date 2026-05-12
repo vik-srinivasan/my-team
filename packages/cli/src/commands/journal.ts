@@ -25,22 +25,28 @@ export function journalCommand(): Command {
     .option('--all', 'Show the full journal')
     .option('-f, --follow', 'Tail the journal and print new content as it is written')
     .action(async (id: string, options: JournalOptions) => {
-      const journalPath = resolveTeamFile(id, 'journal.md');
-      const raw = await readTeamFile(id, 'journal.md');
+      try {
+        const journalPath = resolveTeamFile(id, 'journal.md');
+        const raw = await readTeamFile(id, 'journal.md');
 
-      if (raw === null) {
-        console.log(chalk.dim(`No journal yet for ${id}.`));
-        if (!options.follow) return;
-      }
+        if (raw === null) {
+          console.log(chalk.dim(`No journal yet for ${id}.`));
+          if (!options.follow) return;
+        }
 
-      if (raw && raw.trim().length > 0) {
-        const entries = parseEntries(raw);
-        const slice = sliceEntries(entries, options);
-        printEntries(slice);
-      }
+        if (raw && raw.trim().length > 0) {
+          const entries = parseEntries(raw);
+          const slice = sliceEntries(entries, options);
+          printEntries(slice);
+        }
 
-      if (options.follow) {
-        await followJournal(journalPath);
+        if (options.follow) {
+          await followJournal(journalPath);
+        }
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        console.error(chalk.red(`Failed to read journal: ${message}`));
+        process.exit(1);
       }
     });
 }

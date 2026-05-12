@@ -10,6 +10,8 @@ import {
   phaseColor,
   getAttention,
   colorAttnGlyph,
+  compareByAttention,
+  LIST_COL_WIDTHS,
 } from '../format.js';
 
 interface WatchOptions {
@@ -17,11 +19,12 @@ interface WatchOptions {
 }
 
 const DEFAULT_INTERVAL_S = 2;
-const W_ATTN = 2;
-const W_ID = 18;
-const W_PHASE = 8;
-const W_REPO = 14;
-const W_AGE = 4;
+// Shared column widths with `list` — see format.ts.
+const W_ATTN = LIST_COL_WIDTHS.attn;
+const W_ID = LIST_COL_WIDTHS.id;
+const W_PHASE = LIST_COL_WIDTHS.phase;
+const W_REPO = LIST_COL_WIDTHS.repo;
+const W_AGE = LIST_COL_WIDTHS.age;
 
 // ANSI: clear screen + move cursor home.
 const CLEAR = '\x1b[2J\x1b[H';
@@ -133,23 +136,6 @@ async function drawOnce(intervalSec: number): Promise<void> {
       ? `${sorted.length} sessions · ${chalk.red(`${critical} need attention`)}`
       : `${sorted.length} sessions · 0 need attention`;
   console.log(chalk.dim(footer));
-}
-
-function compareByAttention(a: SessionSummary, b: SessionSummary): number {
-  const rank = (s: SessionSummary): number => {
-    const att = getAttention(s);
-    if (att.critical) {
-      if (s.phase === 'awaiting_approval') return 0;
-      if (s.phase === 'blocked') return 1;
-      return 2;
-    }
-    if (att.done) return 4;
-    return 3;
-  };
-  const ra = rank(a);
-  const rb = rank(b);
-  if (ra !== rb) return ra - rb;
-  return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
 }
 
 function pad2(n: number): string {

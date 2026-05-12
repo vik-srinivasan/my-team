@@ -10,6 +10,8 @@ import {
   phaseColor,
   getAttention,
   colorAttnGlyph,
+  compareByAttention,
+  LIST_COL_WIDTHS,
   type AttentionInfo,
 } from '../format.js';
 
@@ -18,12 +20,12 @@ interface ListOptions {
   needsAttention?: boolean;
 }
 
-// Column widths (visible characters). Single-space separators between columns.
-const W_ATTN = 2;
-const W_ID = 18;
-const W_PHASE = 8;
-const W_REPO = 14;
-const W_AGE = 4;
+// Column widths (visible characters). Shared with `watch` via format.ts.
+const W_ATTN = LIST_COL_WIDTHS.attn;
+const W_ID = LIST_COL_WIDTHS.id;
+const W_PHASE = LIST_COL_WIDTHS.phase;
+const W_REPO = LIST_COL_WIDTHS.repo;
+const W_AGE = LIST_COL_WIDTHS.age;
 
 interface RenderedRow {
   attn: AttentionInfo;
@@ -87,25 +89,6 @@ export function listCommand(): Command {
         process.exit(1);
       }
     });
-}
-
-function compareByAttention(a: SessionSummary, b: SessionSummary): number {
-  const rank = (s: SessionSummary): number => {
-    const att = getAttention(s);
-    if (att.critical) {
-      // Within critical, awaiting_approval (●) before blocked (⚠) before ask
-      if (s.phase === 'awaiting_approval') return 0;
-      if (s.phase === 'blocked') return 1;
-      return 2; // must_ask
-    }
-    if (att.done) return 4;
-    return 3; // idle / running
-  };
-  const ra = rank(a);
-  const rb = rank(b);
-  if (ra !== rb) return ra - rb;
-  // Newer first within the same bucket.
-  return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
 }
 
 function renderTable(
