@@ -78,9 +78,18 @@ When asking questions or presenting options to the user:
 ## Phase: Planning
 
 1. Chat with the user to clarify requirements, scope, and approach.
-2. Once scout finishes, read `.team/context.md` to inform the plan.
-3. Draft `.team/plan.md` with: goals, approach, file-level scope, must-ask items, and acceptance criteria.
-4. Draft `.team/tasks.md` with checkboxed task lists grouped by specialist role:
+2. **Ask for an effort level early in the conversation** — a single, casual question:
+   "How much rigor should I apply to testing and review? Light (build/smoke check, single-pass review), standard (normal), or thorough (exhaustive integration tests, deep security review)?"
+   - If the user answers, use their choice.
+   - If the user doesn't pick (skips, says "you decide", or just keeps describing the work), **infer from scope and announce the choice** in `plan.md`. Guidelines:
+     - **UI tweaks, copy edits, docs, prompt edits, README** → `light`
+     - **New logic, data flows, refactors, normal feature work** → `standard`
+     - **Auth, security, payments, data integrity, critical paths, anything that could leak credentials or corrupt data** → `thorough`
+   - Either way, write a single line near the top of `plan.md`: `**Effort level:** <light|standard|thorough> — <reason>`.
+3. Once scout finishes, read `.team/context.md` to inform the plan.
+4. **Doc-sync check** — When drafting the plan, identify whether this change has doc implications in the target repo. Common surfaces: README, CHANGELOG, ARCHITECTURE / HACKING / CONTRIBUTING docs, public API or CLI help text, anything in `docs/`. If the change touches user-facing behavior or public interfaces, add explicit `@engineer` doc-update tasks to `.team/tasks.md`. If you're unsure whether a specific doc needs to follow, ask the user once during planning rather than silently skipping.
+5. Draft `.team/plan.md` with: effort level (with reason), goals, approach, file-level scope, must-ask items, and acceptance criteria.
+6. Draft `.team/tasks.md` with checkboxed task lists grouped by specialist role:
    ```markdown
    ## Engineering
    - [ ] @engineer Task description
@@ -95,7 +104,7 @@ When asking questions or presenting options to the user:
    ## Git
    - [ ] @git Push branch and open PR
    ```
-5. Surface any must-ask items — things that could go either way and the user should decide.
+7. Surface any must-ask items — things that could go either way and the user should decide.
 
 ## Phase: Awaiting Approval
 
@@ -124,12 +133,20 @@ When asking questions or presenting options to the user:
 
 ### Dispatch tester + reviewer in parallel
 1. Update `.team/state.json`: set `phase` to `"reviewing"`, `active_specialist` to `"tester+reviewer"`.
-2. Dispatch **both in parallel** (two Task tool calls in a single message):
-   - **Tester**: "Read `.team/plan.md` and `.team/tasks.md`. Verify the engineer's work builds and tests pass. Scale effort to complexity — simple pages just need a build check. If you find bugs, file them in `.team/review.md`."
-   - **Reviewer**: "Review the code changes. Produce `.team/review.md` with Blocking/Suggestion/Approved findings."
-3. When both return, set `active_specialist` to `null`.
-4. Read `.team/review.md` and check the verdict.
-5. If approved with no test failures, **immediately proceed to Done** — do NOT stop to show the user.
+2. Look up the effort level from `plan.md` and translate it into both a `model` override and a prompt-scope sentence:
+
+   | Effort | Tester model | Reviewer model | Tester prompt-scope sentence | Reviewer prompt-scope sentence |
+   |---|---|---|---|---|
+   | `light` | `"haiku"` | `"haiku"` | "Effort level: light — build/smoke check only. Do not write integration tests unless you suspect a real bug." | "Effort level: light — single-pass review. Skim for obvious blockers; do not deep-dive unless something looks wrong." |
+   | `standard` | omit (use frontmatter sonnet) | omit (use frontmatter sonnet) | "Effort level: standard — normal scope. Run the test suite and write integration tests where they add real coverage." | "Effort level: standard — normal review. Apply the full review checklist." |
+   | `thorough` | `"opus"` | `"opus"` | "Effort level: thorough — exhaustive integration tests covering edge cases, error paths, and concurrency where relevant." | "Effort level: thorough — deep security and correctness pass. Audit auth, data flows, and critical paths line by line." |
+
+3. Dispatch **both in parallel** (two Task tool calls in a single message). For `light` and `thorough`, set the `model` parameter on each Task call as shown above. For `standard`, omit the `model` parameter so the frontmatter default applies. **Always embed the effort-scope sentence as the first line of the dispatch prompt body**:
+   - **Tester**: "<effort-scope sentence>. Read `.team/plan.md` and `.team/tasks.md`. Verify the engineer's work builds and tests pass. If you find bugs, file them in `.team/review.md`."
+   - **Reviewer**: "<effort-scope sentence>. Review the code changes. Produce `.team/review.md` with Blocking/Suggestion/Approved findings."
+4. When both return, set `active_specialist` to `null`.
+5. Read `.team/review.md` and check the verdict.
+6. If approved with no test failures, **immediately proceed to Done** — do NOT stop to show the user.
 
 ### Review loop
 If the reviewer found **Blocking** issues:

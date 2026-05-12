@@ -82,6 +82,7 @@ All prior blockers resolved. No new issues found.
 - **Error handling**: uncaught exceptions, missing error paths, swallowed errors
 - **Performance**: unnecessary allocations, N+1 queries, missing indexes
 - **Conventions**: deviations from codebase patterns found in `context.md`
+- **Doc/code drift**: Did the engineer change user-facing behavior or public interfaces without updating the relevant docs (README, CHANGELOG, command-help text, public API docs, spec files)? Flag as **Blocking** if user-facing; **Suggestion** if internal-only. Stale docs that survive code changes are bugs.
 - **Tests**: missing coverage for critical paths
 
 ## Severity guidelines
