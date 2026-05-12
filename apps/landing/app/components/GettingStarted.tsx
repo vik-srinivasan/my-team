@@ -299,6 +299,15 @@ const REMOTE_STEPS: readonly RemoteStep[] = [
     index: 3,
     text: (
       <>
+        On the go? Drive the session from your phone with Claude Code&apos;s
+        remote-control feature — it talks to the same captain.
+      </>
+    ),
+  },
+  {
+    index: 4,
+    text: (
+      <>
         Check{' '}
         <code className="font-mono text-[color:var(--color-text)]">team notifications</code>{' '}
         to see if the captain is blocked waiting on you.
@@ -313,10 +322,12 @@ function RemotePanel() {
       <div>
         <p className="text-[color:var(--color-muted)] leading-relaxed">
           The captain is a daemon, not a foreground process. Detach, switch laptops,
-          come back later — the work keeps moving. From anywhere with SSH access to
-          the daemon, <code className="font-mono text-[color:var(--color-text)]">team list</code>{' '}
+          pull it up on your phone — the work keeps moving. Use Claude Code&apos;s
+          remote-control feature to drive a session from anywhere, or from any
+          terminal with access to the daemon run{' '}
+          <code className="font-mono text-[color:var(--color-text)]">team list</code>{' '}
           and <code className="font-mono text-[color:var(--color-text)]">team attach &lt;id&gt;</code>{' '}
-          drop you straight back into the captain&apos;s chat.
+          to drop back into the captain&apos;s chat.
         </p>
         <ol className="mt-6 space-y-4">
           {REMOTE_STEPS.map((step) => (

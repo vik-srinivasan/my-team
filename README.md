@@ -4,7 +4,7 @@ Multi-agent orchestration for Claude Code. Spin up a team of AI specialists that
 
 Landing page → [docs-olive-eight-29.vercel.app](https://docs-olive-eight-29.vercel.app/)
 
-The live site has a tabbed "Get started" walkthrough — Quickstart, Agent (use my-team to set up my-team), and Remote (detach and re-attach from any terminal).
+The live site has a tabbed "Get started" walkthrough — Quickstart, Agent (use my-team to set up my-team), and Remote (control sessions from your phone via Claude Code remote, or re-attach from any terminal).
 
 ## Quickstart
 
