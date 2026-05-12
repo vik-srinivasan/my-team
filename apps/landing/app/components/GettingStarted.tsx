@@ -9,7 +9,6 @@ import {
   Download,
   Check,
   Copy,
-  Smartphone,
 } from 'lucide-react';
 import {
   TABS,
@@ -180,7 +179,6 @@ const CLI_GROUPS: readonly CliGroup[] = [
     heading: 'Daemon',
     commands: [
       { name: 'team start', description: 'Start the wrapper daemon (foreground).' },
-      { name: 'team ui', description: 'Open the dashboard at http://127.0.0.1:3001.' },
     ],
   },
   {
@@ -301,9 +299,8 @@ const REMOTE_STEPS: readonly RemoteStep[] = [
     index: 3,
     text: (
       <>
-        Or open the dashboard:{' '}
-        <code className="font-mono text-[color:var(--color-text)]">team ui</code> →{' '}
-        <code className="font-mono text-[color:var(--color-text)]">http://127.0.0.1:3001</code>.
+        On the go? Drive the session from your phone with Claude Code&apos;s
+        remote-control feature — it talks to the same captain.
       </>
     ),
   },
@@ -319,155 +316,54 @@ const REMOTE_STEPS: readonly RemoteStep[] = [
   },
 ];
 
-function MockQrCode() {
-  // Geometric placeholder. NOT a scannable code — purely decorative.
-  // 21×21 grid; three finder patterns at corners; deterministic body fill.
-  const size = 21;
-  const cell = 5;
-  const total = size * cell;
-  const finders: ReadonlyArray<readonly [number, number]> = [
-    [0, 0],
-    [size - 7, 0],
-    [0, size - 7],
-  ];
-
-  const isFinder = (x: number, y: number) =>
-    finders.some(([fx, fy]) => x >= fx && x < fx + 7 && y >= fy && y < fy + 7);
-
-  // Deterministic-looking body squares.
-  const bodyCells: ReadonlyArray<readonly [number, number]> = (() => {
-    const acc: Array<readonly [number, number]> = [];
-    for (let y = 0; y < size; y++) {
-      for (let x = 0; x < size; x++) {
-        if (isFinder(x, y)) continue;
-        // Cheap deterministic hash, biased ~38% on.
-        const v = (x * 7 + y * 13 + ((x * y) % 5)) % 10;
-        if (v < 4) acc.push([x, y]);
-      }
-    }
-    return acc;
-  })();
-
-  return (
-    <svg
-      role="img"
-      aria-label="Mock QR code preview"
-      viewBox={`0 0 ${total} ${total}`}
-      fill="currentColor"
-      className="h-[120px] w-[120px] rounded-md border border-[color:var(--color-border)] bg-white p-1.5 text-[color:var(--color-bg)]"
-    >
-      {/* Body cells */}
-      {bodyCells.map(([x, y]) => (
-        <rect
-          key={`b-${x}-${y}`}
-          x={x * cell}
-          y={y * cell}
-          width={cell}
-          height={cell}
-        />
-      ))}
-      {/* Finder patterns: outer 7×7 dark, inner 5×5 white cutout, inner 3×3 dark */}
-      {finders.map(([fx, fy]) => (
-        <g key={`f-${fx}-${fy}`}>
-          <rect
-            x={fx * cell}
-            y={fy * cell}
-            width={7 * cell}
-            height={7 * cell}
-          />
-          <rect
-            x={(fx + 1) * cell}
-            y={(fy + 1) * cell}
-            width={5 * cell}
-            height={5 * cell}
-            className="fill-white"
-          />
-          <rect
-            x={(fx + 2) * cell}
-            y={(fy + 2) * cell}
-            width={3 * cell}
-            height={3 * cell}
-          />
-        </g>
-      ))}
-    </svg>
-  );
-}
-
 function RemotePanel() {
   return (
-    <div className="space-y-8">
-      <div className="grid gap-6 lg:grid-cols-2">
-        <div>
-          <p className="text-[color:var(--color-muted)] leading-relaxed">
-            The captain is a daemon, not a foreground process. Detach, switch laptops,
-            come back later — the work keeps moving.
-          </p>
-          <ol className="mt-6 space-y-4">
-            {REMOTE_STEPS.map((step) => (
-              <li key={step.index} className="flex gap-4">
-                <span
-                  className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-[color:var(--color-accent)]/40 bg-[color:var(--color-accent)]/10 font-mono text-xs text-[color:var(--color-accent-bright)]"
-                  aria-hidden="true"
-                >
-                  {String(step.index).padStart(2, '0')}
-                </span>
-                <p className="text-sm leading-relaxed text-[color:var(--color-text)]">
-                  {step.text}
-                </p>
-              </li>
-            ))}
-          </ol>
-        </div>
-
-        <TerminalBlock title="detach + re-attach">
-          <span className="text-[color:var(--color-text)]">you     {'▸'} </span>^]{'\n'}
-          <span className="text-[color:var(--color-muted)]">
-            {'▸'} detached. session brave-otter-12 still running.
-          </span>
-          {'\n\n'}
-          <span className="text-[color:var(--color-dim)]">(later, from your laptop)</span>
-          {'\n\n'}
-          <span className="text-[color:var(--color-dim)]">$ </span>team attach
-          brave-otter-12{'\n'}
-          <span className="text-[color:var(--color-muted)]">
-            {'▸'} re-attaching to brave-otter-12 …
-          </span>
-          {'\n\n'}
-          <span className="text-[color:var(--color-accent-bright)]">captain {'▸'} </span>
-          Welcome back. Reviewer is wrapping up; I&apos;ll{'\n'}
-          {'         '}push the PR when it lands.
-        </TerminalBlock>
-      </div>
-
-      <div className="overflow-hidden rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)]/60 backdrop-blur">
-        <header className="flex items-center justify-between border-b border-[color:var(--color-border)] bg-[color:var(--color-surface-2)] px-5 py-2.5">
-          <div className="flex items-center gap-2 text-[color:var(--color-muted)]">
-            <Smartphone size={14} aria-hidden="true" />
-            <span className="font-mono text-[10px] uppercase tracking-[0.16em]">
-              Or hand it off to your phone.
-            </span>
-          </div>
-        </header>
-        <div className="grid gap-6 p-5 md:grid-cols-[auto_1fr] md:items-center">
-          <MockQrCode />
-          <div className="space-y-3">
-            <p className="text-sm leading-relaxed text-[color:var(--color-muted)]">
-              When you start a session, my-team prints a remote-control link and QR
-              code. Scan it on your phone to monitor progress, read the journal, and
-              chat with the captain from anywhere.
-            </p>
-            <div className="flex flex-col gap-1.5">
-              <code className="inline-flex w-fit items-center rounded border border-[color:var(--color-border)] bg-[color:var(--color-bg)] px-2.5 py-1 font-mono text-[12.5px] text-[color:var(--color-text)]">
-                team://remote/brave-otter-12
-              </code>
-              <p className="font-mono text-[11px] text-[color:var(--color-dim)]">
-                Opens the dashboard scoped to that session, with chat and journal tail.
+    <div className="grid gap-6 lg:grid-cols-2">
+      <div>
+        <p className="text-[color:var(--color-muted)] leading-relaxed">
+          The captain is a daemon, not a foreground process. Detach, switch laptops,
+          pull it up on your phone — the work keeps moving. Use Claude Code&apos;s
+          remote-control feature to drive a session from anywhere, or from any
+          terminal with access to the daemon run{' '}
+          <code className="font-mono text-[color:var(--color-text)]">team list</code>{' '}
+          and <code className="font-mono text-[color:var(--color-text)]">team attach &lt;id&gt;</code>{' '}
+          to drop back into the captain&apos;s chat.
+        </p>
+        <ol className="mt-6 space-y-4">
+          {REMOTE_STEPS.map((step) => (
+            <li key={step.index} className="flex gap-4">
+              <span
+                className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-[color:var(--color-accent)]/40 bg-[color:var(--color-accent)]/10 font-mono text-xs text-[color:var(--color-accent-bright)]"
+                aria-hidden="true"
+              >
+                {String(step.index).padStart(2, '0')}
+              </span>
+              <p className="text-sm leading-relaxed text-[color:var(--color-text)]">
+                {step.text}
               </p>
-            </div>
-          </div>
-        </div>
+            </li>
+          ))}
+        </ol>
       </div>
+
+      <TerminalBlock title="detach + re-attach">
+        <span className="text-[color:var(--color-text)]">you     {'▸'} </span>^]{'\n'}
+        <span className="text-[color:var(--color-muted)]">
+          {'▸'} detached. session brave-otter-12 still running.
+        </span>
+        {'\n\n'}
+        <span className="text-[color:var(--color-dim)]">(later, from your laptop)</span>
+        {'\n\n'}
+        <span className="text-[color:var(--color-dim)]">$ </span>team attach
+        brave-otter-12{'\n'}
+        <span className="text-[color:var(--color-muted)]">
+          {'▸'} re-attaching to brave-otter-12 …
+        </span>
+        {'\n\n'}
+        <span className="text-[color:var(--color-accent-bright)]">captain {'▸'} </span>
+        Welcome back. Reviewer is wrapping up; I&apos;ll{'\n'}
+        {'         '}push the PR when it lands.
+      </TerminalBlock>
     </div>
   );
 }
