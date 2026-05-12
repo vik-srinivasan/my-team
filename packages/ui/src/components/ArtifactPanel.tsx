@@ -1,5 +1,3 @@
-import { useState } from 'react';
-
 import type { TeamFileName } from '@my-team/shared';
 import { useSessionStore } from '../store.js';
 
@@ -15,9 +13,13 @@ const TABS: ReadonlyArray<{ key: TeamFileName; label: string }> = [
  * journal,review}.md`. Contents arrive over the session WebSocket as
  * `team_file` events and are stored in `useSessionStore`. Read-only —
  * the captain is the writer.
+ *
+ * The active tab lives in the store so it resets on session switch
+ * (alongside `teamFiles`), keeping per-session state cleanly isolated.
  */
 export function ArtifactPanel() {
-  const [active, setActive] = useState<TeamFileName>('plan');
+  const active = useSessionStore((s) => s.artifactTab);
+  const setActive = useSessionStore((s) => s.setArtifactTab);
   const teamFiles = useSessionStore((s) => s.teamFiles);
   const body = teamFiles[active];
 

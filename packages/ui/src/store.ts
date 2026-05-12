@@ -38,6 +38,11 @@ export interface SessionStore {
   teamFiles: TeamFiles;
   setTeamFile: (name: TeamFileName, content: string) => void;
 
+  // Active tab in the ArtifactPanel — reset on session switch so the
+  // previously-viewed tab doesn't leak across sessions.
+  artifactTab: TeamFileName;
+  setArtifactTab: (name: TeamFileName) => void;
+
   // Remote control URL
   remoteUrl: string | null;
   setRemoteUrl: (url: string) => void;
@@ -66,6 +71,7 @@ export const useSessionStore = create<SessionStore>((set) => ({
       sessionState: null,
       remoteUrl: null,
       teamFiles: { ...EMPTY_TEAM_FILES },
+      artifactTab: 'plan',
     }),
 
   sessionState: null,
@@ -89,6 +95,9 @@ export const useSessionStore = create<SessionStore>((set) => ({
   teamFiles: { ...EMPTY_TEAM_FILES },
   setTeamFile: (name, content) =>
     set((s) => ({ teamFiles: { ...s.teamFiles, [name]: content } })),
+
+  artifactTab: 'plan',
+  setArtifactTab: (name) => set({ artifactTab: name }),
 
   remoteUrl: null,
   setRemoteUrl: (url) => set({ remoteUrl: url }),
