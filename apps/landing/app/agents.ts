@@ -1,7 +1,7 @@
 // Shared agent metadata used across AgentFlow, FlowNarrative, and other components.
 // Colors are tuned against the deep-teal accent — distinct hues, all dark-mode legible.
 
-export type AgentId = 'captain' | 'scout' | 'engineer' | 'tester' | 'reviewer' | 'git';
+export type AgentId = 'captain' | 'scout' | 'engineer' | 'tester' | 'reviewer';
 
 export interface Agent {
   readonly id: AgentId;
@@ -57,15 +57,6 @@ export const AGENTS: readonly Agent[] = [
       'Quality gate. Reads the diff, checks for blocking issues, leaves Suggestions, and either approves or sends fixes back to the engineer.',
     color: '#f472b6',
     status: 'Reviewing…',
-  },
-  {
-    id: 'git',
-    label: 'Git',
-    title: 'Git',
-    description:
-      'Final mile. Pushes the session branch, opens a pull request with a written summary, hands you back a link.',
-    color: '#fb923c',
-    status: 'Opening PR…',
   },
 ] as const;
 

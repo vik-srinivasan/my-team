@@ -10,7 +10,7 @@ import { motion, useReducedMotion } from 'motion/react';
 //      separates infra from the headline.
 //   3. The Wrapper daemon spawns Captain via a downward dashed arrow.
 //   4. Captain sits centred underneath, the visual anchor.
-//   5. Five sub-agents fan out below Captain. Each agent has a single
+//   5. Four sub-agents fan out below Captain. Each agent has a single
 //      bidirectional accent-blue arrow connecting it to Captain — the arrow
 //      reads as Captain ↔ agent (dispatch out, artifact back) without
 //      needing two separate curves.
@@ -66,7 +66,6 @@ const SUB_AGENTS: readonly SubAgent[] = [
   { id: 'engineer', title: 'engineer', produces: 'commits', stack: true },
   { id: 'tester', title: 'tester', produces: 'test runs · bugs' },
   { id: 'reviewer', title: 'reviewer', produces: 'review.md' },
-  { id: 'git', title: 'git', produces: 'pushes · opens PR' },
 ];
 
 // Layout for the agent row — pushed further down for breathing room.
@@ -129,7 +128,7 @@ export default function Architecture() {
               viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
               className="block min-w-[760px] w-full h-auto p-4"
               role="img"
-              aria-label="Architecture diagram (top to bottom): a three-box infra strip — team CLI, Wrapper daemon, sessions worktree — sits at the top with the same accent-blue stroke as Captain. The Wrapper daemon spawns the Captain below it. The Captain — the visual anchor — then connects to five sub-agents that fan out beneath it via the Task tool: scout (produces context.md), engineer ×N parallel (commits to the session branch), tester (runs the suite and files bugs), reviewer (produces review.md), and git (pushes and opens the PR). Each sub-agent is connected to Captain by a single bidirectional accent-blue arrow representing dispatch out and artifact back along the same line."
+              aria-label="Architecture diagram (top to bottom): a three-box infra strip — team CLI, Wrapper daemon, sessions worktree — sits at the top with the same accent-blue stroke as Captain. The Wrapper daemon spawns the Captain below it. The Captain — the visual anchor — then connects to four sub-agents that fan out beneath it via the Task tool: scout (produces context.md), engineer ×N parallel (commits to the session branch), tester (runs the suite and files bugs), and reviewer (produces review.md). Each sub-agent is connected to Captain by a single bidirectional accent-blue arrow representing dispatch out and artifact back along the same line. The Captain handles the final push and opens the PR itself once review passes."
             >
               <defs>
                 <marker
