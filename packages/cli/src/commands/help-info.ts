@@ -42,7 +42,6 @@ export function helpInfoCommand(): Command {
 
   \x1b[33mOther:\x1b[0m
     team notifications        Check for blocked sessions needing attention
-    team notifications --clear  Clear all notifications
     team open <id>            Open a session worktree in VS Code
     team help                 Show this help
     team start                Start the wrapper daemon
@@ -54,7 +53,6 @@ export function helpInfoCommand(): Command {
   Engineer   Implements features, writes code + unit tests
   Tester     Writes integration tests, runs test suite
   Reviewer   Code review with severity-bucketed findings
-  Git        Pushes branch and opens a pull request
 
 \x1b[36m── Session Phases ──\x1b[0m
 
@@ -66,12 +64,6 @@ export function helpInfoCommand(): Command {
   ~/team/archives/       Archived .team/ directories
   ~/team/notifications/  Blocked session alerts
   http://localhost:3001   Wrapper daemon API (for team CLI + Claude Code remote)
-
-\x1b[36m── Shell Integration ──\x1b[0m
-
-  Add this to your ~/.zshrc or ~/.bashrc to enable \x1b[1mtj <id>\x1b[0m:
-
-    tj() { cd "$(team jump "$1")"; }
 `);
 
       // Show daemon status
