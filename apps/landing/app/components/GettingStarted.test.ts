@@ -1,7 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { readdirSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { __test__ } from './GettingStarted';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const { CLI_GROUPS } = __test__;
 
@@ -15,6 +18,11 @@ const HIDDEN_FROM_PANEL = new Set<string>([
 // Map a `packages/cli/src/commands/<file>.ts` filename to the subcommand
 // name the user types after `team`. The default is the basename, with two
 // well-known overrides.
+//
+// Convention assumption: every other command file's stem is identical to its
+// subcommand name. The inverse "no stale entries" test relies on this — if a
+// future command file is named differently from its subcommand, add an
+// override here so both directions of the panel-coverage check stay honest.
 function fileToCommandName(file: string): string {
   const stem = file.replace(/\.ts$/, '');
   if (stem === 'help-info') return 'help';

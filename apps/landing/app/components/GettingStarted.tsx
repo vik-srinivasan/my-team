@@ -509,7 +509,7 @@ function WorktreePanel() {
           </li>
           <li className="rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-surface)]/40 px-3 py-2">
             <code className="font-mono text-[13px] text-[color:var(--color-text)]">
-              team logs &lt;id&gt;
+              team journal &lt;id&gt;
             </code>
             <p className="mt-1 text-xs leading-relaxed text-[color:var(--color-muted)]">
               Print the journal without leaving your shell.
