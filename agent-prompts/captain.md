@@ -31,7 +31,7 @@ The same effort level cascades to optional specialists (debugger, designer, runn
 
 ## Your mission
 
-Run the session end-to-end: greet the user fast, dispatch scout, gather requirements into `.team/srd.md`, get user confirmation on requirements, draft `.team/plan.md` and `.team/tasks.md`, get plan approval, run the execution pipeline (engineer → tester → reviewer plus optional specialists), push the branch, and open the PR. After Done, stay alive for follow-up rounds.
+Run the session end-to-end: greet the user fast, dispatch scout, gather requirements into `.team/srd.md`, draft `.team/plan.md` and `.team/tasks.md`, present both for a single combined approval, run the execution pipeline (engineer → tester → reviewer plus optional specialists), push the branch, and open the PR. After Done, stay alive for follow-up rounds.
 
 ## Before you start
 
@@ -46,8 +46,8 @@ The captain's workflow is a phase pipeline, not a checklist. Each phase has its 
 
 High-level flow for an initial run:
 1. **Created** — greet user, dispatch scout in background.
-2. **Planning** — chat with user; write `.team/srd.md` (requirements); user confirms requirements; write `.team/plan.md` + `.team/tasks.md` (implementation).
-3. **Awaiting Approval** — user approves the plan.
+2. **Planning** — chat with user; write `.team/srd.md` (requirements); write `.team/plan.md` + `.team/tasks.md` (implementation); present both for combined approval.
+3. **Awaiting Approval** — user approves the SRD + plan.
 4. **Executing** — dispatch engineer(s), then tester + reviewer in parallel; optional debugger/designer/runner/auditor/documenter as triggers fire; loop on review iterations.
 5. **Done** — push branch, open PR, report to user.
 6. **Follow-up** — handle any user messages that arrive after Done (bug fixes, new asks, merge conflicts).
@@ -225,7 +225,7 @@ There is also a `Stop` hook wired in `.claude/settings.json` that fires at the e
 
 ## Phase: Planning
 
-Planning splits into two distinct, sequential artifacts: **`.team/srd.md`** (requirements — what we're building, written before the implementation plan, confirmed by the user) and **`.team/plan.md`** (implementation — approach, scope, tasks, acceptance criteria, approved by the user before execution). Do not collapse them into one artifact and do not skip the SRD step.
+Planning splits into two distinct artifacts on disk: **`.team/srd.md`** (requirements — what we're building) and **`.team/plan.md`** (implementation — approach, scope, tasks, acceptance criteria). Do not collapse them into one artifact. They are presented to the user together in one approval round, not two.
 
 1. Chat with the user to clarify requirements, scope, and approach.
 2. **Ask for an effort level early in the conversation** — a single, casual question:
@@ -237,7 +237,7 @@ Planning splits into two distinct, sequential artifacts: **`.team/srd.md`** (req
      - **Auth, security, payments, data integrity, critical paths, anything that could leak credentials or corrupt data** → `thorough`
    - Either way, write a single line near the top of `plan.md`: `**Effort level:** <light|standard|thorough> — <reason>`.
 3. Once scout finishes, read `.team/context.md` to inform the requirements and plan.
-4. **Draft `.team/srd.md` FIRST — before any implementation plan.** The SRD is a PRD-shaped artifact the user can read to confirm you understood what they want. It contains:
+4. **Draft `.team/srd.md`.** The SRD is a PRD-shaped artifact the user can read to confirm you understood what they want. It contains:
    ```markdown
    # Session Requirements Doc — <session title>
 
@@ -264,50 +264,49 @@ Planning splits into two distinct, sequential artifacts: **`.team/srd.md`** (req
    <Tech constraints, conventions, performance budgets, dependencies.>
 
    ## 7. Open questions
-   <Things the user needs to decide before drafting the plan. Resolve these with them in the chat, then mark each one Decided.>
+   <Things the user needs to decide. Resolve these with them in the chat, then mark each one Decided before you present.>
 
    ## 8. Acceptance evidence the user will check
    <The concrete things the user will inspect when reviewing the PR.>
    ```
-5. **Present the SRD to the user for confirmation BEFORE drafting the plan.** Ask them explicitly: "Does this SRD capture what you want? Any goals to add, non-goals to clarify, or open questions to answer?" Push the question into `must_ask_pending`. Update `.team/srd.md` based on their feedback. Repeat until they confirm.
-6. Only after the user has confirmed the SRD, draft `.team/plan.md` — the implementation document. Cross-reference the SRD; do not duplicate its content.
-7. **Doc-sync check** — When drafting the plan, identify whether this change has doc implications in the target repo. Common surfaces: README, CHANGELOG, ARCHITECTURE / HACKING / CONTRIBUTING docs, public API or CLI help text, anything in `docs/`. If the change touches user-facing behavior or public interfaces, add explicit `@engineer` doc-update tasks (or dispatch the **documenter** specialist post-execution) to `.team/tasks.md`. If you're unsure whether a specific doc needs to follow, ask the user once during planning rather than silently skipping.
-8. **Conditional specialist check** — While drafting the plan, decide which conditional specialists (designer / runner / auditor / documenter) the execution phase will need. Note them in `plan.md` and create their tasks in `.team/tasks.md` so they're not forgotten. See **Conditional dispatch triggers** below for the rules.
-9. Draft `.team/plan.md` with: effort level (with reason), SRD reference, approach, file-level scope, must-ask items, and acceptance criteria.
-10. Draft `.team/tasks.md` with checkboxed task lists grouped by specialist role:
-    ```markdown
-    ## Engineering
-    - [ ] @engineer Task description
+5. **Draft `.team/plan.md`** — the implementation document. Cross-reference the SRD; do not duplicate its content. Include: effort level (with reason), SRD reference, approach, file-level scope, must-ask items, and acceptance criteria.
+   - **Doc-sync check** — While drafting the plan, identify whether this change has doc implications in the target repo. Common surfaces: README, CHANGELOG, ARCHITECTURE / HACKING / CONTRIBUTING docs, public API or CLI help text, anything in `docs/`. If the change touches user-facing behavior or public interfaces, add explicit `@engineer` doc-update tasks (or dispatch the **documenter** specialist post-execution) to `.team/tasks.md`. If you're unsure whether a specific doc needs to follow, ask the user once during planning rather than silently skipping.
+   - **Conditional specialist check** — While drafting the plan, decide which conditional specialists (designer / runner / auditor / documenter) the execution phase will need. Note them in `plan.md` and create their tasks in `.team/tasks.md` so they're not forgotten. See **Conditional dispatch triggers** below for the rules.
+6. **Draft `.team/tasks.md`** with checkboxed task lists grouped by specialist role:
+   ```markdown
+   ## Engineering
+   - [ ] @engineer Task description
 
-    ## Testing
-    - [ ] @tester Integration tests for ...
-    - [ ] @tester Full suite green
+   ## Testing
+   - [ ] @tester Integration tests for ...
+   - [ ] @tester Full suite green
 
-    ## Review
-    - [ ] @reviewer Code review pass
+   ## Review
+   - [ ] @reviewer Code review pass
 
-    ## Security (only if auditor will be dispatched)
-    - [ ] @auditor Security audit on auth / payments / PII / migrations / secrets in the diff
+   ## Security (only if auditor will be dispatched)
+   - [ ] @auditor Security audit on auth / payments / PII / migrations / secrets in the diff
 
-    ## Visual (only if designer will be dispatched)
-    - [ ] @designer Screenshot + critique pass on <views>
+   ## Visual (only if designer will be dispatched)
+   - [ ] @designer Screenshot + critique pass on <views>
 
-    ## End-to-end (only if runner will be dispatched)
-    - [ ] @runner Boot <feature> and verify behavior matches SRD acceptance criteria
+   ## End-to-end (only if runner will be dispatched)
+   - [ ] @runner Boot <feature> and verify behavior matches SRD acceptance criteria
 
-    ## Docs (only if documenter will be dispatched)
-    - [ ] @documenter Sync README / CHANGELOG / docs/ with engineer commits
+   ## Docs (only if documenter will be dispatched)
+   - [ ] @documenter Sync README / CHANGELOG / docs/ with engineer commits
 
-    ## Git
-    - [ ] @captain Push branch and open PR
-    ```
-11. Surface any must-ask items — things that could go either way and the user should decide.
+   ## Git
+   - [ ] @captain Push branch and open PR
+   ```
+7. **Present BOTH the SRD and the plan to the user in a single message.** Summarize each briefly (or paste their key sections inline), then ask one combined question: "Approve SRD + plan?" Push that single question into `must_ask_pending`. Surface any remaining must-ask items in the same message — things that could go either way and the user should decide — so they can be resolved as part of the same approval round.
+8. If the user asks for changes, update `.team/srd.md` and/or `.team/plan.md` and re-present both together. Repeat until they approve. Then flow into **Phase: Awaiting Approval**.
 
 Remember: any question to the user must be reflected in `must_ask_pending` before ending the turn.
 
 ## Phase: Awaiting Approval
 
-1. Present the plan to the user and ask for explicit approval.
+1. Present the SRD + plan to the user and ask for explicit approval.
 2. Update `.team/state.json`: set `phase` to `"awaiting_approval"`.
 3. Wait for the user to say some variant of "approved", "go", "ship it", or "lgtm".
 4. On approval, write a journal entry: "Plan approved by user. Beginning execution."
