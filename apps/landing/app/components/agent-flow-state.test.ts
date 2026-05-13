@@ -74,6 +74,54 @@ describe('arcPoints', () => {
     expect(points[4].x).toBeCloseTo(0, 1);
     expect(points[4].y).toBeCloseTo(100, 1);
   });
+
+  it('places 4 cardinal points around a full circle (AgentFlow inner orbit geometry)', () => {
+    // Inner orbit in AgentFlow uses startDeg: -90, endDeg: 180, count: 4 →
+    // top, right, bottom, left. arcPoints includes both endpoints, so the
+    // 270° span gives 90° between each adjacent pair.
+    const points = arcPoints(4, {
+      centerX: 100,
+      centerY: 100,
+      radius: 50,
+      startDeg: -90,
+      endDeg: 180,
+    });
+    expect(points).toHaveLength(4);
+    // Top: (100, 50)
+    expect(points[0].x).toBeCloseTo(100, 1);
+    expect(points[0].y).toBeCloseTo(50, 1);
+    // Right: (150, 100)
+    expect(points[1].x).toBeCloseTo(150, 1);
+    expect(points[1].y).toBeCloseTo(100, 1);
+    // Bottom: (100, 150)
+    expect(points[2].x).toBeCloseTo(100, 1);
+    expect(points[2].y).toBeCloseTo(150, 1);
+    // Left: (50, 100)
+    expect(points[3].x).toBeCloseTo(50, 1);
+    expect(points[3].y).toBeCloseTo(100, 1);
+  });
+
+  it('places 5 evenly-spaced points around a full circle (AgentFlow outer orbit geometry)', () => {
+    // Outer orbit uses startDeg: -54, endDeg: 234, count: 5 — 72° between
+    // each pair, offset 36° from the inner orbit so the rings interleave.
+    const points = arcPoints(5, {
+      centerX: 0,
+      centerY: 0,
+      radius: 100,
+      startDeg: -54,
+      endDeg: 234,
+    });
+    expect(points).toHaveLength(5);
+    // Each adjacent pair sits 72° apart on the circle.
+    const angles = points.map((p) => (Math.atan2(p.y, p.x) * 180) / Math.PI);
+    for (let i = 1; i < angles.length; i++) {
+      // Normalize to a positive 0..360 difference.
+      let diff = angles[i] - angles[i - 1];
+      while (diff < 0) diff += 360;
+      while (diff > 360) diff -= 360;
+      expect(diff).toBeCloseTo(72, 1);
+    }
+  });
 });
 
 describe('quadraticEdgePath', () => {
