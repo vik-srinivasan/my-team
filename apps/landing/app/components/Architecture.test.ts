@@ -33,7 +33,7 @@ describe('Architecture component', () => {
     expect(archContent).toContain('w: 260');
   });
 
-  it('renders all four sub-agents with their produces labels', () => {
+  it('renders the four always-on sub-agents with their produces labels', () => {
     expect(archContent).toContain('scout');
     expect(archContent).toContain('context.md');
     expect(archContent).toContain('engineer');
@@ -42,6 +42,19 @@ describe('Architecture component', () => {
     expect(archContent).toContain('test runs');
     expect(archContent).toContain('reviewer');
     expect(archContent).toContain('review.md');
+  });
+
+  it('renders the five conditional sub-agents flagged via the conditional field', () => {
+    // Each new specialist appears in the SUB_AGENTS array and gets a
+    // conditional: true flag so the rendered box can use a dashed stroke.
+    expect(archContent).toContain('debugger');
+    expect(archContent).toContain('designer');
+    expect(archContent).toContain('runner');
+    expect(archContent).toContain('auditor');
+    expect(archContent).toContain('documenter');
+    // The conditional flag drives the dashed stroke + 'conditional' label.
+    expect(archContent).toContain('conditional: true');
+    expect(archContent).toContain('agent.conditional');
   });
 
   it('renders the three infra nodes (CLI → wrapper → sessions) and not Web UI', () => {

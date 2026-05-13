@@ -16,12 +16,15 @@ const VIEW_W = 620;
 const VIEW_H = 460;
 const CAPTAIN = { x: 150, y: VIEW_H / 2 } as const;
 
+// The arc spans wider when there are more specialists so the 9-agent roster
+// (4 always-on + 5 conditional) doesn't crowd into overlapping circles.
+const SPECIALIST_ARC_DEG = SPECIALISTS.length > 5 ? 120 : 56;
 const SPECIALIST_NODES = arcPoints(SPECIALISTS.length, {
   centerX: CAPTAIN.x,
   centerY: CAPTAIN.y,
   radius: 230,
-  startDeg: -56,
-  endDeg: 56,
+  startDeg: -SPECIALIST_ARC_DEG,
+  endDeg: SPECIALIST_ARC_DEG,
 });
 
 const EDGE_PATHS: readonly string[] = SPECIALIST_NODES.map((node) =>
@@ -73,7 +76,7 @@ export default function AgentFlow() {
     <div
       className="relative w-full"
       role="img"
-      aria-label="Animated diagram showing the Captain agent dispatching to Scout, Engineer, Tester, and Reviewer specialists in sequence."
+      aria-label="Animated diagram showing the Captain agent dispatching to its specialist roster in sequence: the always-on Scout, Engineer, Tester, and Reviewer, plus the conditional Debugger, Designer, Runner, Auditor, and Documenter."
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
     >

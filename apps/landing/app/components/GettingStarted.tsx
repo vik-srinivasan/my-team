@@ -400,6 +400,7 @@ interface TeamFileEntry {
 const TEAM_FILES: readonly TeamFileEntry[] = [
   { name: 'meta.json', description: 'session id, title, source repo, branch' },
   { name: 'state.json', description: 'phase, active specialist, blockers' },
+  { name: 'srd.md', description: 'session requirements doc (captain drafts with you)' },
   { name: 'plan.md', description: "captain's plan (you approve it)" },
   { name: 'context.md', description: "scout's notes" },
   { name: 'tasks.md', description: 'checklist with @role assignments' },

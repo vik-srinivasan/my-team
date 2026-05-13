@@ -32,10 +32,10 @@
 - [x] @engineer Add `team srd <id>` to the command list in `packages/cli/src/commands/help-info.ts`.
 
 ### Slice 5 — Landing page
-- [ ] @engineer Extend `AgentId` union and `AGENTS` array in `apps/landing/app/agents.ts` with 5 new entries (id, label, title, description, color, status).
-- [ ] @engineer Extend the hardcoded `SUB_AGENTS` array in `apps/landing/app/components/Architecture.tsx` (5 → 9 entries) and update aria-label.
-- [ ] @engineer Add `srd.md` to `FILE_TREE` in `apps/landing/app/components/HowItWorks.tsx`.
-- [ ] @engineer Add `srd.md` to `TEAM_FILES` in `apps/landing/app/components/GettingStarted.tsx`.
+- [x] @engineer Extend `AgentId` union and `AGENTS` array in `apps/landing/app/agents.ts` with 5 new entries (id, label, title, description, color, status).
+- [x] @engineer Extend the hardcoded `SUB_AGENTS` array in `apps/landing/app/components/Architecture.tsx` (5 → 9 entries) and update aria-label.
+- [x] @engineer Add `srd.md` to `FILE_TREE` in `apps/landing/app/components/HowItWorks.tsx`.
+- [x] @engineer Add `srd.md` to `TEAM_FILES` in `apps/landing/app/components/GettingStarted.tsx`.
 
 ### Slice 6 — Docs
 - [ ] @engineer Update `README.md` — "The team" section (lines 44-52), command table (lines 55-74) with `team srd <id>`, "How it works" prose (line 117).
