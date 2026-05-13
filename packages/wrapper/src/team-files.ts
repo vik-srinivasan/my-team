@@ -9,6 +9,7 @@ const TEAM_DIR = '.team';
 const TEAM_FILE_NAMES = [
   'meta.json',
   'state.json',
+  'srd.md',
   'plan.md',
   'context.md',
   'tasks.md',
@@ -37,9 +38,10 @@ export async function readTeamMeta(worktreePath: string): Promise<SessionMeta> {
 }
 
 export async function readAllTeamFiles(worktreePath: string): Promise<TeamFiles> {
-  const [meta, state, plan, context, tasks, journal, review, decisions] = await Promise.all([
+  const [meta, state, srd, plan, context, tasks, journal, review, decisions] = await Promise.all([
     readTeamFile(worktreePath, 'meta.json').then((c) => JSON.parse(c) as SessionMeta),
     readTeamFile(worktreePath, 'state.json').then((c) => JSON.parse(c) as SessionState),
+    readTeamFile(worktreePath, 'srd.md'),
     readTeamFile(worktreePath, 'plan.md'),
     readTeamFile(worktreePath, 'context.md'),
     readTeamFile(worktreePath, 'tasks.md'),
@@ -48,7 +50,7 @@ export async function readAllTeamFiles(worktreePath: string): Promise<TeamFiles>
     readTeamFile(worktreePath, 'decisions.md'),
   ]);
 
-  return { meta, state, plan, context, tasks, journal, review, decisions };
+  return { meta, state, srd, plan, context, tasks, journal, review, decisions };
 }
 
 export interface TeamFileWatcher {

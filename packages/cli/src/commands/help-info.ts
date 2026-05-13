@@ -30,6 +30,7 @@ export function helpInfoCommand(): Command {
   \x1b[33mInspect a session:\x1b[0m
     team journal <id>         Recent journal entries (-n N, --all, -f)
     team tasks <id>           Pretty-print .team/tasks.md with checkboxes
+    team srd <id>             Pretty-print .team/srd.md (captain's session requirements doc)
     team plan <id>            Pretty-print .team/plan.md
     team diff <id>            Git diff vs the session's source branch
     team logs <id>            Tail the wrapper's pino log

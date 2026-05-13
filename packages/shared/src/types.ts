@@ -36,6 +36,7 @@ export interface SessionState {
 export interface TeamFiles {
   meta: SessionMeta;
   state: SessionState;
+  srd?: string;
   plan: string;
   context: string;
   tasks: string;

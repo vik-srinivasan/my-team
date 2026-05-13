@@ -35,6 +35,7 @@ describe('team-files', () => {
     await Promise.all([
       writeFile(join(dir, 'meta.json'), JSON.stringify(testMeta)),
       writeFile(join(dir, 'state.json'), JSON.stringify(testState)),
+      writeFile(join(dir, 'srd.md'), ''),
       writeFile(join(dir, 'plan.md'), '# Plan\nDo the thing'),
       writeFile(join(dir, 'context.md'), '# Context'),
       writeFile(join(dir, 'tasks.md'), '- [ ] Task 1'),

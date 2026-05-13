@@ -5,31 +5,31 @@
 ### Slice 1 — Standardize agent prompt format
 - [x] @engineer Refactor `agent-prompts/scout.md` to standardized opening (Intro / Your team / Effort level / Your mission / Before you start / Your workflow / agent-specific). Preserve substantive content.
 - [x] @engineer Refactor `agent-prompts/engineer.md` to standardized opening.
-- [ ] @engineer Refactor `agent-prompts/tester.md` to standardized opening.
-- [ ] @engineer Refactor `agent-prompts/reviewer.md` to standardized opening.
-- [ ] @engineer Refactor `agent-prompts/captain.md` opening section to use standardized headers (adapted for orchestrator context).
+- [x] @engineer Refactor `agent-prompts/tester.md` to standardized opening.
+- [x] @engineer Refactor `agent-prompts/reviewer.md` to standardized opening.
+- [x] @engineer Refactor `agent-prompts/captain.md` opening section to use standardized headers (adapted for orchestrator context).
 
 ### Slice 2 — Five new agent prompts
-- [ ] @engineer Write `agent-prompts/debugger.md` (model: sonnet; tools: Read, Grep, Glob, Bash).
-- [ ] @engineer Write `agent-prompts/designer.md` (model: sonnet; tools: Read, Edit, Bash). Include Playwright lazy-install + screenshot loop instructions.
-- [ ] @engineer Write `agent-prompts/runner.md` (model: sonnet; tools: Read, Bash). Include lazy-install Playwright if endpoint testing needs a browser; otherwise curl/CLI is fine.
-- [ ] @engineer Write `agent-prompts/auditor.md` (model: opus; tools: Read, Grep, Glob, Write). Writes findings to `review.md` under `## Security audit (auditor)`.
-- [ ] @engineer Write `agent-prompts/documenter.md` (model: haiku; tools: Read, Edit).
+- [x] @engineer Write `agent-prompts/debugger.md` (model: sonnet; tools: Read, Grep, Glob, Bash).
+- [x] @engineer Write `agent-prompts/designer.md` (model: sonnet; tools: Read, Edit, Bash). Include Playwright lazy-install + screenshot loop instructions.
+- [x] @engineer Write `agent-prompts/runner.md` (model: sonnet; tools: Read, Bash). Include lazy-install Playwright if endpoint testing needs a browser; otherwise curl/CLI is fine.
+- [x] @engineer Write `agent-prompts/auditor.md` (model: opus; tools: Read, Grep, Glob, Write). Writes findings to `review.md` under `## Security audit (auditor)`.
+- [x] @engineer Write `agent-prompts/documenter.md` (model: haiku; tools: Read, Edit).
 
 ### Slice 3 — Captain prompt updates
-- [ ] @engineer Add all 5 new agents to captain dispatch rules section in `agent-prompts/captain.md`.
-- [ ] @engineer Add SRD step to captain planning phase: scout returns → captain drafts `.team/srd.md` with user → user confirms → captain drafts `plan.md` → approval → execution.
-- [ ] @engineer Add captain section: "Conditional dispatch triggers" — when to invoke designer/runner/auditor/debugger/documenter.
-- [ ] @engineer Extend effort-level table in captain to cover new agents.
+- [x] @engineer Add all 5 new agents to captain dispatch rules section in `agent-prompts/captain.md`.
+- [x] @engineer Add SRD step to captain planning phase: scout returns → captain drafts `.team/srd.md` with user → user confirms → captain drafts `plan.md` → approval → execution.
+- [x] @engineer Add captain section: "Conditional dispatch triggers" — when to invoke designer/runner/auditor/debugger/documenter.
+- [x] @engineer Extend effort-level table in captain to cover new agents.
 
 ### Slice 4 — SRD artifact wiring
-- [ ] @engineer Add `'srd.md'` to `TEAM_FILE_NAMES` in `packages/wrapper/src/team-files.ts`.
-- [ ] @engineer Add `srd` field to `TeamFiles` interface in `packages/shared/src/types.ts`.
-- [ ] @engineer Update `readAllTeamFiles` to include `srd.md`.
-- [ ] @engineer Initialize `.team/srd.md` (empty stub or placeholder header) in `packages/wrapper/src/worktree.ts`.
-- [ ] @engineer Create `packages/cli/src/commands/srd.ts` mirroring `plan.ts` (with `__test__` export for the render function).
-- [ ] @engineer Register `srdCommand()` in `packages/cli/src/index.ts` (alphabetical, between `purge` and `start`).
-- [ ] @engineer Add `team srd <id>` to the command list in `packages/cli/src/commands/help-info.ts`.
+- [x] @engineer Add `'srd.md'` to `TEAM_FILE_NAMES` in `packages/wrapper/src/team-files.ts`.
+- [x] @engineer Add `srd` field to `TeamFiles` interface in `packages/shared/src/types.ts`.
+- [x] @engineer Update `readAllTeamFiles` to include `srd.md`.
+- [x] @engineer Initialize `.team/srd.md` (empty stub or placeholder header) in `packages/wrapper/src/worktree.ts`.
+- [x] @engineer Create `packages/cli/src/commands/srd.ts` mirroring `plan.ts` (with `__test__` export for the render function).
+- [x] @engineer Register `srdCommand()` in `packages/cli/src/index.ts` (alphabetical, between `purge` and `start`).
+- [x] @engineer Add `team srd <id>` to the command list in `packages/cli/src/commands/help-info.ts`.
 
 ### Slice 5 — Landing page
 - [ ] @engineer Extend `AgentId` union and `AGENTS` array in `apps/landing/app/agents.ts` with 5 new entries (id, label, title, description, color, status).
