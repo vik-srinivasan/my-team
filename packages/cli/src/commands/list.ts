@@ -8,6 +8,7 @@ import {
   truncate,
   humanizeAgo,
   phaseColor,
+  effectivePhase,
   getAttention,
   colorAttnGlyph,
   compareByAttention,
@@ -107,7 +108,9 @@ function renderTable(
     attn: getAttention(s),
     id: truncate(s.id, W_ID),
     title: truncate(s.title, titleWidth),
-    phase: s.phase,
+    // PHASE derived from active_specialist when one is running, so the
+    // column stays accurate even if state.json's `phase` is stale.
+    phase: effectivePhase(s),
     repo: truncate(basename(s.source_repo), W_REPO),
     age: humanizeAgo(s.created_at),
   }));

@@ -8,6 +8,7 @@ import {
   truncate,
   humanizeAgo,
   phaseColor,
+  effectivePhase,
   getAttention,
   colorAttnGlyph,
   compareByAttention,
@@ -123,7 +124,9 @@ async function drawOnce(intervalSec: number): Promise<void> {
       padEndVisible(colorAttnGlyph(att), W_ATTN),
       padEndVisible(truncate(s.id, W_ID), W_ID),
       padEndVisible(truncate(s.title, titleWidth), titleWidth),
-      padEndVisible(phaseColor(s.phase), W_PHASE),
+      // PHASE derived from active_specialist when one is running, so the
+      // column stays accurate even if state.json's `phase` is stale.
+      padEndVisible(phaseColor(effectivePhase(s)), W_PHASE),
     ];
     if (showRepo) parts.push(padEndVisible(chalk.dim(truncate(basename(s.source_repo), W_REPO)), W_REPO));
     parts.push(padEndVisible(humanizeAgo(s.created_at), W_AGE));

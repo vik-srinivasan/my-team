@@ -44,6 +44,7 @@ describe('HTTP API integration', () => {
   let captainPromptPath: string;
   let clearMustAskHookPath: string;
   let stopHookPath: string;
+  let askQuestionHookPath: string;
   let registryPath: string;
   let registryDir: string;
 
@@ -65,6 +66,8 @@ describe('HTTP API integration', () => {
     execSync(`echo "#!/usr/bin/env bash" > "${clearMustAskHookPath}"`, { cwd: tempRepo });
     stopHookPath = join(tempRepo, 'mark-must-ask.sh');
     execSync(`echo "#!/usr/bin/env bash" > "${stopHookPath}"`, { cwd: tempRepo });
+    askQuestionHookPath = join(tempRepo, 'mark-must-ask-on-question.sh');
+    execSync(`echo "#!/usr/bin/env bash" > "${askQuestionHookPath}"`, { cwd: tempRepo });
 
     // Isolate the recents registry so tests don't touch the real ~/team/recents.json
     registryDir = await mkdtemp(join(tmpdir(), 'my-team-registry-'));
@@ -85,6 +88,7 @@ describe('HTTP API integration', () => {
       captainPromptPath,
       clearMustAskHookPath,
       stopHookPath,
+      askQuestionHookPath,
     );
     const server = createServer({ sessionManager, log });
     app = server.app;
@@ -135,9 +139,9 @@ describe('HTTP API integration', () => {
     expect(meta.title).toBe('Test Feature');
     expect(meta.source_repo).toBe(tempRepo);
 
-    // Verify .claude/settings.json was written with both the UserPromptSubmit
-    // and Stop hooks pointing at the (absolute) hook script paths the wrapper
-    // was configured with.
+    // Verify .claude/settings.json was written with all three captain
+    // hooks (UserPromptSubmit, Stop, PreToolUse) pointing at the
+    // (absolute) hook script paths the wrapper was configured with.
     const settingsPath = join(worktreePath, '.claude', 'settings.json');
     expect(existsSync(settingsPath)).toBe(true);
     const settings = JSON.parse(await readFile(settingsPath, 'utf-8'));
@@ -153,6 +157,12 @@ describe('HTTP API integration', () => {
           {
             matcher: '',
             hooks: [{ type: 'command', command: stopHookPath }],
+          },
+        ],
+        PreToolUse: [
+          {
+            matcher: 'AskUserQuestion',
+            hooks: [{ type: 'command', command: askQuestionHookPath }],
           },
         ],
       },

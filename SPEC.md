@@ -173,7 +173,14 @@ Decision: Reused AuthMiddleware — plan said "follow existing endpoint conventi
 }
 ```
 
-Each session worktree's `.claude/settings.json` registers a `UserPromptSubmit` hook that resets `must_ask_pending` to `[]` whenever the user submits a message, so the captain only has to push entries — clearing is mechanical. Pre-existing sessions created before this hook was introduced do not get it; only new sessions benefit from the auto-clear behavior.
+The AT column in `team watch` / `team list` lights up (red `●`) when `must_ask_pending` is non-empty, or yellow `⚠` when `phase === 'blocked'`. Two hooks keep `must_ask_pending` accurate without captain effort:
+- `UserPromptSubmit` → `clear-must-ask.sh` resets the array on every user reply.
+- `PreToolUse` (matcher: `AskUserQuestion`) → `mark-must-ask-on-question.sh` pushes a generic entry the moment the captain opens a multi-choice question form, so AT lights up before the captain's turn even ends.
+- `Stop` → `mark-must-ask.sh` is a safety net at end-of-turn for plain-prose questions.
+
+The PHASE column is derived from `active_specialist` when a specialist is running (engineer → executing, tester/reviewer → reviewing, scout → scouting), so a stale `phase` field in `state.json` doesn't show up as the wrong label. The wrapper also auto-heals stale `awaiting_approval` paired with a real `active_specialist` on every refresh.
+
+Pre-existing sessions created before these hooks were introduced do not get them; only new sessions benefit from the auto-clear / auto-mark behavior. The wrapper-side auto-heal and PHASE-derivation cover in-flight sessions visually.
 
 ### 4.3 Session phases (state machine)
 
