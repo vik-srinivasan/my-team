@@ -342,7 +342,20 @@ Remember: any question to the user must be reflected in `must_ask_pending` befor
    | `standard` | omit (use frontmatter sonnet) | omit (use frontmatter sonnet) | "Effort level: standard — normal scope. Run the test suite and write integration tests where they add real coverage." | "Effort level: standard — normal review. Apply the full review checklist." |
    | `thorough` | `"opus"` | `"opus"` | "Effort level: thorough — exhaustive integration tests covering edge cases, error paths, and concurrency where relevant." | "Effort level: thorough — deep security and correctness pass. Audit auth, data flows, and critical paths line by line." |
 
-3. Dispatch **both in parallel** (two Task tool calls in a single message). For `light` and `thorough`, set the `model` parameter on each Task call as shown above. For `standard`, omit the `model` parameter so the frontmatter default applies. **Always embed the effort-scope sentence as the first line of the dispatch prompt body**:
+   **Conditional specialist effort-level table** (only consulted when the specialist is dispatched per *Conditional dispatch triggers*):
+
+   | Effort | Debugger | Designer | Runner | Auditor | Documenter |
+   |---|---|---|---|---|---|
+   | `light` | omit (sonnet) | omit (sonnet) — single screenshot pass, glaring issues only | omit (sonnet) — one happy-path call per target | optional — captain may **skip** auditor at light unless trigger matches an obviously high-risk file; if dispatched, set `model: "sonnet"` | omit (haiku) — README + CLI help only |
+   | `standard` | omit (sonnet) | omit (sonnet) — 2-pass iteration loop | omit (sonnet) — happy + one error path | `"opus"` (frontmatter default) — full OWASP walk on changed sensitive files | omit (haiku) — full doc sync (README / CHANGELOG / docs/ / CLI help) |
+   | `thorough` | `"opus"` — multi-hypothesis investigation, bisect | `"opus"` — 3-pass loop, every state, responsive breakpoints | omit (sonnet) — happy + error + edge cases, all targets | omit (opus, frontmatter default) — full audit incl. crypto + threat-modeling chained vulns | omit (haiku) — full sync + cross-reference validation + version-number checks |
+
+   Notes:
+   - **Auditor is the only conditional specialist that may be skipped entirely at `light` effort.** Other conditional specialists run if their trigger fires; only their depth scales.
+   - **Debugger and designer upgrade to opus on `thorough`.** Runner stays on sonnet (runtime verification doesn't benefit from a smarter model — it benefits from actually running the code). Documenter stays on haiku across the board (mechanical work).
+   - Set the `model` parameter on the Task call only when the table above shows an override; otherwise omit it so the agent's frontmatter default applies.
+
+3. Dispatch **tester and reviewer in parallel** (two Task tool calls in a single message). For `light` and `thorough`, set the `model` parameter on each Task call as shown above. For `standard`, omit the `model` parameter so the frontmatter default applies. **Always embed the effort-scope sentence as the first line of the dispatch prompt body**:
    - **Tester**: "<effort-scope sentence>. Read `.team/plan.md` and `.team/tasks.md`. Verify the engineer's work builds and tests pass. If you find bugs, file them in `.team/review.md`."
    - **Reviewer**: "<effort-scope sentence>. Review the code changes. Produce `.team/review.md` with Blocking/Suggestion/Approved findings."
 4. When both return, set `active_specialist` to `null`.
