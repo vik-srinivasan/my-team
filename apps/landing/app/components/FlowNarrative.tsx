@@ -23,7 +23,6 @@ function AgentCard({ agent, index, number, variant, reduced }: AgentCardProps) {
 
   return (
     <motion.li
-      key={agent.id}
       initial={initial}
       whileInView={{ opacity: 1, x: 0, y: 0 }}
       viewport={{ once: true, margin: '-80px' }}
@@ -110,7 +109,7 @@ export default function FlowNarrative() {
 
         {/* Captain — stands alone as the orchestrator. */}
         {CAPTAIN && (
-          <ol className="mt-16 space-y-10 md:space-y-14">
+          <ol start={1} className="mt-16 space-y-10 md:space-y-14">
             <AgentCard
               agent={CAPTAIN}
               index={0}
@@ -127,7 +126,7 @@ export default function FlowNarrative() {
           count={CORE.length}
           blurb="Dispatched on every session, in order, no triggers required. They turn a single command into a planned, tested, reviewed pull request."
         />
-        <ol className="space-y-10 md:space-y-14">
+        <ol start={2} className="space-y-10 md:space-y-14">
           {CORE.map((agent, i) => (
             <AgentCard
               key={agent.id}
@@ -146,7 +145,7 @@ export default function FlowNarrative() {
           count={OPTIONAL.length}
           blurb="Dispatched only when the captain detects their trigger — a UI change for the designer, a stalled engineer for the debugger, sensitive files for the auditor, and so on."
         />
-        <ol className="space-y-10 md:space-y-14">
+        <ol start={2 + CORE.length} className="space-y-10 md:space-y-14">
           {OPTIONAL.map((agent, i) => (
             <AgentCard
               key={agent.id}

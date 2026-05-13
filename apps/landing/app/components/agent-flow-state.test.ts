@@ -39,7 +39,9 @@ describe('flowReducer', () => {
 
 describe('arcPoints', () => {
   it('returns an empty array for zero count', () => {
-    expect(arcPoints(0)).toEqual([]);
+    expect(
+      arcPoints(0, { centerX: 0, centerY: 0, radius: 100, startDeg: 0, endDeg: 90 }),
+    ).toEqual([]);
   });
 
   it('places a single point at the midpoint angle', () => {

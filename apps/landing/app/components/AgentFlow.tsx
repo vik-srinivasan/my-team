@@ -36,7 +36,7 @@ const CORE_NODES = arcPoints(CORE_SPECIALISTS.length, {
   centerY: CAPTAIN.y,
   radius: CORE_RADIUS,
   startDeg: -90,
-  endDeg: -90 + 270, // 4 evenly-spaced points across a full circle
+  endDeg: -90 + 270, // 4 cardinal points spaced 90° apart (top, right, bottom, left)
 });
 
 const OPTIONAL_NODES = arcPoints(OPTIONAL_SPECIALISTS.length, {
@@ -44,7 +44,7 @@ const OPTIONAL_NODES = arcPoints(OPTIONAL_SPECIALISTS.length, {
   centerY: CAPTAIN.y,
   radius: OPTIONAL_RADIUS,
   startDeg: -54, // -90 + 36° offset
-  endDeg: -54 + 288, // 5 evenly-spaced points across a full circle
+  endDeg: -54 + 288, // 5 points spaced 72° apart, offset 36° from the inner ring
 });
 
 // `arcPoints` includes both endpoints, so a "full circle" needs (count - 1)
@@ -151,6 +151,11 @@ export default function AgentFlow() {
         viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
         className="block w-full h-auto"
         xmlns="http://www.w3.org/2000/svg"
+        // The arrive-pulse ring scales optional nodes to 2.2× radius. The
+        // bottom-most outer node sits at y≈485, so the pulse can reach
+        // y≈529 — 9px outside the 520-tall viewBox. `overflow="visible"`
+        // prevents silent clipping without compromising the pulse scale.
+        overflow="visible"
         aria-hidden="true"
       >
         <defs>
