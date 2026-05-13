@@ -89,6 +89,22 @@ export function phaseColor(phase: string): string {
   }
 }
 
+/**
+ * Derive the phase to display from `active_specialist` when a real specialist
+ * is running, falling back to `s.phase` otherwise. Lets the PHASE column
+ * stay accurate even when the captain forgot to advance state.json.
+ */
+export function effectivePhase(s: Pick<SessionSummary, 'phase' | 'active_specialist'>): SessionPhase {
+  switch (s.active_specialist) {
+    case 'engineer':         return 'executing';
+    case 'tester':
+    case 'reviewer':
+    case 'tester+reviewer':  return 'reviewing';
+    case 'scout':            return 'scouting';
+    default:                 return s.phase;
+  }
+}
+
 // ── Attention derivation ───────────────────────────────────────────────
 
 export interface AttentionInfo {

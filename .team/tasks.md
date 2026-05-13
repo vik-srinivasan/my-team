@@ -5,9 +5,9 @@
 ### A. Display fixes (format.ts + commands)
 - [x] @engineer In `packages/cli/src/format.ts`: drop the `phase === 'awaiting_approval'` critical branch from `getAttention()`. — stale test assertions in `format.test.ts` flipped to new behavior in the same commit.
 - [x] @engineer In `packages/cli/src/format.ts`: update `compareByAttention()` — collapse the awaiting_approval rank-0 bucket into rank 2 (must_ask). — `list.test.ts` sort assertions updated to match.
-- [ ] @engineer In `packages/cli/src/format.ts`: add `effectivePhase(s: SessionSummary): SessionPhase` mapping active_specialist → canonical phase.
-- [ ] @engineer In `packages/cli/src/commands/list.ts`: render PHASE column via `effectivePhase(s)`.
-- [ ] @engineer In `packages/cli/src/commands/watch.ts`: same.
+- [x] @engineer In `packages/cli/src/format.ts`: add `effectivePhase(s: SessionSummary): SessionPhase` mapping active_specialist → canonical phase.
+- [x] @engineer In `packages/cli/src/commands/list.ts`: render PHASE column via `effectivePhase(s)`.
+- [x] @engineer In `packages/cli/src/commands/watch.ts`: same.
 
 ### B. Wrapper auto-heal
 - [x] @engineer In `packages/wrapper/src/session-manager.ts`: extend `refreshStateFromDisk()` to auto-heal stale `awaiting_approval` when active_specialist is set to a real specialist. Atomic write. Log `warn` when healing fires. — heal logic via new pure `healedPhaseFor()` helper; write wrapped in its own try/catch.
