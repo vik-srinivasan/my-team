@@ -538,6 +538,53 @@ describe('HTTP API integration', () => {
     expect(listAfterClean.body.find((s: { id: string }) => s.id === sessionId)).toBeUndefined();
   });
 
+  it('DELETE /api/sessions/:id on a done session removes worktree and evicts from registry', async () => {
+    // Exercises the HTTP route end-to-end (cleanSession called via DELETE, not directly).
+    // Complements the existing direct-call test above.
+    const createRes = await request(app)
+      .post('/api/sessions')
+      .send({ source_repo: tempRepo, title: 'DELETE Route Teardown Test' });
+    expect(createRes.status).toBe(201);
+    const sessionId = createRes.body.id;
+    const worktreePath = createRes.body.worktree_path;
+    expect(existsSync(worktreePath)).toBe(true);
+
+    // Flip to done (mimics captain completing the PR flow).
+    const doneState = {
+      phase: 'done',
+      active_specialist: null,
+      review_iterations: 1,
+      max_review_iterations: 8,
+      last_checkpoint: new Date().toISOString(),
+      blockers: [],
+      must_ask_pending: [],
+    };
+    await writeFile(
+      join(worktreePath, '.team', 'state.json'),
+      JSON.stringify(doneState, null, 2),
+    );
+
+    // Kill captain process first (DELETE calls cleanSession which requires captain stopped).
+    const killRes = await request(app).post(`/api/sessions/${sessionId}/kill`);
+    expect(killRes.status).toBe(202);
+
+    // DELETE should succeed (200 ok).
+    const deleteRes = await request(app).delete(`/api/sessions/${sessionId}`);
+    expect(deleteRes.status).toBe(200);
+    expect(deleteRes.body.ok).toBe(true);
+
+    // Worktree must be gone from disk.
+    expect(existsSync(worktreePath)).toBe(false);
+
+    // Session must be evicted from the registry — list returns empty, detail returns 404.
+    const listAfterDelete = await request(app).get('/api/sessions');
+    expect(listAfterDelete.body.find((s: { id: string }) => s.id === sessionId)).toBeUndefined();
+
+    const detailAfterDelete = await request(app).get(`/api/sessions/${sessionId}`);
+    expect(detailAfterDelete.status).toBe(404);
+    expect(detailAfterDelete.body.code).toBe('SESSION_NOT_FOUND');
+  });
+
   it('full lifecycle: create → list → status → kill', async () => {
     // Create
     const createRes = await request(app)
