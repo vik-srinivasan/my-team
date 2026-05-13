@@ -212,13 +212,12 @@ const CLI_GROUPS: readonly CliGroup[] = [
     id: 'inspect',
     heading: 'Inspect',
     commands: [
-      { name: 'team logs <id>', description: 'Print the journal for a session.' },
+      { name: 'team logs <id>', description: "Tail the wrapper's pino log for a session." },
       {
         name: 'team notifications',
-        flags: '--clear',
-        description: 'Show blocked-session alerts.',
+        description: 'List pending notifications for blocked sessions.',
       },
-      { name: 'team help', description: 'Workflow summary.' },
+      { name: 'team help', description: 'Workflow + command reference, plus daemon status.' },
     ],
   },
   {
