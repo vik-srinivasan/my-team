@@ -36,15 +36,7 @@ export interface ArcConfig {
   readonly endDeg: number;
 }
 
-export const DEFAULT_ARC: ArcConfig = {
-  centerX: 170,
-  centerY: 210,
-  radius: 270,
-  startDeg: -55,
-  endDeg: 55,
-};
-
-export function arcPoints(count: number, arc: ArcConfig = DEFAULT_ARC): readonly NodePoint[] {
+export function arcPoints(count: number, arc: ArcConfig): readonly NodePoint[] {
   if (count <= 0) return [];
   const points: NodePoint[] = [];
   for (let i = 0; i < count; i++) {
