@@ -11,12 +11,12 @@
 - [x] @engineer Build CLI: `pnpm --filter @my-team/cli build`.
 
 ## Testing
-- [ ] @tester Run `pnpm test` — full suite green.
-- [ ] @tester Verify `team jump <this-session-id>` prints the expected path; `team jump bogus-id` errors with exit 1.
-- [ ] @tester Verify `cd "$(team jump <this-session-id>)"` works in a real shell.
+- [x] @tester Run `pnpm test` — full suite green.
+- [x] @tester Verify `team jump <this-session-id>` prints the expected path; `team jump bogus-id` errors with exit 1.
+- [x] @tester Verify `cd "$(team jump <this-session-id>)"` works in a real shell.
 
 ## Review
-- [ ] @reviewer Code review pass.
+- [x] @reviewer Code review pass.
 
 ## Git
 - [ ] @captain Push branch and open PR.

@@ -26,3 +26,25 @@ Verification:
 - pnpm test passes: 20 files / 162 tests, including 2 new tests in jump.test.ts.
 - Smoke tests against the built dist: `team jump calm-brook-81` prints the bare path; `team jump bogus-id` writes red error to stderr and exits 1; `cd "$(team jump calm-brook-81)"` succeeds.
 
+
+## 2026-05-13T02:05:00Z — captain
+Action: Engineer finished (3 commits, 162/162 tests passing). Dispatching tester + reviewer in parallel.
+
+## 2026-05-13T02:40:00Z — tester
+Completed: Full integration verification of `team jump <id>` command.
+Tests written: none (engineer's unit tests in jump.test.ts were sufficient; integration verified via CLI invocation)
+Tests passed: 162 (full pnpm test suite — 20 files, 162 tests, all green)
+Tests failed: 0
+Bugs filed: none
+
+Verified manually:
+1. `node packages/cli/dist/index.js jump calm-brook-81` → prints `/Users/vik/team/sessions/calm-brook-81`, exit 0, no ANSI bleed on stdout.
+2. `node packages/cli/dist/index.js jump does-not-exist-xyz` → stderr: "Session 'does-not-exist-xyz' not found. Run 'team list' to see active sessions." (chalk red, stripped), exit 1, stdout empty.
+3. `cd "$(node packages/cli/dist/index.js jump calm-brook-81)" && pwd` → `/Users/vik/team/sessions/calm-brook-81` (shell composition works).
+4. `team help` → `jump` listed in session-lifecycle section; `tj()` snippet present in Shell Integration block.
+
+## 2026-05-13T03:00:00Z — reviewer
+Completed: Review pass 1
+Blockers: 0
+Suggestions: 2 (test style note, as never cast style nit)
+Verdict: Approved
