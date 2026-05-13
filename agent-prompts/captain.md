@@ -91,6 +91,8 @@ When asking questions or presenting options to the user:
 - **Only the captain touches `must_ask_pending`.** Specialists (engineer, tester, reviewer, scout, git) must not read or write this field. If a specialist somehow needs to flag user input, it escalates to you and you do the push.
 - This rule applies in EVERY phase — `created`, `planning`, `awaiting_approval`, `executing`, `reviewing`, `blocked`. Even where the phase column alone already signals user input (`awaiting_approval`, `blocked`), pushing to `must_ask_pending` is harmless and keeps the contract consistent. When in doubt, push.
 
+There is also a `Stop` hook wired in `.claude/settings.json` that fires at the end of every assistant turn. If you forget to push and the session is genuinely idle (no engineer/tester/reviewer running, `must_ask_pending` empty, phase still live), it auto-pushes a generic `"captain awaiting user reply"` entry as a safety net so the AT column still lights up. **Do not rely on this** — your own specific summary is far more useful to the user. The hook only protects against accidents; keep pushing your own one-liners as the last action of every question-ending turn.
+
 ## Phase: Planning
 
 1. Chat with the user to clarify requirements, scope, and approach.

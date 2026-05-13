@@ -43,6 +43,7 @@ describe('HTTP API integration', () => {
   let app: ReturnType<typeof createServer>['app'];
   let captainPromptPath: string;
   let clearMustAskHookPath: string;
+  let stopHookPath: string;
   let registryPath: string;
   let registryDir: string;
 
@@ -59,9 +60,11 @@ describe('HTTP API integration', () => {
     captainPromptPath = join(tempRepo, 'captain.md');
     execSync(`echo "# Captain" > "${captainPromptPath}"`, { cwd: tempRepo });
 
-    // Stub hook script — content doesn't matter for these tests, only the path.
+    // Stub hook scripts — content doesn't matter for these tests, only the paths.
     clearMustAskHookPath = join(tempRepo, 'clear-must-ask.sh');
     execSync(`echo "#!/usr/bin/env bash" > "${clearMustAskHookPath}"`, { cwd: tempRepo });
+    stopHookPath = join(tempRepo, 'mark-must-ask.sh');
+    execSync(`echo "#!/usr/bin/env bash" > "${stopHookPath}"`, { cwd: tempRepo });
 
     // Isolate the recents registry so tests don't touch the real ~/team/recents.json
     registryDir = await mkdtemp(join(tmpdir(), 'my-team-registry-'));
@@ -77,7 +80,12 @@ describe('HTTP API integration', () => {
 
   beforeEach(() => {
     const log = pino({ level: 'silent' });
-    sessionManager = new SessionManager(log, captainPromptPath, clearMustAskHookPath);
+    sessionManager = new SessionManager(
+      log,
+      captainPromptPath,
+      clearMustAskHookPath,
+      stopHookPath,
+    );
     const server = createServer({ sessionManager, log });
     app = server.app;
   });
@@ -127,8 +135,9 @@ describe('HTTP API integration', () => {
     expect(meta.title).toBe('Test Feature');
     expect(meta.source_repo).toBe(tempRepo);
 
-    // Verify .claude/settings.json was written with the UserPromptSubmit hook
-    // pointing at the (absolute) hook script path the wrapper was configured with.
+    // Verify .claude/settings.json was written with both the UserPromptSubmit
+    // and Stop hooks pointing at the (absolute) hook script paths the wrapper
+    // was configured with.
     const settingsPath = join(worktreePath, '.claude', 'settings.json');
     expect(existsSync(settingsPath)).toBe(true);
     const settings = JSON.parse(await readFile(settingsPath, 'utf-8'));
@@ -138,6 +147,12 @@ describe('HTTP API integration', () => {
           {
             matcher: '',
             hooks: [{ type: 'command', command: clearMustAskHookPath }],
+          },
+        ],
+        Stop: [
+          {
+            matcher: '',
+            hooks: [{ type: 'command', command: stopHookPath }],
           },
         ],
       },

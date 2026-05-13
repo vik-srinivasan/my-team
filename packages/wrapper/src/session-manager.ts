@@ -61,15 +61,30 @@ interface ManagedSession {
   diffTimer: ReturnType<typeof setTimeout> | null;
 }
 
+export interface CaptainHookPaths {
+  /** Absolute path to the `UserPromptSubmit` hook script (clears `must_ask_pending`). */
+  clearMustAskHookPath: string;
+  /** Absolute path to the `Stop` hook script (auto-pushes a generic must_ask entry). */
+  stopHookPath: string;
+}
+
 /**
  * Builds the `.claude/settings.json` payload installed in every captain
- * worktree. Wires our `UserPromptSubmit` hook so the must_ask_pending
- * queue clears the moment the user replies. Exported (not free-standing
- * inside the class) so tests can assert the exact shape without touching
- * the rest of `SessionManager`.
+ * worktree. Wires two hooks:
+ *
+ * - `UserPromptSubmit` clears `must_ask_pending` the instant the user
+ *   replies, so the `team watch` AT column drops as soon as the user is
+ *   no longer the bottleneck.
+ * - `Stop` runs at the end of every captain assistant turn. If the
+ *   captain forgot to push a specific summary AND no long-running
+ *   specialist owns the next move, the hook pushes a generic safety-net
+ *   entry into `must_ask_pending` so the AT column still lights up.
+ *
+ * Exported (not free-standing inside the class) so tests can assert the
+ * exact shape without touching the rest of `SessionManager`.
  */
 export function buildCaptainSettings(
-  clearMustAskHookPath: string,
+  paths: CaptainHookPaths,
 ): Record<string, unknown> {
   return {
     hooks: {
@@ -79,7 +94,18 @@ export function buildCaptainSettings(
           hooks: [
             {
               type: 'command',
-              command: clearMustAskHookPath,
+              command: paths.clearMustAskHookPath,
+            },
+          ],
+        },
+      ],
+      Stop: [
+        {
+          matcher: '',
+          hooks: [
+            {
+              type: 'command',
+              command: paths.stopHookPath,
             },
           ],
         },
@@ -93,16 +119,19 @@ export class SessionManager extends EventEmitter<SessionManagerEventMap> {
   private log: Logger;
   private captainPromptPath: string;
   private clearMustAskHookPath: string;
+  private stopHookPath: string;
 
   constructor(
     log: Logger,
     captainPromptPath: string,
     clearMustAskHookPath: string,
+    stopHookPath: string,
   ) {
     super();
     this.log = log;
     this.captainPromptPath = captainPromptPath;
     this.clearMustAskHookPath = clearMustAskHookPath;
+    this.stopHookPath = stopHookPath;
   }
 
   async createSession(sourceRepo: string, title: string, cols?: number, rows?: number): Promise<Session> {
@@ -519,24 +548,36 @@ export class SessionManager extends EventEmitter<SessionManagerEventMap> {
   }
 
   /**
-   * Writes the worktree-local `.claude/settings.json` that registers the
-   * `UserPromptSubmit` hook. The hook clears `must_ask_pending` in
-   * `.team/state.json` on every user reply, so the `team watch` AT column
-   * drops the moment the user is no longer the bottleneck.
+   * Writes the worktree-local `.claude/settings.json` that registers both
+   * captain hooks:
    *
-   * The command path is absolute (resolved from the wrapper install root)
-   * so it works regardless of the captain's cwd.
+   * - `UserPromptSubmit` clears `must_ask_pending` on every user reply, so
+   *   the `team watch` AT column drops the moment the user is no longer
+   *   the bottleneck.
+   * - `Stop` auto-pushes a generic safety-net `must_ask_pending` entry at
+   *   the end of every captain turn that ends idle, so the AT column is
+   *   reliable even when the captain forgets to push a specific summary.
+   *
+   * Both command paths are absolute (resolved from the wrapper install
+   * root) so they work regardless of the captain's cwd.
    */
   private async writeCaptainHooks(worktreePath: string): Promise<void> {
     const settingsDir = join(worktreePath, '.claude');
     const settingsPath = join(settingsDir, 'settings.json');
-    const settings = buildCaptainSettings(this.clearMustAskHookPath);
+    const settings = buildCaptainSettings({
+      clearMustAskHookPath: this.clearMustAskHookPath,
+      stopHookPath: this.stopHookPath,
+    });
 
     await mkdir(settingsDir, { recursive: true });
     await writeFile(settingsPath, JSON.stringify(settings, null, 2));
     this.log.debug(
-      { worktreePath, hookPath: this.clearMustAskHookPath },
-      'Wrote captain UserPromptSubmit hook config',
+      {
+        worktreePath,
+        clearMustAskHookPath: this.clearMustAskHookPath,
+        stopHookPath: this.stopHookPath,
+      },
+      'Wrote captain UserPromptSubmit + Stop hook config',
     );
   }
 
