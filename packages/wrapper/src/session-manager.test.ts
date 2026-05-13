@@ -1,6 +1,33 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
+import { mkdtemp, rm, writeFile, readFile, mkdir } from 'node:fs/promises';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
+import { execSync } from 'node:child_process';
+import { realpath } from 'node:fs/promises';
+import pino from 'pino';
 
-import { buildCaptainSettings, healedPhaseFor } from './session-manager.js';
+import { buildCaptainSettings, healedPhaseFor, SessionManager } from './session-manager.js';
+
+// Mock claude process so tests don't actually spawn claude (mirrors server.test.ts).
+vi.mock('./claude-process.js', async () => {
+  const { EventEmitter } = await import('node:events');
+
+  class MockCaptainProcess extends EventEmitter {
+    pid = 99999;
+    running = true;
+
+    write = vi.fn();
+    kill = vi.fn(() => {
+      this.running = false;
+    });
+    resize = vi.fn();
+  }
+
+  return {
+    CaptainProcess: MockCaptainProcess,
+    spawnCaptain: vi.fn(async () => new MockCaptainProcess()),
+  };
+});
 
 describe('buildCaptainSettings', () => {
   const PATHS = {
@@ -172,5 +199,124 @@ describe('healedPhaseFor', () => {
         active_specialist: 'scout',
       }),
     ).toBe('scouting');
+  });
+});
+
+describe('refreshStateFromDisk auto-heal integration', () => {
+  let tempRepo: string;
+  let sessionManager: SessionManager;
+  let captainPromptPath: string;
+  let clearMustAskHookPath: string;
+  let stopHookPath: string;
+  let askQuestionHookPath: string;
+
+  beforeAll(async () => {
+    tempRepo = await realpath(await mkdtemp(join(tmpdir(), 'sm-heal-test-')));
+    execSync('git init', { cwd: tempRepo });
+    execSync('git checkout -b main', { cwd: tempRepo });
+    execSync('echo "hello" > test.txt', { cwd: tempRepo });
+    execSync('git add .', { cwd: tempRepo });
+    execSync('git commit -m "init"', { cwd: tempRepo });
+
+    captainPromptPath = join(tempRepo, 'captain.md');
+    execSync(`echo "# Captain" > "${captainPromptPath}"`, { cwd: tempRepo });
+    clearMustAskHookPath = join(tempRepo, 'clear-must-ask.sh');
+    execSync(`echo "#!/usr/bin/env bash" > "${clearMustAskHookPath}"`, { cwd: tempRepo });
+    stopHookPath = join(tempRepo, 'mark-must-ask.sh');
+    execSync(`echo "#!/usr/bin/env bash" > "${stopHookPath}"`, { cwd: tempRepo });
+    askQuestionHookPath = join(tempRepo, 'mark-must-ask-on-question.sh');
+    execSync(`echo "#!/usr/bin/env bash" > "${askQuestionHookPath}"`, { cwd: tempRepo });
+  });
+
+  afterAll(async () => {
+    await sessionManager.shutdownAll();
+    await rm(tempRepo, { recursive: true, force: true });
+  });
+
+  it('auto-heals stale awaiting_approval+engineer on listSessions, persists to disk, and logs warn', async () => {
+    // Create a real logger with a spy on warn so we can assert the heal log fires.
+    const warnSpy = vi.fn();
+    const log = {
+      info: vi.fn(),
+      debug: vi.fn(),
+      warn: warnSpy,
+      error: vi.fn(),
+      child: vi.fn().mockReturnThis(),
+      level: 'silent',
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any;
+
+    // Isolate the recents registry so this test doesn't touch the real one.
+    const registryDir = await mkdtemp(join(tmpdir(), 'sm-heal-registry-'));
+    const registryPath = join(registryDir, 'recents.json');
+    const origEnv = process.env['MY_TEAM_REGISTRY_PATH'];
+    process.env['MY_TEAM_REGISTRY_PATH'] = registryPath;
+
+    try {
+      sessionManager = new SessionManager(
+        log,
+        captainPromptPath,
+        clearMustAskHookPath,
+        stopHookPath,
+        askQuestionHookPath,
+      );
+
+      // Create a real session (captain is mocked to be a no-op).
+      const session = await sessionManager.createSession(tempRepo, 'Heal Test');
+      const worktreePath = session.worktree_path;
+      const sessionId = session.meta.id;
+
+      // Write stale state.json: phase=awaiting_approval + active_specialist=engineer.
+      const stateFile = join(worktreePath, '.team', 'state.json');
+      const staleState = {
+        phase: 'awaiting_approval',
+        active_specialist: 'engineer',
+        review_iterations: 0,
+        max_review_iterations: 8,
+        last_checkpoint: '2026-05-12T00:00:00.000Z',
+        blockers: [],
+        must_ask_pending: [],
+      };
+      await writeFile(stateFile, JSON.stringify(staleState, null, 2));
+
+      // listSessions() calls refreshStateFromDisk() on every managed session.
+      const summaries = await sessionManager.listSessions();
+      const row = summaries.find((s) => s.id === sessionId);
+
+      // In-memory state reported by listSessions must show the healed phase.
+      expect(row?.phase).toBe('executing');
+
+      // The stale state.json on disk must have been rewritten with the healed phase.
+      const onDisk = JSON.parse(await readFile(stateFile, 'utf-8')) as { phase: string };
+      expect(onDisk.phase).toBe('executing');
+
+      // The warn logger must have been called with the heal context.
+      expect(warnSpy).toHaveBeenCalled();
+      const warnCall = warnSpy.mock.calls.find(
+        (args: unknown[]) => typeof args[1] === 'string' && (args[1] as string).includes('stale'),
+      ) ?? warnSpy.mock.calls[0];
+      expect(warnCall).toBeTruthy();
+      // The first arg is the object with context; assert key fields.
+      const warnCtx = warnCall[0] as { from?: string; to?: string; specialist?: string };
+      expect(warnCtx.from).toBe('awaiting_approval');
+      expect(warnCtx.to).toBe('executing');
+      expect(warnCtx.specialist).toBe('engineer');
+
+      // Clean up session worktree
+      await sessionManager.killSession(sessionId);
+      try {
+        execSync(`git worktree remove "${worktreePath}" --force`, { cwd: tempRepo });
+        execSync(`git branch -D my-team/${sessionId}`, { cwd: tempRepo });
+      } catch {
+        // best effort
+      }
+    } finally {
+      if (origEnv !== undefined) {
+        process.env['MY_TEAM_REGISTRY_PATH'] = origEnv;
+      } else {
+        delete process.env['MY_TEAM_REGISTRY_PATH'];
+      }
+      await rm(registryDir, { recursive: true, force: true });
+    }
   });
 });
