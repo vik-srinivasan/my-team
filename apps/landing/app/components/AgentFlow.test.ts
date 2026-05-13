@@ -77,10 +77,10 @@ describe('AgentFlow two-orbit layout', () => {
   });
 
   it('uses a smaller font size for optional node labels than core node labels', () => {
-    // Core nodes: fontSize: 11, optional nodes: fontSize: 9. This reinforces
+    // Core nodes: fontSize: 11, optional nodes: fontSize: 10. This reinforces
     // the visual weight difference at the label level.
     expect(flowContent).toContain('fontSize: 11');
-    expect(flowContent).toContain('fontSize: 9');
+    expect(flowContent).toContain('fontSize: 10');
   });
 
   it('renders the outer orbit guide with a dashed stroke pattern', () => {

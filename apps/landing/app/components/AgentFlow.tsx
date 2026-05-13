@@ -92,7 +92,7 @@ const SPECIALIST_NODES: readonly SpecialistNode[] = SPECIALISTS.map((agent) => {
     x: node.x,
     y: node.y,
     r: OPTIONAL_NODE_R,
-    fontSize: 9,
+    fontSize: 10,
     isCore: false,
     path: OPTIONAL_EDGES[idx],
   };
@@ -177,7 +177,7 @@ export default function AgentFlow() {
           cy={CAPTAIN.y}
           r={CORE_RADIUS}
           fill="none"
-          stroke="#1f1f1f"
+          stroke="#303030"
           strokeWidth={1}
         />
         <circle
@@ -185,7 +185,7 @@ export default function AgentFlow() {
           cy={CAPTAIN.y}
           r={OPTIONAL_RADIUS}
           fill="none"
-          stroke="#1a1a1a"
+          stroke="#282828"
           strokeWidth={1}
           strokeDasharray="3 4"
         />
@@ -314,7 +314,7 @@ export default function AgentFlow() {
               />
               <text
                 textAnchor="middle"
-                y={4}
+                y={node.isCore ? 2 : 3}
                 fontFamily="var(--font-mono)"
                 fontSize={node.fontSize}
                 fontWeight={600}
@@ -329,6 +329,16 @@ export default function AgentFlow() {
                 }
               >
                 {agent.label.toLowerCase()}
+              </text>
+              <text
+                textAnchor="middle"
+                y={node.isCore ? 13 : 12}
+                fontFamily="var(--font-mono)"
+                fontSize={6}
+                letterSpacing="0.06em"
+                fill={node.isCore ? '#525252' : '#444444'}
+              >
+                {node.isCore ? 'CORE' : 'OPTIONAL'}
               </text>
             </g>
           );
@@ -383,7 +393,7 @@ export default function AgentFlow() {
           aria-hidden="true"
         />
         <span className="font-mono text-[color:var(--color-muted)]" aria-live="polite">
-          {reduced ? 'Five agents. One pull request.' : activeSpecialist.status}
+          {reduced ? '4 core + 5 optional. One pull request.' : activeSpecialist.status}
         </span>
       </div>
     </div>
