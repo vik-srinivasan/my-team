@@ -31,9 +31,38 @@ describe('Architecture component', () => {
     // Captain is still defined as a centred 260-wide box at x:360
     expect(archContent).toContain('x: 360');
     expect(archContent).toContain('w: 260');
+    // Captain name surfaces somewhere in the rendered tree (label, aria, or text).
+    expect(archContent.toLowerCase()).toContain('captain');
   });
 
-  it('renders all four sub-agents with their produces labels', () => {
+  it('enumerates exactly the nine specialists in the SUB_AGENTS roster (no extras, no omissions)', () => {
+    // Every specialist from the deep-field-47 SRD must appear in the
+    // hardcoded SUB_AGENTS array. This guards against regressions where
+    // someone removes a specialist from the diagram without updating the
+    // SRD/landing copy at the same time.
+    const specialists = [
+      'scout',
+      'engineer',
+      'tester',
+      'reviewer',
+      'debugger',
+      'designer',
+      'runner',
+      'auditor',
+      'documenter',
+    ];
+    for (const name of specialists) {
+      expect(archContent, `Architecture.tsx is missing '${name}'`).toContain(name);
+    }
+    // No leftover specialist names from earlier drafts. We check word-
+    // boundary-style matches so 'Architecture' (the component name)
+    // doesn't false-positive on 'architect'.
+    expect(archContent).not.toMatch(/['"]architect['"]/);
+    expect(archContent).not.toMatch(/['"]copywriter['"]/);
+    expect(archContent).not.toMatch(/['"]doc-syncer['"]/);
+  });
+
+  it('renders the four always-on sub-agents with their produces labels', () => {
     expect(archContent).toContain('scout');
     expect(archContent).toContain('context.md');
     expect(archContent).toContain('engineer');
@@ -42,6 +71,19 @@ describe('Architecture component', () => {
     expect(archContent).toContain('test runs');
     expect(archContent).toContain('reviewer');
     expect(archContent).toContain('review.md');
+  });
+
+  it('renders the five conditional sub-agents flagged via the conditional field', () => {
+    // Each new specialist appears in the SUB_AGENTS array and gets a
+    // conditional: true flag so the rendered box can use a dashed stroke.
+    expect(archContent).toContain('debugger');
+    expect(archContent).toContain('designer');
+    expect(archContent).toContain('runner');
+    expect(archContent).toContain('auditor');
+    expect(archContent).toContain('documenter');
+    // The conditional flag drives the dashed stroke + 'conditional' label.
+    expect(archContent).toContain('conditional: true');
+    expect(archContent).toContain('agent.conditional');
   });
 
   it('renders the three infra nodes (CLI → wrapper → sessions) and not Web UI', () => {

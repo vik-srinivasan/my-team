@@ -42,6 +42,8 @@ const NOTIFICATIONS_DIR = join(homedir(), 'team', 'notifications');
 // Map of .team/ markdown filenames to the canonical TeamFileName broadcast
 // on `team_file` WebSocket events. Only these four files trigger a broadcast;
 // state.json/meta.json/context.md/decisions.md are intentionally excluded.
+// srd.md is also excluded — it's authored once during planning and never
+// streamed, so live broadcast adds no value.
 const BROADCAST_FILES: Record<string, TeamFileName> = {
   'plan.md': 'plan',
   'tasks.md': 'tasks',

@@ -42,13 +42,24 @@ Then `team attach <id>` from any terminal to rejoin the chat.
 
 ## The team
 
-Five agents share a session. The captain drives; the rest are dispatched as Claude Code subagents via the Task tool.
+A captain plus a roster of nine specialists share a session. The captain drives; specialists are dispatched as Claude Code subagents via the Task tool. Four specialists run on every session; the other five are conditional — the captain dispatches them only when their triggers fire.
 
-- **Captain** — The conversational anchor. Plans the work with you, dispatches specialists, ferries feedback, decides when the session is done, and handles the final mile itself: pushes the session branch and opens the pull request.
+- **Captain** — The conversational anchor. Plans the work with you (drafting `srd.md` then `plan.md`), dispatches specialists, ferries feedback, decides when the session is done, and handles the final mile itself: pushes the session branch and opens the pull request.
+
+**Always on**
+
 - **Scout** — Read-only. Maps the codebase before any code is written, surfacing the files, conventions, and gotchas that shape the plan.
 - **Engineer** — Implements the plan task by task. Writes unit tests beside the code, commits to the session branch, leaves a journal entry for the next agent.
 - **Tester** — Adds integration coverage, runs the full suite, files reproducible bug reports as severity-bucketed findings.
 - **Reviewer** — Quality gate. Reads the diff, flags blocking issues, leaves suggestions, and either approves or sends fixes back to the engineer.
+
+**Conditional** (captain dispatches when triggered)
+
+- **Debugger** — Investigation mode. When the engineer stalls on a failing test or unexplained behaviour, debugger reproduces minimally, forms a hypothesis, and hands findings back via the journal.
+- **Designer** — Screenshot-driven visual critique for UI sessions. Boots a dev server, captures key views, calls out hierarchy and spacing issues, hands the engineer a revision list.
+- **Runner** — End-to-end behaviour check. Boots the actual feature like a real caller — dev server, CLI, function — inspects the response, flags any mismatch with the SRD or plan.
+- **Auditor** — Narrow security pass on auth, payments, PII, and migrations. Walks OWASP top-10 categories against sensitive files in the diff and appends findings under a Security audit section in `review.md`.
+- **Documenter** — Keeps README, CHANGELOG, AGENTS, and `docs/` in sync after the engineer commits. Reads the diff for public-surface changes, updates affected docs, commits separately.
 
 ## Commands
 
@@ -65,6 +76,7 @@ Five agents share a session. The captain drives; the rest are dispatched as Clau
 | `team jump <id>` | Print a session's worktree path (use with `cd "$(team jump <id>)"`) |
 | `team kill <id>` | Terminate a session |
 | `team logs <id>` | Print recent journal entries |
+| `team srd <id>` | Pretty-print `.team/srd.md` (captain's session requirements doc) |
 | `team open <id>` | Open a session worktree in VS Code |
 | `team archive <id>` | Archive `.team/` files |
 | `team clean <id>` | Remove session worktree |
@@ -114,7 +126,7 @@ The directory is created relative to your current working directory. Bootstrap e
 
 ## How it works
 
-Each session creates a git worktree at `~/team/sessions/<id>/` and spawns a captain. Agents communicate through a small set of shared files under `.team/` — `plan.md`, `tasks.md`, `journal.md`, `review.md`, `decisions.md`, plus `meta.json` and `state.json`. The captain dispatches scout, engineer, tester, and reviewer as subagents via the Task tool, reading their output back from those files. The captain itself handles the final push and opens the PR. You can read every `.team/` file too.
+Each session creates a git worktree at `~/team/sessions/<id>/` and spawns a captain. Agents communicate through a small set of shared files under `.team/` — `srd.md`, `plan.md`, `tasks.md`, `journal.md`, `review.md`, `decisions.md`, plus `meta.json` and `state.json`. After scout returns with `context.md`, the captain drafts `srd.md` (session requirements doc) with you, then `plan.md` (the implementation approach). The captain dispatches scout, engineer, tester, and reviewer as subagents via the Task tool, and can also dispatch five conditional specialists — debugger (stuck-engineer rescue), designer (UI critique), runner (end-to-end behaviour check), auditor (security pass), documenter (docs updates) — when their triggers fire. The captain itself handles the final push and opens the PR. You can read every `.team/` file too.
 
 A live session looks roughly like this:
 

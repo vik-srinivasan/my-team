@@ -131,7 +131,7 @@ describe('HTTP API integration', () => {
     const teamFiles = await readdir(teamDir);
     expect(teamFiles.sort()).toEqual([
       'context.md', 'decisions.md', 'journal.md',
-      'meta.json', 'plan.md', 'review.md', 'state.json', 'tasks.md',
+      'meta.json', 'plan.md', 'review.md', 'srd.md', 'state.json', 'tasks.md',
     ]);
 
     // Verify meta.json content

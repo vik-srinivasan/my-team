@@ -14,12 +14,14 @@ export default function FlowNarrative() {
             The flow
           </p>
           <h2 className="mt-3 text-balance text-3xl md:text-4xl font-semibold tracking-tight">
-            Five agents, one shared workspace.
+            One captain, a roster of specialists, one shared workspace.
           </h2>
           <p className="mt-4 text-[color:var(--color-muted)] leading-relaxed">
-            Each session is a git worktree on its own branch. Agents communicate exclusively
-            through files in <code className="font-mono text-[color:var(--color-text)]">.team/</code>
-            — plan, tasks, journal, review. No hidden state, no chatter you can&apos;t inspect.
+            Each session is a git worktree on its own branch. Four specialists are always on;
+            five more are dispatched conditionally when their triggers fire. Agents communicate
+            exclusively through files in{' '}
+            <code className="font-mono text-[color:var(--color-text)]">.team/</code> — srd, plan,
+            tasks, journal, review. No hidden state, no chatter you can&apos;t inspect.
           </p>
         </div>
 

@@ -39,6 +39,7 @@ const FILE_TREE: readonly FileNode[] = [
     name: '.team/',
     children: [
       { name: 'meta.json', comment: 'session id, branch, source repo' },
+      { name: 'srd.md', comment: 'session requirements doc — captain drafts with you' },
       { name: 'plan.md', comment: 'captain\'s plan — approved by you' },
       { name: 'context.md', comment: 'scout\'s codebase notes' },
       { name: 'tasks.md', comment: 'todo list for the team' },

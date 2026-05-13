@@ -100,6 +100,7 @@ export async function createWorktree(
   await Promise.all([
     writeFile(join(teamDir, 'meta.json'), JSON.stringify(meta, null, 2)),
     writeFile(join(teamDir, 'state.json'), JSON.stringify(initialState, null, 2)),
+    writeFile(join(teamDir, 'srd.md'), ''),
     writeFile(join(teamDir, 'plan.md'), ''),
     writeFile(join(teamDir, 'context.md'), ''),
     writeFile(join(teamDir, 'tasks.md'), ''),

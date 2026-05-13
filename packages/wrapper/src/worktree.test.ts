@@ -84,6 +84,7 @@ describe('worktree', () => {
         'meta.json',
         'plan.md',
         'review.md',
+        'srd.md',
         'state.json',
         'tasks.md',
       ]);

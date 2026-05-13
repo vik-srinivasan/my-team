@@ -59,20 +59,29 @@ interface SubAgent {
   readonly title: string;
   readonly produces: string;
   readonly stack?: boolean; // render as a deck (engineer ×N)
+  readonly conditional?: boolean; // dispatched only on matching triggers
 }
 
+// Always-on first (the four core specialists), then the five conditional
+// specialists the captain dispatches when triggers fire (visual UI work →
+// designer, security-sensitive files → auditor, etc.).
 const SUB_AGENTS: readonly SubAgent[] = [
   { id: 'scout', title: 'scout', produces: 'context.md' },
   { id: 'engineer', title: 'engineer', produces: 'commits', stack: true },
   { id: 'tester', title: 'tester', produces: 'test runs · bugs' },
   { id: 'reviewer', title: 'reviewer', produces: 'review.md' },
+  { id: 'debugger', title: 'debugger', produces: 'root-cause', conditional: true },
+  { id: 'designer', title: 'designer', produces: 'screenshots', conditional: true },
+  { id: 'runner', title: 'runner', produces: 'e2e transcript', conditional: true },
+  { id: 'auditor', title: 'auditor', produces: 'security audit', conditional: true },
+  { id: 'documenter', title: 'documenter', produces: 'docs updates', conditional: true },
 ];
 
 // Layout for the agent row — pushed further down for breathing room.
 const AGENT_ROW_Y = 510;
-const AGENT_W = 150;
+const AGENT_W = 90;
 const AGENT_H = 70;
-const AGENT_GAP = 22;
+const AGENT_GAP = 12;
 const AGENT_ROW_TOTAL_W = SUB_AGENTS.length * AGENT_W + (SUB_AGENTS.length - 1) * AGENT_GAP;
 const AGENT_ROW_X = (VIEW_W - AGENT_ROW_TOTAL_W) / 2;
 const PRODUCES_LABEL_Y = AGENT_ROW_Y + AGENT_H + 22;
@@ -128,7 +137,7 @@ export default function Architecture() {
               viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
               className="block min-w-[760px] w-full h-auto p-4"
               role="img"
-              aria-label="Architecture diagram (top to bottom): a three-box infra strip — team CLI, Wrapper daemon, sessions worktree — sits at the top with the same accent-blue stroke as Captain. The Wrapper daemon spawns the Captain below it. The Captain — the visual anchor — then connects to four sub-agents that fan out beneath it via the Task tool: scout (produces context.md), engineer ×N parallel (commits to the session branch), tester (runs the suite and files bugs), and reviewer (produces review.md). Each sub-agent is connected to Captain by a single bidirectional accent-blue arrow representing dispatch out and artifact back along the same line. The Captain handles the final push and opens the PR itself once review passes."
+              aria-label="Architecture diagram (top to bottom): a three-box infra strip — team CLI, Wrapper daemon, sessions worktree — sits at the top with the same accent-blue stroke as Captain. The Wrapper daemon spawns the Captain below it. The Captain — the visual anchor — then connects to nine sub-agents that fan out beneath it via the Task tool. Four are always on: scout (produces context.md), engineer ×N parallel (commits to the session branch), tester (runs the suite and files bugs), and reviewer (produces review.md). Five are conditional, dispatched only when their triggers fire: debugger (root-cause investigation when engineer stalls), designer (screenshot-driven UI critique), runner (end-to-end behaviour transcript), auditor (security audit on sensitive diffs), and documenter (README/CHANGELOG/docs updates). Each sub-agent is connected to Captain by a single bidirectional accent-blue arrow representing dispatch out and artifact back along the same line. The Captain handles the final push and opens the PR itself once review passes."
             >
               <defs>
                 <marker
@@ -469,7 +478,8 @@ export default function Architecture() {
                         );
                       })}
 
-                    {/* Front card */}
+                    {/* Front card. Conditional specialists use a dashed
+                        stroke so the always-on four stay visually dominant. */}
                     <rect
                       x={ax}
                       y={ay}
@@ -479,13 +489,15 @@ export default function Architecture() {
                       fill="#0a0a0a"
                       stroke={agent.stack ? '#0e7490' : '#3f3f3f'}
                       strokeWidth={agent.stack ? 1.75 : 1}
+                      strokeDasharray={agent.conditional ? '4 3' : undefined}
+                      strokeOpacity={agent.conditional ? 0.75 : 1}
                     />
                     <text
                       x={ax + AGENT_W / 2}
                       y={ay + 28}
                       textAnchor="middle"
                       fontFamily="var(--font-mono)"
-                      fontSize={15}
+                      fontSize={12}
                       fontWeight={600}
                       fill="#e5e5e5"
                     >
@@ -503,13 +515,26 @@ export default function Architecture() {
                         ×N parallel
                       </text>
                     )}
+                    {agent.conditional && (
+                      <text
+                        x={ax + AGENT_W / 2}
+                        y={ay + 44}
+                        textAnchor="middle"
+                        fontFamily="var(--font-mono)"
+                        fontSize={8}
+                        fill="#737373"
+                        letterSpacing="0.06em"
+                      >
+                        conditional
+                      </text>
+                    )}
                     {/* Produces label — all aligned at PRODUCES_LABEL_Y */}
                     <text
                       x={ax + AGENT_W / 2}
                       y={PRODUCES_LABEL_Y}
                       textAnchor="middle"
                       fontFamily="var(--font-mono)"
-                      fontSize={10}
+                      fontSize={9}
                       fill="#a3a3a3"
                     >
                       → {agent.produces}
