@@ -58,6 +58,7 @@ let tempRepo: string;
 let captainPromptPath: string;
 let clearMustAskHookPath: string;
 let stopHookPath: string;
+let askQuestionHookPath: string;
 let registryDir: string;
 
 beforeAll(async () => {
@@ -75,6 +76,8 @@ beforeAll(async () => {
   execSync(`echo "#!/usr/bin/env bash" > "${clearMustAskHookPath}"`, { cwd: tempRepo });
   stopHookPath = join(tempRepo, 'mark-must-ask.sh');
   execSync(`echo "#!/usr/bin/env bash" > "${stopHookPath}"`, { cwd: tempRepo });
+  askQuestionHookPath = join(tempRepo, 'mark-must-ask-on-question.sh');
+  execSync(`echo "#!/usr/bin/env bash" > "${askQuestionHookPath}"`, { cwd: tempRepo });
 
   registryDir = await mkdtemp(join(tmpdir(), 'my-team-ws-registry-'));
   process.env['MY_TEAM_REGISTRY_PATH'] = join(registryDir, 'recents.json');
@@ -103,6 +106,7 @@ async function startTestServer(): Promise<TestServer> {
     captainPromptPath,
     clearMustAskHookPath,
     stopHookPath,
+    askQuestionHookPath,
   );
   const { app } = createServer({ sessionManager, log });
 

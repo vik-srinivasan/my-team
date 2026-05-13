@@ -6,9 +6,11 @@ describe('buildCaptainSettings', () => {
   const PATHS = {
     clearMustAskHookPath: '/abs/path/to/agent-prompts/hooks/clear-must-ask.sh',
     stopHookPath: '/abs/path/to/agent-prompts/hooks/mark-must-ask.sh',
+    askQuestionHookPath:
+      '/abs/path/to/agent-prompts/hooks/mark-must-ask-on-question.sh',
   } as const;
 
-  it('writes the UserPromptSubmit and Stop hooks in the shape Claude Code expects', () => {
+  it('writes the UserPromptSubmit, Stop, and PreToolUse hooks in the shape Claude Code expects', () => {
     const settings = buildCaptainSettings(PATHS);
 
     expect(settings).toEqual({
@@ -35,6 +37,17 @@ describe('buildCaptainSettings', () => {
             ],
           },
         ],
+        PreToolUse: [
+          {
+            matcher: 'AskUserQuestion',
+            hooks: [
+              {
+                type: 'command',
+                command: PATHS.askQuestionHookPath,
+              },
+            ],
+          },
+        ],
       },
     });
   });
@@ -47,25 +60,37 @@ describe('buildCaptainSettings', () => {
       clearMustAskHookPath:
         '/Users/example/my-team/agent-prompts/hooks/clear-must-ask.sh',
       stopHookPath: '/Users/example/my-team/agent-prompts/hooks/mark-must-ask.sh',
+      askQuestionHookPath:
+        '/Users/example/my-team/agent-prompts/hooks/mark-must-ask-on-question.sh',
     };
     const settings = buildCaptainSettings(paths);
 
     const hooks = settings['hooks'] as {
       UserPromptSubmit: Array<{ hooks: Array<{ command: string }> }>;
       Stop: Array<{ hooks: Array<{ command: string }> }>;
+      PreToolUse: Array<{ matcher: string; hooks: Array<{ command: string }> }>;
     };
     expect(hooks.UserPromptSubmit[0]?.hooks[0]?.command).toBe(
       paths.clearMustAskHookPath,
     );
     expect(hooks.Stop[0]?.hooks[0]?.command).toBe(paths.stopHookPath);
+    expect(hooks.PreToolUse[0]?.matcher).toBe('AskUserQuestion');
+    expect(hooks.PreToolUse[0]?.hooks[0]?.command).toBe(
+      paths.askQuestionHookPath,
+    );
   });
 
-  it('registers the Stop hook alongside UserPromptSubmit (both keys present)', () => {
-    // The Stop hook is the safety net for end-of-turn AT signalling; both
-    // hooks must be present, neither replaces the other.
+  it('registers all three hook keys (UserPromptSubmit, Stop, PreToolUse)', () => {
+    // The Stop hook is the safety net for end-of-turn AT signalling, the
+    // PreToolUse hook covers AskUserQuestion (the Stop hook can't fire
+    // mid-call); all three must be present, none replaces the others.
     const settings = buildCaptainSettings(PATHS);
     const hooks = settings['hooks'] as Record<string, unknown>;
-    expect(Object.keys(hooks).sort()).toEqual(['Stop', 'UserPromptSubmit']);
+    expect(Object.keys(hooks).sort()).toEqual([
+      'PreToolUse',
+      'Stop',
+      'UserPromptSubmit',
+    ]);
   });
 
   it('produces JSON that survives a round-trip through JSON.stringify', () => {
