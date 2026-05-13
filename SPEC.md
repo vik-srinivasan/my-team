@@ -184,13 +184,15 @@ created → scouting → planning → awaiting_approval → executing → review
                                        │              (review iteration)
                                        ▼
                                    rejected
-                                       
-executing/reviewing → done → cleaned
+
+executing/reviewing → done ⇆ planning/executing (follow-up rounds)
                   └→ blocked (must_ask hit, max iterations hit, or fatal)
                   └→ killed (user terminated)
 ```
 
-Phase transitions are written to `state.json` and `journal.md`. The wrapper watches `state.json` for transitions to drive lifecycle hooks (e.g., on `done`, run cleanup; on `blocked`, send notification).
+`done` is a soft-terminal state. The session, worktree, and captain stay alive after the PR is opened. If the user sends another message, the captain re-enters `planning` or `executing` for a follow-up round (see the captain prompt's "Phase: Follow-up" section). Finalisation is user-driven: `team purge <id>` (or `team kill` + `team clean`) removes the worktree.
+
+Phase transitions are written to `state.json` and `journal.md`. The wrapper watches `state.json` for transitions to drive lifecycle hooks (e.g., on `blocked`, send notification). The wrapper does NOT auto-clean on `done` — that's the user's explicit signal.
 
 ## 5. Specialist roster
 
@@ -293,9 +295,11 @@ If tester reports failures during the loop, captain may insert another engineer 
 
 State → `done`. Captain handles the PR phase itself (no subagent dispatch).
 
-**7. PR.** Captain pushes the session branch, runs `gh pr create` with a body built from `plan.md`, `journal.md`, `decisions.md`, and `review.md`, marks the PR task done, and writes a final journal entry. State → `done` (final).
+**7. PR.** Captain pushes the session branch, runs `gh pr create` with a body built from `plan.md`, `journal.md`, `decisions.md`, and `review.md`, writes the resulting PR URL to `.team/pr.url`, marks the PR task done, and writes a final journal entry. State → `done`. The captain's closing message tells the user the session is still alive and points at `team purge` for cleanup.
 
-**8. Cleanup.** Wrapper detects state `done` and (after a brief grace period) runs `team archive` (saves `.team/` to `~/team/archives/<id>/`) followed by `git worktree remove`. Worktree is gone; PR remains for the user.
+**8. Follow-up (optional, repeatable).** Any user message received while `phase === "done"` re-engages the captain. The captain triages: small fix → flip phase straight to `executing`; bigger ask → `planning`. A new `## Follow-up round N` section is appended to `journal.md`, `plan.md`, and `tasks.md`. Specialists are dispatched against the new round's tasks and are told explicitly to read the latest round (not the original tasks). The reviewer appends a new `# Review pass N` to `review.md` as usual. When the round wraps, the captain pushes commits to the existing branch — `git push origin <branch>` — and the open PR auto-updates. The captain MUST NOT call `gh pr create` again (guarded by a `gh pr view` check at the top of the Done phase); for the user-visible round summary it may optionally `gh pr comment`. State returns to `done`. Repeat as many times as the user wants.
+
+**9. Cleanup (user-driven).** The wrapper does NOT auto-remove worktrees. The user explicitly finalises a session by running `team purge <id>` (kill + clean) or `team clean <id>` (just clean, after `team kill`). Either path archives `.team/` to `~/team/archives/<id>/` and removes the worktree + local branch. The PR on GitHub is unaffected.
 
 **Failure modes:**
 - `max_review_iterations` hit → state `blocked`, captain notifies user, no PR pushed, worktree preserved.
