@@ -61,15 +61,48 @@ interface ManagedSession {
   diffTimer: ReturnType<typeof setTimeout> | null;
 }
 
+/**
+ * Builds the `.claude/settings.json` payload installed in every captain
+ * worktree. Wires our `UserPromptSubmit` hook so the must_ask_pending
+ * queue clears the moment the user replies. Exported (not free-standing
+ * inside the class) so tests can assert the exact shape without touching
+ * the rest of `SessionManager`.
+ */
+export function buildCaptainSettings(
+  clearMustAskHookPath: string,
+): Record<string, unknown> {
+  return {
+    hooks: {
+      UserPromptSubmit: [
+        {
+          matcher: '',
+          hooks: [
+            {
+              type: 'command',
+              command: clearMustAskHookPath,
+            },
+          ],
+        },
+      ],
+    },
+  };
+}
+
 export class SessionManager extends EventEmitter<SessionManagerEventMap> {
   private sessions = new Map<string, ManagedSession>();
   private log: Logger;
   private captainPromptPath: string;
+  private clearMustAskHookPath: string;
 
-  constructor(log: Logger, captainPromptPath: string) {
+  constructor(
+    log: Logger,
+    captainPromptPath: string,
+    clearMustAskHookPath: string,
+  ) {
     super();
     this.log = log;
     this.captainPromptPath = captainPromptPath;
+    this.clearMustAskHookPath = clearMustAskHookPath;
   }
 
   async createSession(sourceRepo: string, title: string, cols?: number, rows?: number): Promise<Session> {
@@ -96,6 +129,11 @@ export class SessionManager extends EventEmitter<SessionManagerEventMap> {
 
     // Pre-trust the worktree directory so Claude Code skips the interactive trust dialog
     await this.preTrustDirectory(worktreePath);
+
+    // Install the per-worktree Claude Code hook config (UserPromptSubmit ->
+    // clear must_ask_pending). Must run before the captain spawns so the
+    // hook is picked up by Claude Code's first config load.
+    await this.writeCaptainHooks(worktreePath);
 
     // Spawn captain
     const captain = await spawnCaptain({
@@ -519,6 +557,28 @@ export class SessionManager extends EventEmitter<SessionManagerEventMap> {
 
     await writeFile(configPath, JSON.stringify(config, null, 2));
     this.log.debug({ dirPath }, 'Pre-trusted worktree directory in ~/.claude.json');
+  }
+
+  /**
+   * Writes the worktree-local `.claude/settings.json` that registers the
+   * `UserPromptSubmit` hook. The hook clears `must_ask_pending` in
+   * `.team/state.json` on every user reply, so the `team watch` AT column
+   * drops the moment the user is no longer the bottleneck.
+   *
+   * The command path is absolute (resolved from the wrapper install root)
+   * so it works regardless of the captain's cwd.
+   */
+  private async writeCaptainHooks(worktreePath: string): Promise<void> {
+    const settingsDir = join(worktreePath, '.claude');
+    const settingsPath = join(settingsDir, 'settings.json');
+    const settings = buildCaptainSettings(this.clearMustAskHookPath);
+
+    await mkdir(settingsDir, { recursive: true });
+    await writeFile(settingsPath, JSON.stringify(settings, null, 2));
+    this.log.debug(
+      { worktreePath, hookPath: this.clearMustAskHookPath },
+      'Wrote captain UserPromptSubmit hook config',
+    );
   }
 
   private async writeNotification(
