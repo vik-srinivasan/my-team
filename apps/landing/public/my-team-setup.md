@@ -90,10 +90,19 @@ Inspect any session's state via the `.team/` directory inside its worktree:
 - `team list` — all sessions
 - `team status <id>` — phase + blockers for one session
 - `team attach <id>` — re-attach the captain chat in any terminal (Ctrl+] to detach)
+- `team jump <id>` — print the worktree path (use with `cd "$(team jump <id>)"`)
 - `team notifications` — see if any captain is blocked waiting on you
 - `team logs <id>` — print the journal
 - `team open <id>` — open the worktree in VS Code
 - `team purge <id>` — kill + clean a finished session
+
+### Shell integration
+
+Add to `~/.zshrc` or `~/.bashrc` to enable `tj <id>` for jumping into any session's worktree:
+
+```bash
+tj() { cd "$(team jump "$1")"; }
+```
 
 ---
 

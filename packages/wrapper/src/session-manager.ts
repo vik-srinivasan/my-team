@@ -53,6 +53,39 @@ interface SessionManagerEventMap {
   event: [sessionId: string, event: WsServerEvent];
 }
 
+/**
+ * Returns the canonical `phase` for a `SessionState` whose `phase` is the
+ * stale `awaiting_approval` value left over from before the captain
+ * dispatched a real specialist. Returns `null` when no healing is
+ * warranted — i.e., when `phase` is not `awaiting_approval`, or when
+ * `active_specialist` is not one of the real specialists.
+ *
+ * Mapping mirrors `effectivePhase()` in the CLI's `format.ts`:
+ *   - engineer                                       → executing
+ *   - tester | reviewer | tester+reviewer            → reviewing
+ *   - scout                                          → scouting
+ *
+ * Exported so tests can hit the pure function without booting a
+ * `SessionManager`.
+ */
+export function healedPhaseFor(
+  state: Pick<SessionState, 'phase' | 'active_specialist'>,
+): SessionState['phase'] | null {
+  if (state.phase !== 'awaiting_approval') return null;
+  switch (state.active_specialist) {
+    case 'engineer':
+      return 'executing';
+    case 'tester':
+    case 'reviewer':
+    case 'tester+reviewer':
+      return 'reviewing';
+    case 'scout':
+      return 'scouting';
+    default:
+      return null;
+  }
+}
+
 interface ManagedSession {
   session: Session;
   captain: CaptainProcess | null;
@@ -66,11 +99,19 @@ export interface CaptainHookPaths {
   clearMustAskHookPath: string;
   /** Absolute path to the `Stop` hook script (auto-pushes a generic must_ask entry). */
   stopHookPath: string;
+  /**
+   * Absolute path to the `PreToolUse` hook script (auto-pushes a generic
+   * must_ask entry the instant an `AskUserQuestion` form opens, so the
+   * `team watch` AT column lights up while the user is mid-answer — the
+   * `Stop` hook can't cover this because the captain's turn is still open
+   * while `AskUserQuestion` is mid-call).
+   */
+  askQuestionHookPath: string;
 }
 
 /**
  * Builds the `.claude/settings.json` payload installed in every captain
- * worktree. Wires two hooks:
+ * worktree. Wires three hooks:
  *
  * - `UserPromptSubmit` clears `must_ask_pending` the instant the user
  *   replies, so the `team watch` AT column drops as soon as the user is
@@ -79,6 +120,12 @@ export interface CaptainHookPaths {
  *   captain forgot to push a specific summary AND no long-running
  *   specialist owns the next move, the hook pushes a generic safety-net
  *   entry into `must_ask_pending` so the AT column still lights up.
+ * - `PreToolUse` matched on `AskUserQuestion` fires the moment the
+ *   captain opens an `AskUserQuestion` form, *before* the question is
+ *   shown to the user. The `Stop` hook can't cover this case — the
+ *   captain's turn is still open while the question is mid-call — so
+ *   without this hook the AT column stays calm while the user is
+ *   composing an answer.
  *
  * Exported (not free-standing inside the class) so tests can assert the
  * exact shape without touching the rest of `SessionManager`.
@@ -110,6 +157,17 @@ export function buildCaptainSettings(
           ],
         },
       ],
+      PreToolUse: [
+        {
+          matcher: 'AskUserQuestion',
+          hooks: [
+            {
+              type: 'command',
+              command: paths.askQuestionHookPath,
+            },
+          ],
+        },
+      ],
     },
   };
 }
@@ -120,18 +178,21 @@ export class SessionManager extends EventEmitter<SessionManagerEventMap> {
   private captainPromptPath: string;
   private clearMustAskHookPath: string;
   private stopHookPath: string;
+  private askQuestionHookPath: string;
 
   constructor(
     log: Logger,
     captainPromptPath: string,
     clearMustAskHookPath: string,
     stopHookPath: string,
+    askQuestionHookPath: string,
   ) {
     super();
     this.log = log;
     this.captainPromptPath = captainPromptPath;
     this.clearMustAskHookPath = clearMustAskHookPath;
     this.stopHookPath = stopHookPath;
+    this.askQuestionHookPath = askQuestionHookPath;
   }
 
   async createSession(sourceRepo: string, title: string, cols?: number, rows?: number): Promise<Session> {
@@ -362,9 +423,45 @@ export class SessionManager extends EventEmitter<SessionManagerEventMap> {
 
   // Reads state.json from disk and updates the in-memory copy. Silent no-op
   // on read/parse failure — fall back to whatever in-memory state we have.
+  //
+  // Side-effect: auto-heals the stale `awaiting_approval` + real
+  // `active_specialist` pattern. The captain is supposed to advance
+  // `phase` to `executing`/`reviewing`/`scouting` when it dispatches a
+  // specialist, but it sometimes forgets — leaving `phase` stuck at
+  // `awaiting_approval` with `active_specialist` already set. That
+  // pattern lights up the AT column red (and shows PHASE=approve)
+  // forever. We detect it here, rewrite state.json to the canonical
+  // phase derived from `active_specialist`, and log a warn so we can see
+  // how often captains drop the ball. Healing is best-effort: any write
+  // error is swallowed (matches the existing silent-on-failure contract).
   private async refreshStateFromDisk(managed: ManagedSession): Promise<void> {
     try {
       const fresh = await readTeamState(managed.session.worktree_path);
+
+      const targetPhase = healedPhaseFor(fresh);
+      if (targetPhase !== null) {
+        const fromPhase = fresh.phase;
+        const specialist = fresh.active_specialist;
+        fresh.phase = targetPhase;
+        try {
+          const statePath = join(managed.session.worktree_path, '.team', 'state.json');
+          await writeFile(statePath, JSON.stringify(fresh, null, 2));
+          this.log.warn(
+            {
+              sessionId: managed.session.meta.id,
+              from: fromPhase,
+              to: targetPhase,
+              specialist,
+            },
+            'Auto-healed stale phase on disk',
+          );
+        } catch {
+          // Best-effort: if the write fails, keep the in-memory mutation
+          // so list/detail returns the healed phase to clients, but
+          // don't throw — disk state is allowed to drift transiently.
+        }
+      }
+
       managed.session.state = fresh;
     } catch {
       // ignore — disk state unreadable, keep in-memory copy
@@ -548,8 +645,8 @@ export class SessionManager extends EventEmitter<SessionManagerEventMap> {
   }
 
   /**
-   * Writes the worktree-local `.claude/settings.json` that registers both
-   * captain hooks:
+   * Writes the worktree-local `.claude/settings.json` that registers all
+   * three captain hooks:
    *
    * - `UserPromptSubmit` clears `must_ask_pending` on every user reply, so
    *   the `team watch` AT column drops the moment the user is no longer
@@ -557,8 +654,12 @@ export class SessionManager extends EventEmitter<SessionManagerEventMap> {
    * - `Stop` auto-pushes a generic safety-net `must_ask_pending` entry at
    *   the end of every captain turn that ends idle, so the AT column is
    *   reliable even when the captain forgets to push a specific summary.
+   * - `PreToolUse` (matcher `AskUserQuestion`) auto-pushes a generic entry
+   *   the instant the captain opens an `AskUserQuestion` form, so the AT
+   *   column lights up while the user is composing an answer — the `Stop`
+   *   hook can't cover this because the turn is still open mid-call.
    *
-   * Both command paths are absolute (resolved from the wrapper install
+   * All command paths are absolute (resolved from the wrapper install
    * root) so they work regardless of the captain's cwd.
    */
   private async writeCaptainHooks(worktreePath: string): Promise<void> {
@@ -567,6 +668,7 @@ export class SessionManager extends EventEmitter<SessionManagerEventMap> {
     const settings = buildCaptainSettings({
       clearMustAskHookPath: this.clearMustAskHookPath,
       stopHookPath: this.stopHookPath,
+      askQuestionHookPath: this.askQuestionHookPath,
     });
 
     await mkdir(settingsDir, { recursive: true });
@@ -576,8 +678,9 @@ export class SessionManager extends EventEmitter<SessionManagerEventMap> {
         worktreePath,
         clearMustAskHookPath: this.clearMustAskHookPath,
         stopHookPath: this.stopHookPath,
+        askQuestionHookPath: this.askQuestionHookPath,
       },
-      'Wrote captain UserPromptSubmit + Stop hook config',
+      'Wrote captain UserPromptSubmit + Stop + PreToolUse hook config',
     );
   }
 

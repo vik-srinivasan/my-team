@@ -9,6 +9,7 @@ import {
   abbreviatePhase,
   phaseColor,
   getAttention,
+  effectivePhase,
   ATTN_GLYPHS,
 } from './format.js';
 
@@ -130,11 +131,13 @@ describe('abbreviatePhase / phaseColor', () => {
 });
 
 describe('getAttention parity with UI attention.ts priority order', () => {
-  it('phase=awaiting_approval -> approve', () => {
+  it('phase=awaiting_approval with no must_ask -> idle (not critical)', () => {
+    // awaiting_approval is no longer a forced AT-critical signal — must_ask
+    // pending is the canonical demand-for-user-input.
     const a = getAttention({ phase: 'awaiting_approval', must_ask_count: 0 });
-    expect(a.critical).toBe(true);
-    expect(a.label).toBe('approve');
-    expect(a.glyph).toBe(ATTN_GLYPHS.needsInput);
+    expect(a.critical).toBe(false);
+    expect(a.glyph).toBe(ATTN_GLYPHS.idle);
+    expect(a.label).toBe('');
   });
 
   it('phase=blocked -> blocked (with warning glyph)', () => {
@@ -163,10 +166,12 @@ describe('getAttention parity with UI attention.ts priority order', () => {
     expect(a.label).toBe('');
   });
 
-  it('awaiting_approval wins over must_ask_count', () => {
+  it('awaiting_approval with must_ask_count falls through to must_ask label', () => {
+    // awaiting_approval no longer pre-empts must_ask — the user-facing label
+    // matches the actual ask-pending count.
     expect(
       getAttention({ phase: 'awaiting_approval', must_ask_count: 5 }).label,
-    ).toBe('approve');
+    ).toBe('ask (5)');
   });
 
   it('blocked wins over must_ask_count', () => {
@@ -199,5 +204,56 @@ describe('getAttention parity with UI attention.ts priority order', () => {
         expect(a.label).toBe('ask (3)');
       });
     }
+  });
+
+  it('awaiting_approval + must_ask_count=0 -> idle, no glyph (not critical)', () => {
+    // The new contract: awaiting_approval is no longer a forced AT-critical
+    // signal. Without must_ask_pending, this session is calm.
+    const a = getAttention({ phase: 'awaiting_approval', must_ask_count: 0 });
+    expect(a.critical).toBe(false);
+    expect(a.glyph).toBe(ATTN_GLYPHS.idle);
+    expect(a.label).toBe('');
+    expect(a.done).toBe(false);
+  });
+
+  it('awaiting_approval + must_ask_count=1 -> critical, label ask', () => {
+    // Genuine user-input demand even in awaiting_approval state.
+    const a = getAttention({ phase: 'awaiting_approval', must_ask_count: 1 });
+    expect(a.critical).toBe(true);
+    expect(a.glyph).toBe(ATTN_GLYPHS.needsInput);
+    expect(a.label).toBe('ask');
+    expect(a.done).toBe(false);
+  });
+});
+
+describe('effectivePhase', () => {
+  it('active_specialist=engineer -> executing', () => {
+    expect(effectivePhase({ phase: 'awaiting_approval', active_specialist: 'engineer' })).toBe('executing');
+  });
+
+  it('active_specialist=tester -> reviewing', () => {
+    expect(effectivePhase({ phase: 'awaiting_approval', active_specialist: 'tester' })).toBe('reviewing');
+  });
+
+  it('active_specialist=reviewer -> reviewing', () => {
+    expect(effectivePhase({ phase: 'awaiting_approval', active_specialist: 'reviewer' })).toBe('reviewing');
+  });
+
+  it('active_specialist=tester+reviewer -> reviewing', () => {
+    expect(effectivePhase({ phase: 'awaiting_approval', active_specialist: 'tester+reviewer' })).toBe('reviewing');
+  });
+
+  it('active_specialist=scout -> scouting', () => {
+    expect(effectivePhase({ phase: 'awaiting_approval', active_specialist: 'scout' })).toBe('scouting');
+  });
+
+  it('active_specialist=null -> awaiting_approval (pass-through)', () => {
+    // No specialist running: return the raw phase as-is.
+    expect(effectivePhase({ phase: 'awaiting_approval', active_specialist: null })).toBe('awaiting_approval');
+  });
+
+  it('phase=executing + active_specialist=null -> executing (pass-through)', () => {
+    // Non-stale phase with no specialist: return raw phase.
+    expect(effectivePhase({ phase: 'executing', active_specialist: null })).toBe('executing');
   });
 });

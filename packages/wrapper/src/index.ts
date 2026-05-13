@@ -26,6 +26,15 @@ const STOP_HOOK_PATH = resolve(
   'hooks',
   'mark-must-ask.sh',
 );
+const ASK_QUESTION_HOOK_PATH = resolve(
+  __dirname,
+  '..',
+  '..',
+  '..',
+  'agent-prompts',
+  'hooks',
+  'mark-must-ask-on-question.sh',
+);
 
 const HOST = '127.0.0.1';
 const PORT = 3001;
@@ -42,6 +51,7 @@ const sessionManager = new SessionManager(
   CAPTAIN_PROMPT_PATH,
   CLEAR_MUST_ASK_HOOK_PATH,
   STOP_HOOK_PATH,
+  ASK_QUESTION_HOOK_PATH,
 );
 const { app, start } = createServer({ sessionManager, log, host: HOST, port: PORT });
 
