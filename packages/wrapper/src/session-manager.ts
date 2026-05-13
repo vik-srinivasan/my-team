@@ -227,11 +227,6 @@ export class SessionManager extends EventEmitter<SessionManagerEventMap> {
               this.writeNotification(sessionId, managed.session.meta.title, newState.blockers);
             }
 
-            // Handle done state — auto-cleanup after grace period
-            if (oldState.phase !== 'done' && newState.phase === 'done') {
-              this.scheduleCleanup(sessionId);
-            }
-
             managed.session.state = newState;
             this.emitEvent(sessionId, { type: 'state', state: newState });
           }
@@ -477,42 +472,6 @@ export class SessionManager extends EventEmitter<SessionManagerEventMap> {
     }
     await Promise.all(promises);
     this.sessions.clear();
-  }
-
-  private scheduleCleanup(sessionId: string): void {
-    const GRACE_PERIOD = 30_000; // 30 seconds
-    this.log.info({ sessionId, gracePeriodMs: GRACE_PERIOD }, 'Scheduling auto-cleanup for done session');
-
-    setTimeout(async () => {
-      const managed = this.sessions.get(sessionId);
-      if (!managed) return;
-
-      // Wait for captain to exit if still running
-      if (managed.captain?.running) {
-        this.log.info({ sessionId }, 'Waiting for captain to exit before cleanup');
-        await new Promise<void>((resolve) => {
-          managed.captain!.on('exit', () => resolve());
-          // Safety timeout — don't wait forever
-          setTimeout(resolve, 10_000);
-        });
-      }
-
-      try {
-        await this.cleanSession(sessionId);
-        this.log.info({ sessionId }, 'Auto-cleanup completed for done session');
-      } catch (err) {
-        // Captain still alive (e.g. sitting at "PR opened" prompt) — drop
-        // the session from the in-memory registry anyway so it stops
-        // showing up in `team list` / `team watch`. The worktree is left
-        // for the user to inspect or clean manually.
-        const managed = this.sessions.get(sessionId);
-        if (managed?.watcher) {
-          await managed.watcher.close().catch(() => {});
-        }
-        this.sessions.delete(sessionId);
-        this.log.warn({ sessionId, err }, 'Auto-cleanup blocked (captain alive?); dropped from registry without archiving');
-      }
-    }, GRACE_PERIOD);
   }
 
   private scheduleDiffEmit(sessionId: string): void {
