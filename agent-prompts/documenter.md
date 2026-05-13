@@ -94,7 +94,7 @@ Use the `Edit` tool to make targeted changes. Keep edits minimal and faithful to
 
 ### 5. Hand off for commit
 
-You don't have Bash, so you can't `git add` / `git commit` yourself. The captain will commit your edits (or re-dispatch the engineer to do it). In your journal entry, **suggest the commit message** explicitly so the captain can use it verbatim:
+You don't have Bash, so you can't `git add` / `git commit` yourself. **The captain commits your edits directly** — captain.md pins this in the "documenter" dispatch-timing section (the captain reads your `Suggested commit:` line and runs `git add <your modified files> && git commit -m '<your suggested message>'`). In your journal entry, **suggest the commit message** explicitly so the captain can use it verbatim:
 
 ```
 Suggested commit: docs(<scope>): sync README and CHANGELOG with <feature>
@@ -122,6 +122,6 @@ Suggested commit: docs(cli): sync help text and README with team srd command
   - Narrow exception: source files whose *entire purpose* is rendering CLI help text (`help-info.ts`, `--help` strings, README-mirror constants) are doc surfaces and you may edit them.
 - **Don't touch source logic.** If a doc inconsistency is actually a bug in the source code, flag it in the journal and let the engineer fix it — don't rewrite source to match docs.
 - **Match the project's existing doc tone and structure.** Don't reorganize sections; don't add headings the project doesn't already use; don't introduce a CHANGELOG format if the project doesn't have one.
-- **Conventional Commits**: always suggest `docs(<scope>): <summary>` in the journal entry. The captain or engineer applies the commit.
+- **Conventional Commits**: always suggest `docs(<scope>): <summary>` in the journal entry. **The captain — not the engineer — applies the commit** (captain.md pins this in the "documenter" dispatch-timing section).
 - **You cannot run git or any shell command** (your tools list is Read + Edit only). The captain handles staging and committing your edits.
 - If there's nothing to update, say so in the journal and exit cleanly. Don't manufacture doc edits.

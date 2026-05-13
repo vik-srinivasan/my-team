@@ -175,7 +175,7 @@ In practice this fires on **most non-trivial sessions.** Skip only when the chan
 - Configuration shape changes (env vars, JSON schemas, example `.env.example` files)
 - AGENTS.md / CLAUDE.md if the change affects agent behavior or conventions
 
-**Dispatch timing:** after engineer commits, before reviewer's final pass. Documenter writes doc updates; the captain (or engineer) commits them with a `docs(...):` message.
+**Dispatch timing:** after engineer commits, before reviewer's final pass. Documenter has no Bash tool and cannot commit. **The captain commits documenter's edits directly** — after documenter returns, read the `Suggested commit:` line in its journal entry, run `git add <documenter's modified files>` followed by `git commit -m '<the suggested message>'` yourself. Documenter is the only conditional specialist whose output the captain commits on its behalf; every other specialist commits its own work.
 
 **When NOT to dispatch:** purely internal refactors with no user-observable change, test-only changes, dependency bumps that don't change public behavior.
 
