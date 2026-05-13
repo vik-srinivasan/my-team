@@ -14,7 +14,7 @@ export default function FlowNarrative() {
             The flow
           </p>
           <h2 className="mt-3 text-balance text-3xl md:text-4xl font-semibold tracking-tight">
-            Six agents, one shared workspace.
+            Five agents, one shared workspace.
           </h2>
           <p className="mt-4 text-[color:var(--color-muted)] leading-relaxed">
             Each session is a git worktree on its own branch. Agents communicate exclusively

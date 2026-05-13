@@ -1,6 +1,6 @@
 # my-team — setup guide for coding agents
 
-You are a coding agent helping a developer install and run **my-team**, a tool that orchestrates a team of Claude Code agents (captain, scout, engineer, tester, reviewer, git) inside a git worktree.
+You are a coding agent helping a developer install and run **my-team**, a tool that orchestrates a team of Claude Code agents (captain, scout, engineer, tester, reviewer) inside a git worktree.
 
 Execute the steps below in order. After each command, verify the expected output before moving on. If a prereq is missing, install it for the user's platform and confirm with them before proceeding.
 
@@ -74,7 +74,7 @@ This creates a session worktree at `~/team/sessions/<id>/` on branch `my-team/<i
 
 ## 5. What the team does
 
-The captain orchestrates specialists in this order: **scout** (maps the codebase) → **planning** (proposes a plan; you approve) → **engineer(s)** (write code, can run in parallel) → **tester** + **reviewer** (parallel) → **git** (push + open PR).
+The captain orchestrates specialists in this order: **scout** (maps the codebase) → **planning** (proposes a plan; you approve) → **engineer(s)** (write code, can run in parallel) → **tester** + **reviewer** (parallel) → captain (push + open PR).
 
 Inspect any session's state via the `.team/` directory inside its worktree:
 - `meta.json` — session id, title, source repo

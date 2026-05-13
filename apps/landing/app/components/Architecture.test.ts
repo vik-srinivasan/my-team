@@ -33,7 +33,7 @@ describe('Architecture component', () => {
     expect(archContent).toContain('w: 260');
   });
 
-  it('renders all five sub-agents with their produces labels', () => {
+  it('renders all four sub-agents with their produces labels', () => {
     expect(archContent).toContain('scout');
     expect(archContent).toContain('context.md');
     expect(archContent).toContain('engineer');
@@ -42,9 +42,6 @@ describe('Architecture component', () => {
     expect(archContent).toContain('test runs');
     expect(archContent).toContain('reviewer');
     expect(archContent).toContain('review.md');
-    expect(archContent).toContain('git');
-    expect(archContent).toContain('pushes');
-    expect(archContent).toContain('opens PR');
   });
 
   it('renders the three infra nodes (CLI → wrapper → sessions) and not Web UI', () => {

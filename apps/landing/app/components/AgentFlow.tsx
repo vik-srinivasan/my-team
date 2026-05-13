@@ -73,7 +73,7 @@ export default function AgentFlow() {
     <div
       className="relative w-full"
       role="img"
-      aria-label="Animated diagram showing the Captain agent dispatching to Scout, Engineer, Tester, Reviewer, and Git specialists in sequence."
+      aria-label="Animated diagram showing the Captain agent dispatching to Scout, Engineer, Tester, and Reviewer specialists in sequence."
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
     >
@@ -262,7 +262,7 @@ export default function AgentFlow() {
               fontSize={10}
               fill="#a3a3a3"
             >
-              captain → scout · engineer · tester · reviewer · git
+              captain → scout · engineer · tester · reviewer
             </text>
           </g>
         )}
@@ -283,7 +283,7 @@ export default function AgentFlow() {
           aria-hidden="true"
         />
         <span className="font-mono text-[color:var(--color-muted)]" aria-live="polite">
-          {reduced ? 'Six agents. One pull request.' : activeSpecialist.status}
+          {reduced ? 'Five agents. One pull request.' : activeSpecialist.status}
         </span>
       </div>
     </div>
