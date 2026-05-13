@@ -42,3 +42,18 @@ Modified: `SPEC.md`.
 
 Preview: no UI changes — these are CLI table renderers + docs/prompts. To eyeball the new behavior locally:
 - `pnpm --filter @my-team/cli build && node packages/cli/dist/index.js list` (or `watch`) against any wrapper running a session with `active_specialist: "engineer"` and stale `phase: "awaiting_approval"` — PHASE column should now read `exec`, AT column should be calm.
+
+## 2026-05-13T03:10:00Z — reviewer
+Completed: Review pass 1. No blocking issues found. Verdict: Approved.
+Suggestions: non-atomic heal write (cosmetic), missing effectivePhase('captain') regression guard, watcher race note (informational), mark-must-ask-on-question.test.ts not yet written (tester tasks still open).
+
+## 2026-05-12T19:27:00Z — tester
+Completed: All five testing tasks. Full suite green.
+Tests written:
+  - `packages/cli/src/format.test.ts` — 9 new cases: 2 for `getAttention()` (awaiting_approval+must_ask_count=0 idle, awaiting_approval+must_ask_count=1 critical) and 7 for `effectivePhase()` (all specialist mappings + two pass-through cases). Total format.test.ts: 41 tests.
+  - `packages/cli/src/commands/list.test.ts` — 1 new focused case pinning awaiting_approval-without-must_ask sorts at rank 3 (idle bucket), not rank 0. Fixed a pre-existing unstable sort-order assertion (see review.md). Total list.test.ts: 4 tests.
+  - `packages/wrapper/src/session-manager.test.ts` — added `refreshStateFromDisk` auto-heal integration test: creates a real session via `createSession` (captain mocked), writes stale state.json (phase=awaiting_approval + active_specialist=engineer), calls `listSessions()`, asserts on-disk phase healed to `executing` and warn logger fired with correct context (from/to/specialist). Total session-manager.test.ts: 10 tests.
+  - `packages/wrapper/src/mark-must-ask-on-question.test.ts` — 14 shell-script integration tests covering: no state.json, terminal phases (done/killed/cleaned), non-empty must_ask_pending, scout+scouting write paths, active_specialist=engineer/tester/reviewer/tester+reviewer all WRITE (unlike mark-must-ask.sh), malformed JSON, idempotency, absent must_ask_pending key.
+Tests passed: 147 total (79 wrapper + 68 CLI)
+Tests failed: 0
+Bugs filed: 1 (pre-existing unstable sort-order assertion in list.test.ts — fixed in test code)

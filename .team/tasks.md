@@ -24,14 +24,14 @@
 - [x] @engineer Update `SPEC.md` AT-column description (§174-176) to reflect: AT lights up on must_ask_pending or blocked; AskUserQuestion auto-pushes via PreToolUse hook; wrapper auto-heals stale awaiting_approval. — replaced the single-paragraph clear-must-ask blurb with a richer breakdown of the three hooks + PHASE derivation + auto-heal.
 
 ## Testing
-- [ ] @tester `packages/cli/src/format.test.ts`: new cases for `getAttention()` and `effectivePhase()`.
-- [ ] @tester `packages/cli/src/commands/list.test.ts`: sort order — awaiting_approval folds into must_ask bucket.
-- [ ] @tester `packages/wrapper/src/session-manager.test.ts`: assert `buildCaptainSettings()` includes the new PreToolUse entry; assert `refreshStateFromDisk` auto-heals stale phase.
-- [ ] @tester New `packages/wrapper/src/mark-must-ask-on-question.test.ts`: shell-script integration tests mirroring `mark-must-ask.test.ts`.
-- [ ] @tester `pnpm -r build && pnpm -r test` green.
+- [x] @tester `packages/cli/src/format.test.ts`: new cases for `getAttention()` and `effectivePhase()`.
+- [x] @tester `packages/cli/src/commands/list.test.ts`: sort order — awaiting_approval folds into must_ask bucket.
+- [x] @tester `packages/wrapper/src/session-manager.test.ts`: assert `buildCaptainSettings()` includes the new PreToolUse entry; assert `refreshStateFromDisk` auto-heals stale phase.
+- [x] @tester New `packages/wrapper/src/mark-must-ask-on-question.test.ts`: shell-script integration tests mirroring `mark-must-ask.test.ts`.
+- [x] @tester `pnpm -r build && pnpm -r test` green.
 
 ## Review
-- [ ] @reviewer Code review pass — format.ts edge cases, auto-heal idempotency, hook script correctness, captain.md wording.
+- [x] @reviewer Code review pass — format.ts edge cases, auto-heal idempotency, hook script correctness, captain.md wording.
 
 ## Git
 - [ ] @captain Push branch and open PR.
