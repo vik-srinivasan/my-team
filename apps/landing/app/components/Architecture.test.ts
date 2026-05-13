@@ -73,17 +73,28 @@ describe('Architecture component', () => {
     expect(archContent).toContain('review.md');
   });
 
-  it('renders the five conditional sub-agents flagged via the conditional field', () => {
-    // Each new specialist appears in the SUB_AGENTS array and gets a
-    // conditional: true flag so the rendered box can use a dashed stroke.
+  it('renders the five conditional sub-agents derived from the shared core flag', () => {
+    // Each new specialist appears in the SUB_AGENTS array and is treated as
+    // conditional when `!agent.core` so the rendered box uses a dashed stroke.
     expect(archContent).toContain('debugger');
     expect(archContent).toContain('designer');
     expect(archContent).toContain('runner');
     expect(archContent).toContain('auditor');
     expect(archContent).toContain('documenter');
-    // The conditional flag drives the dashed stroke + 'conditional' label.
-    expect(archContent).toContain('conditional: true');
+    // The conditional flag now comes from agents.ts via `!agent.core` — no
+    // duplicated conditional: true literals in this file anymore.
+    expect(archContent).toContain('conditional: !agent.core');
     expect(archContent).toContain('agent.conditional');
+    // Guard against drift back to a hardcoded conditional list.
+    expect(archContent).not.toContain('conditional: true');
+  });
+
+  it('consumes the shared agents roster instead of duplicating it', () => {
+    // SPECIALISTS comes from agents.ts; ARCH_META is a small sibling map that
+    // only carries diagram-only metadata (produces label, stack flag).
+    expect(archContent).toContain("from '../agents'");
+    expect(archContent).toContain('SPECIALISTS');
+    expect(archContent).toContain('ARCH_META');
   });
 
   it('renders the three infra nodes (CLI → wrapper → sessions) and not Web UI', () => {

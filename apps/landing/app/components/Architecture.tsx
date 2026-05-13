@@ -1,6 +1,7 @@
 'use client';
 
 import { motion, useReducedMotion } from 'motion/react';
+import { SPECIALISTS, type AgentId } from '../agents';
 
 // Architecture diagram (round-5 layout):
 //   1. Infra strip (CLI → Wrapper daemon → sessions worktree) sits at the top —
@@ -54,28 +55,51 @@ const CAPTAIN = {
 } as const;
 
 // ---------- Sub-agents (fan-out below Captain) ----------
-interface SubAgent {
-  readonly id: string;
-  readonly title: string;
+//
+// The roster + the core/optional split live in `agents.ts` (single source of
+// truth). Per-agent diagram-only metadata — the artifact each agent produces
+// and whether it renders as a deck (engineer ×N) — lives in this small
+// sibling map keyed by AgentId so we don't pollute `agents.ts` with
+// Architecture-only fields.
+interface ArchMeta {
   readonly produces: string;
-  readonly stack?: boolean; // render as a deck (engineer ×N)
-  readonly conditional?: boolean; // dispatched only on matching triggers
+  readonly stack?: boolean;
 }
 
-// Always-on first (the four core specialists), then the five conditional
-// specialists the captain dispatches when triggers fire (visual UI work →
-// designer, security-sensitive files → auditor, etc.).
-const SUB_AGENTS: readonly SubAgent[] = [
-  { id: 'scout', title: 'scout', produces: 'context.md' },
-  { id: 'engineer', title: 'engineer', produces: 'commits', stack: true },
-  { id: 'tester', title: 'tester', produces: 'test runs · bugs' },
-  { id: 'reviewer', title: 'reviewer', produces: 'review.md' },
-  { id: 'debugger', title: 'debugger', produces: 'root-cause', conditional: true },
-  { id: 'designer', title: 'designer', produces: 'screenshots', conditional: true },
-  { id: 'runner', title: 'runner', produces: 'e2e transcript', conditional: true },
-  { id: 'auditor', title: 'auditor', produces: 'security audit', conditional: true },
-  { id: 'documenter', title: 'documenter', produces: 'docs updates', conditional: true },
-];
+const ARCH_META: Readonly<Record<AgentId, ArchMeta>> = {
+  captain: { produces: '' }, // captain is rendered separately, never iterated below
+  scout: { produces: 'context.md' },
+  engineer: { produces: 'commits', stack: true },
+  tester: { produces: 'test runs · bugs' },
+  reviewer: { produces: 'review.md' },
+  debugger: { produces: 'root-cause' },
+  designer: { produces: 'screenshots' },
+  runner: { produces: 'e2e transcript' },
+  auditor: { produces: 'security audit' },
+  documenter: { produces: 'docs updates' },
+};
+
+// Composed view: SPECIALISTS (the 9 sub-agents in shared roster order) plus
+// their diagram-only metadata. `conditional` is derived from `!agent.core`,
+// so the visual treatment stays in lockstep with the source-of-truth flag.
+interface SubAgent {
+  readonly id: AgentId;
+  readonly title: string;
+  readonly produces: string;
+  readonly stack?: boolean;
+  readonly conditional: boolean;
+}
+
+const SUB_AGENTS: readonly SubAgent[] = SPECIALISTS.map((agent) => {
+  const meta = ARCH_META[agent.id];
+  return {
+    id: agent.id,
+    title: agent.label.toLowerCase(),
+    produces: meta.produces,
+    stack: meta.stack,
+    conditional: !agent.core,
+  };
+});
 
 // Layout for the agent row — pushed further down for breathing room.
 const AGENT_ROW_Y = 510;
