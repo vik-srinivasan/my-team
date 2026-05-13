@@ -178,7 +178,7 @@ const CLI_GROUPS: readonly CliGroup[] = [
     id: 'daemon',
     heading: 'Daemon',
     commands: [
-      { name: 'team start', description: 'Start the wrapper daemon (foreground).' },
+      { name: 'team start', description: 'Start the wrapper daemon in the foreground.' },
     ],
   },
   {
@@ -188,18 +188,32 @@ const CLI_GROUPS: readonly CliGroup[] = [
       {
         name: 'team new "<title>"',
         flags: '--no-attach --new --github --public',
-        description: 'Create a session in the cwd repo.',
+        description:
+          'Create a session for the cwd repo, a known basename, or a fresh project.',
       },
-      { name: 'team list', description: 'Table of all sessions.' },
+      {
+        name: 'team list',
+        flags: '-a --json',
+        description: 'List active sessions with an attention-first overview.',
+      },
       {
         name: 'team list-past',
         flags: '--json',
-        description: 'List past source repos.',
+        description: 'List past source repos used to start sessions.',
       },
-      { name: 'team status <id>', description: 'Phase, active specialist, blockers.' },
+      {
+        name: 'team watch',
+        flags: '--interval <s>',
+        description: 'Re-render team list on an interval (top-like view).',
+      },
+      {
+        name: 'team status <id>',
+        flags: '--json',
+        description: 'Full triage view for a single session.',
+      },
       {
         name: 'team attach <id>',
-        description: 'Re-attach the captain chat (Ctrl+] to detach).',
+        description: 'Attach to the captain chat (Ctrl+] to detach).',
       },
       {
         name: 'team jump <id>',
@@ -212,7 +226,32 @@ const CLI_GROUPS: readonly CliGroup[] = [
     id: 'inspect',
     heading: 'Inspect',
     commands: [
-      { name: 'team logs <id>', description: "Tail the wrapper's pino log for a session." },
+      {
+        name: 'team journal <id>',
+        flags: '-n <count> --all -f',
+        description: "Show entries from a session's .team/journal.md.",
+      },
+      {
+        name: 'team tasks <id>',
+        description: "Pretty-print a session's .team/tasks.md with checkbox highlights.",
+      },
+      {
+        name: 'team plan <id>',
+        description: "Pretty-print a session's .team/plan.md with header highlights.",
+      },
+      {
+        name: 'team srd <id>',
+        description: "Pretty-print a session's .team/srd.md with header highlights.",
+      },
+      {
+        name: 'team diff <id>',
+        description: "Show a session's diff vs its source branch (piped through $PAGER).",
+      },
+      {
+        name: 'team logs <id>',
+        flags: '-n <count> -f',
+        description: "Tail the wrapper's pino log for a session.",
+      },
       {
         name: 'team notifications',
         description: 'List pending notifications for blocked sessions.',
@@ -234,6 +273,10 @@ const CLI_GROUPS: readonly CliGroup[] = [
     ],
   },
 ];
+
+// Exported for the regression-guard test that checks the CLI tab covers
+// every command file in packages/cli/src/commands/.
+export const __test__ = { CLI_GROUPS };
 
 function CliPanel() {
   return (
