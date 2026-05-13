@@ -201,6 +201,10 @@ const CLI_GROUPS: readonly CliGroup[] = [
         name: 'team attach <id>',
         description: 'Re-attach the captain chat (Ctrl+] to detach).',
       },
+      {
+        name: 'team jump <id>',
+        description: 'Print the worktree path. Pair with: cd "$(team jump <id>)".',
+      },
       { name: 'team open <id>', description: 'Open the worktree in VS Code.' },
     ],
   },
@@ -234,36 +238,54 @@ const CLI_GROUPS: readonly CliGroup[] = [
 
 function CliPanel() {
   return (
-    <div className="grid gap-8 md:grid-cols-2">
-      {CLI_GROUPS.map((group) => (
-        <div key={group.id}>
-          <h3 className="font-mono text-xs uppercase tracking-[0.16em] text-[color:var(--color-accent-bright)]">
-            {group.heading}
-          </h3>
-          <ul className="mt-3 space-y-2">
-            {group.commands.map((cmd) => (
-              <li
-                key={cmd.name}
-                className="rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-surface)]/40 px-3 py-2"
-              >
-                <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-                  <code className="font-mono text-[13px] text-[color:var(--color-text)]">
-                    {cmd.name}
-                  </code>
-                  {cmd.flags && (
-                    <code className="font-mono text-[11px] text-[color:var(--color-dim)]">
-                      {cmd.flags}
+    <div className="space-y-8">
+      <div className="grid gap-8 md:grid-cols-2">
+        {CLI_GROUPS.map((group) => (
+          <div key={group.id}>
+            <h3 className="font-mono text-xs uppercase tracking-[0.16em] text-[color:var(--color-accent-bright)]">
+              {group.heading}
+            </h3>
+            <ul className="mt-3 space-y-2">
+              {group.commands.map((cmd) => (
+                <li
+                  key={cmd.name}
+                  className="rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-surface)]/40 px-3 py-2"
+                >
+                  <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                    <code className="font-mono text-[13px] text-[color:var(--color-text)]">
+                      {cmd.name}
                     </code>
-                  )}
-                </div>
-                <p className="mt-1 text-xs leading-relaxed text-[color:var(--color-muted)]">
-                  {cmd.description}
-                </p>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ))}
+                    {cmd.flags && (
+                      <code className="font-mono text-[11px] text-[color:var(--color-dim)]">
+                        {cmd.flags}
+                      </code>
+                    )}
+                  </div>
+                  <p className="mt-1 text-xs leading-relaxed text-[color:var(--color-muted)]">
+                    {cmd.description}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
+
+      <div className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)]/40 p-5">
+        <h3 className="font-mono text-xs uppercase tracking-[0.16em] text-[color:var(--color-accent-bright)]">
+          Shell integration
+        </h3>
+        <p className="mt-2 text-sm leading-relaxed text-[color:var(--color-muted)]">
+          Drop this in your{' '}
+          <code className="font-mono text-[color:var(--color-text)]">~/.zshrc</code> or{' '}
+          <code className="font-mono text-[color:var(--color-text)]">~/.bashrc</code> to
+          jump into any session by id with{' '}
+          <code className="font-mono text-[color:var(--color-text)]">tj &lt;id&gt;</code>.
+        </p>
+        <pre className="mt-3 overflow-x-auto rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-surface-2)] p-3 font-mono text-[12.5px] leading-7 text-[color:var(--color-text)]">
+          tj() {'{'} cd &quot;$(team jump &quot;$1&quot;)&quot;; {'}'}
+        </pre>
+      </div>
     </div>
   );
 }

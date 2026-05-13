@@ -25,6 +25,7 @@ export function helpInfoCommand(): Command {
     team status <id>          Show detailed session status
     team watch                Live-refreshing list (Ctrl-C to quit)
     team attach <id>          Re-attach to a session's captain chat
+    team jump <id>            Print worktree path (use: cd "$(team jump <id>)")
 
   \x1b[33mInspect a session:\x1b[0m
     team journal <id>         Recent journal entries (-n N, --all, -f)
@@ -65,6 +66,12 @@ export function helpInfoCommand(): Command {
   ~/team/archives/       Archived .team/ directories
   ~/team/notifications/  Blocked session alerts
   http://localhost:3001   Wrapper daemon API (for team CLI + Claude Code remote)
+
+\x1b[36m── Shell Integration ──\x1b[0m
+
+  Add this to your ~/.zshrc or ~/.bashrc to enable \x1b[1mtj <id>\x1b[0m:
+
+    tj() { cd "$(team jump "$1")"; }
 `);
 
       // Show daemon status
