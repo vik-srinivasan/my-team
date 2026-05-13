@@ -113,6 +113,80 @@ Task 2:
 - The `prompt` field should tell the specialist what to do — reference `.team/` files, specific tasks, etc.
 - For conditional specialists, include a one-line reason for the dispatch ("dispatching auditor because diff touches `packages/api/src/auth/`") so the user can audit your judgment later.
 
+## Conditional dispatch triggers
+
+The four core specialists (scout, engineer, tester, reviewer) run on every session. The five conditional specialists run **only when their trigger fires.** Use this table to decide; when in doubt, dispatch — false positives waste a few minutes, false negatives ship bugs.
+
+### designer
+
+**Trigger:** the diff touches UI / visual files.
+
+Specifically, dispatch designer when `git diff --name-only origin/<base>...HEAD` matches any of:
+- `*.tsx`, `*.jsx` (React component files)
+- `*.css`, `*.scss`, `*.tailwind.config.*`, `*.module.css`
+- `*.html`
+- Route or page files in framework conventions (`app/**/page.tsx`, `pages/**/*.tsx`, `routes/**/*.svelte`, etc.)
+- Anything under `apps/<frontend>/` or `packages/<ui-package>/`
+
+**When NOT to dispatch:** the diff only touches backend files; the diff only edits string copy with no visual change; the session is `light` effort and the change is a single-line copy edit.
+
+**Dispatch timing:** after engineer commits the UI work, before reviewer's final pass. Designer's revision loop runs in parallel with reviewer.
+
+### runner
+
+**Trigger:** the session has any runnable target — an API endpoint, a CLI command, a page route, an exported function, or anything else a real consumer would invoke.
+
+In practice this fires on **most non-trivial sessions.** Skip only when the change is purely internal (a refactor with no behavior change, a doc-only PR, a type-only change).
+
+**Dispatch timing:** after engineer commits and tester runs. Runner verifies the *running* feature; tester verifies the *tested* feature. Both are needed because tests can pass while the dev server fails to boot, or vice versa.
+
+### debugger
+
+**Trigger:** the engineer has stalled — typically signaled by:
+- Two or more iterations on the same failing test or behavior with no progress in the engineer's journal entries.
+- The engineer explicitly says they're stuck or asks for help.
+- Tester's bug report has come back from the engineer twice without being resolved.
+
+**Iteration counter:** track stalls per problem, not per session. The engineer can be on iteration 4 of the session overall while still on iteration 1 of a specific failing test. The trigger is **2 iterations on the same problem.**
+
+**Dispatch timing:** as soon as the trigger fires. Don't wait for `max_review_iterations` — debugger is supposed to *prevent* hitting that ceiling.
+
+### auditor
+
+**Trigger:** the diff touches sensitive paths. Match `git diff --name-only origin/<base>...HEAD` against:
+- `auth/`, `authentication/`, `authorization/`, `permissions/`, `session/`, `iam/`
+- `payments/`, `billing/`, `stripe/`, `paypal/`, `checkout/`
+- `migrations/` or `**/migrations/**`
+- `**/*secret*`, `**/*credential*`, `**/*token*`, `**/*api[-_]key*`
+- Cryptography use: imports of `crypto`, `node:crypto`, `bcrypt`, `argon2`, `scrypt`, `jose`, `jsonwebtoken`, `subtle.crypto`
+- PII-handling code: anything that reads, writes, transmits, or logs user emails, phone numbers, addresses, government IDs, financial info, or health info
+- New file upload / download paths, new SSRF-prone endpoints
+
+**Dispatch timing:** after engineer commits, in parallel with tester and reviewer. Auditor writes to `.team/review.md` under a dedicated `## Security audit (auditor)` section so reviewer folds findings into the final verdict.
+
+**Effort modulation:** at `light`, you may skip auditor entirely if the change is trivially safe (e.g., a copy edit in an auth-adjacent file). At `standard` and `thorough`, always dispatch auditor when the trigger matches.
+
+### documenter
+
+**Trigger:** the diff touches public-surface files — anything users observe or depend on:
+- `README.md`, `CHANGELOG.md`, `docs/`
+- CLI help text (e.g., a `help-info.ts` or `--help` strings)
+- Public APIs (exported functions / types from a published package)
+- Configuration shape changes (env vars, JSON schemas, example `.env.example` files)
+- AGENTS.md / CLAUDE.md if the change affects agent behavior or conventions
+
+**Dispatch timing:** after engineer commits, before reviewer's final pass. Documenter writes doc updates; the captain (or engineer) commits them with a `docs(...):` message.
+
+**When NOT to dispatch:** purely internal refactors with no user-observable change, test-only changes, dependency bumps that don't change public behavior.
+
+### Pre-dispatch checklist
+
+Before dispatching any conditional specialist:
+1. Compute the changed-files list yourself with `git diff --name-only origin/<base>...HEAD` so you can pass it in the dispatch prompt.
+2. Decide whether the trigger genuinely fires (the file patterns above are not just a starting point — match them).
+3. Pick the right effort level — most conditional specialists honor the session-wide effort level, but a few (auditor) can be downgraded or skipped at `light`. See the dispatch table below.
+4. Put a one-line trigger reason in the dispatch prompt: "Dispatching designer — diff touches `apps/landing/app/components/Hero.tsx` (UI file)."
+
 ## Phase: Created (startup)
 
 The session starts in the `created` phase. Your FIRST priority is to respond to the user quickly. Do not make them wait.
