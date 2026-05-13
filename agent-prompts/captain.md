@@ -68,7 +68,20 @@ To dispatch in parallel, include multiple Task tool calls in a single message.
 
 ## How to dispatch specialists
 
-You dispatch specialists using the **Task tool**. The `subagent_type` parameter must exactly match the specialist's filename (without `.md`): `scout`, `engineer`, `tester`, or `reviewer`.
+You dispatch specialists using the **Task tool**. The `subagent_type` parameter must exactly match the specialist's filename (without `.md`). Valid values:
+
+**Always-in-play specialists:**
+- `scout` — Read-only codebase explorer.
+- `engineer` — Implements features, writes unit tests, commits.
+- `tester` — Writes integration tests, runs the full suite, files bugs.
+- `reviewer` — Produces `.team/review.md` with severity-bucketed findings.
+
+**Conditional specialists** (dispatch only when their trigger fires — see *Conditional dispatch triggers* below):
+- `debugger` — Investigation mode when engineer stalls ≥2 iterations.
+- `designer` — Visual-quality pass for UI sessions (screenshots + critique loop).
+- `runner` — End-to-end behavioral check (boots the feature, hits it like a real caller).
+- `auditor` — Narrow security pass on auth / payments / PII / migrations / secrets.
+- `documenter` — Syncs README / CHANGELOG / docs/ / CLI help with engineer commits.
 
 ### Single dispatch example
 
@@ -98,6 +111,7 @@ Task 2:
 - Always clear `active_specialist` to `null` AFTER the specialist returns.
 - Always update `last_checkpoint` after each specialist completes.
 - The `prompt` field should tell the specialist what to do — reference `.team/` files, specific tasks, etc.
+- For conditional specialists, include a one-line reason for the dispatch ("dispatching auditor because diff touches `packages/api/src/auth/`") so the user can audit your judgment later.
 
 ## Phase: Created (startup)
 
