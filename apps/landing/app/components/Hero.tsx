@@ -100,11 +100,15 @@ export default function Hero() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ ...baseTransition, delay: reduced ? 0 : 0.3 }}
-              className="mt-10 grid grid-cols-3 gap-6 max-w-md font-mono text-xs"
+              className="mt-10 grid grid-cols-4 gap-6 max-w-md font-mono text-xs"
             >
               <div>
-                <dt className="text-[color:var(--color-dim)]">agents</dt>
-                <dd className="mt-1 text-2xl text-[color:var(--color-text)]">6</dd>
+                <dt className="text-[color:var(--color-dim)]">core</dt>
+                <dd className="mt-1 text-2xl text-[color:var(--color-text)]">4</dd>
+              </div>
+              <div>
+                <dt className="text-[color:var(--color-dim)]">optional</dt>
+                <dd className="mt-1 text-2xl text-[color:var(--color-text)]">5</dd>
               </div>
               <div>
                 <dt className="text-[color:var(--color-dim)]">setup</dt>
