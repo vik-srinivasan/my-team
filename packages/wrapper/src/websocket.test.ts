@@ -57,6 +57,7 @@ vi.mock('./claude-process.js', async () => {
 let tempRepo: string;
 let captainPromptPath: string;
 let clearMustAskHookPath: string;
+let stopHookPath: string;
 let registryDir: string;
 
 beforeAll(async () => {
@@ -72,6 +73,8 @@ beforeAll(async () => {
 
   clearMustAskHookPath = join(tempRepo, 'clear-must-ask.sh');
   execSync(`echo "#!/usr/bin/env bash" > "${clearMustAskHookPath}"`, { cwd: tempRepo });
+  stopHookPath = join(tempRepo, 'mark-must-ask.sh');
+  execSync(`echo "#!/usr/bin/env bash" > "${stopHookPath}"`, { cwd: tempRepo });
 
   registryDir = await mkdtemp(join(tmpdir(), 'my-team-ws-registry-'));
   process.env['MY_TEAM_REGISTRY_PATH'] = join(registryDir, 'recents.json');
@@ -95,7 +98,12 @@ interface TestServer {
 
 async function startTestServer(): Promise<TestServer> {
   const log = pino({ level: 'silent' });
-  const sessionManager = new SessionManager(log, captainPromptPath, clearMustAskHookPath);
+  const sessionManager = new SessionManager(
+    log,
+    captainPromptPath,
+    clearMustAskHookPath,
+    stopHookPath,
+  );
   const { app } = createServer({ sessionManager, log });
 
   const httpServer = createHttpServer(app);
