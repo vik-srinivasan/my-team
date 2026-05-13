@@ -151,6 +151,8 @@ There is also a `Stop` hook wired in `.claude/settings.json` that fires at the e
 
 ## Phase: Planning
 
+Planning splits into two distinct, sequential artifacts: **`.team/srd.md`** (requirements — what we're building, written before the implementation plan, confirmed by the user) and **`.team/plan.md`** (implementation — approach, scope, tasks, acceptance criteria, approved by the user before execution). Do not collapse them into one artifact and do not skip the SRD step.
+
 1. Chat with the user to clarify requirements, scope, and approach.
 2. **Ask for an effort level early in the conversation** — a single, casual question:
    "How much rigor should I apply to testing and review? Light (build/smoke check, single-pass review), standard (normal), or thorough (exhaustive integration tests, deep security review)?"
@@ -160,25 +162,72 @@ There is also a `Stop` hook wired in `.claude/settings.json` that fires at the e
      - **New logic, data flows, refactors, normal feature work** → `standard`
      - **Auth, security, payments, data integrity, critical paths, anything that could leak credentials or corrupt data** → `thorough`
    - Either way, write a single line near the top of `plan.md`: `**Effort level:** <light|standard|thorough> — <reason>`.
-3. Once scout finishes, read `.team/context.md` to inform the plan.
-4. **Doc-sync check** — When drafting the plan, identify whether this change has doc implications in the target repo. Common surfaces: README, CHANGELOG, ARCHITECTURE / HACKING / CONTRIBUTING docs, public API or CLI help text, anything in `docs/`. If the change touches user-facing behavior or public interfaces, add explicit `@engineer` doc-update tasks to `.team/tasks.md`. If you're unsure whether a specific doc needs to follow, ask the user once during planning rather than silently skipping.
-5. Draft `.team/plan.md` with: effort level (with reason), goals, approach, file-level scope, must-ask items, and acceptance criteria.
-6. Draft `.team/tasks.md` with checkboxed task lists grouped by specialist role:
+3. Once scout finishes, read `.team/context.md` to inform the requirements and plan.
+4. **Draft `.team/srd.md` FIRST — before any implementation plan.** The SRD is a PRD-shaped artifact the user can read to confirm you understood what they want. It contains:
    ```markdown
-   ## Engineering
-   - [ ] @engineer Task description
+   # Session Requirements Doc — <session title>
 
-   ## Testing
-   - [ ] @tester Integration tests for ...
-   - [ ] @tester Full suite green
+   **Status:** draft — awaiting user approval
+   **Effort level:** <light|standard|thorough>
+   **Authored:** <ISO timestamp> — captain (<session-id>)
 
-   ## Review
-   - [ ] @reviewer Code review pass
+   ## 1. Problem
+   <Why this work exists. The pain or gap the user is filling.>
 
-   ## Git
-   - [ ] @captain Push branch and open PR
+   ## 2. Users
+   <Who benefits. Maintainer? Downstream adopters? End users?>
+
+   ## 3. Goals
+   <Numbered list of what success looks like.>
+
+   ## 4. Non-goals
+   <Bulleted list of things explicitly out of scope, to head off scope creep.>
+
+   ## 5. Success criteria
+   <Concrete, checkable conditions. "X works", "Y test passes", "Z page renders".>
+
+   ## 6. Constraints
+   <Tech constraints, conventions, performance budgets, dependencies.>
+
+   ## 7. Open questions
+   <Things the user needs to decide before drafting the plan. Resolve these with them in the chat, then mark each one Decided.>
+
+   ## 8. Acceptance evidence the user will check
+   <The concrete things the user will inspect when reviewing the PR.>
    ```
-7. Surface any must-ask items — things that could go either way and the user should decide.
+5. **Present the SRD to the user for confirmation BEFORE drafting the plan.** Ask them explicitly: "Does this SRD capture what you want? Any goals to add, non-goals to clarify, or open questions to answer?" Push the question into `must_ask_pending`. Update `.team/srd.md` based on their feedback. Repeat until they confirm.
+6. Only after the user has confirmed the SRD, draft `.team/plan.md` — the implementation document. Cross-reference the SRD; do not duplicate its content.
+7. **Doc-sync check** — When drafting the plan, identify whether this change has doc implications in the target repo. Common surfaces: README, CHANGELOG, ARCHITECTURE / HACKING / CONTRIBUTING docs, public API or CLI help text, anything in `docs/`. If the change touches user-facing behavior or public interfaces, add explicit `@engineer` doc-update tasks (or dispatch the **documenter** specialist post-execution) to `.team/tasks.md`. If you're unsure whether a specific doc needs to follow, ask the user once during planning rather than silently skipping.
+8. **Conditional specialist check** — While drafting the plan, decide which conditional specialists (designer / runner / auditor / documenter) the execution phase will need. Note them in `plan.md` and create their tasks in `.team/tasks.md` so they're not forgotten. See **Conditional dispatch triggers** below for the rules.
+9. Draft `.team/plan.md` with: effort level (with reason), SRD reference, approach, file-level scope, must-ask items, and acceptance criteria.
+10. Draft `.team/tasks.md` with checkboxed task lists grouped by specialist role:
+    ```markdown
+    ## Engineering
+    - [ ] @engineer Task description
+
+    ## Testing
+    - [ ] @tester Integration tests for ...
+    - [ ] @tester Full suite green
+
+    ## Review
+    - [ ] @reviewer Code review pass
+
+    ## Security (only if auditor will be dispatched)
+    - [ ] @auditor Security audit on auth / payments / PII / migrations / secrets in the diff
+
+    ## Visual (only if designer will be dispatched)
+    - [ ] @designer Screenshot + critique pass on <views>
+
+    ## End-to-end (only if runner will be dispatched)
+    - [ ] @runner Boot <feature> and verify behavior matches SRD acceptance criteria
+
+    ## Docs (only if documenter will be dispatched)
+    - [ ] @documenter Sync README / CHANGELOG / docs/ with engineer commits
+
+    ## Git
+    - [ ] @captain Push branch and open PR
+    ```
+11. Surface any must-ask items — things that could go either way and the user should decide.
 
 Remember: any question to the user must be reflected in `must_ask_pending` before ending the turn.
 
