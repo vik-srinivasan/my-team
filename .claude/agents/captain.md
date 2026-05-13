@@ -198,7 +198,7 @@ You handle this phase yourself. Do NOT dispatch a subagent. There is no `git` sp
 
 1. **Check whether a PR already exists for this branch** (handles re-runs of the Done phase, e.g. after a follow-up round dispatched you back here by mistake):
    - Run `gh pr view --json url,number` in the worktree. It exits non-zero if no PR exists for the current branch, exits zero (and prints JSON) if one does.
-   - If a PR already exists: skip `gh pr create` for the rest of this phase. Push commits with `git push origin <session_branch>` so the existing PR auto-updates, then jump to step 9 (Report completion) using the existing PR URL from `.team/pr.url` (or the `url` field of `gh pr view`'s JSON).
+   - If a PR already exists: skip `gh pr create` for the rest of this phase. Push commits with `git push origin <session_branch>` so the existing PR auto-updates, then jump to step 11 (Report completion) using the existing PR URL from `.team/pr.url` (or the `url` field of `gh pr view`'s JSON).
    - If no PR exists: continue with the full flow below.
 
 2. Update `.team/state.json`: set `phase` to `"done"` and `active_specialist` to `"captain"`.

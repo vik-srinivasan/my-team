@@ -237,7 +237,7 @@ The four specialists plus captain (the captain also handles the final push + PR 
 - **Tools**: Read, Write, Edit, Grep, Glob, Bash
 - **Model**: most recent opus model with highest context
 - **Role**: Implements the plan. Writes feature code and accompanying unit tests. Commits to the session branch. Marks tasks done in `tasks.md`. Logs ambiguous decisions in `decisions.md`. Reads `review.md` and addresses blockers when captain re-dispatches.
-- **Bash restrictions** (prompt-level, not enforced): may run `git add`, `git commit`, build commands, test commands. Must not run `git push`, `git checkout`, `git rebase`, `git merge`, `git reset --hard`, or anything that mutates branch structure. Those are reserved for the captain.
+- **Bash restrictions** (prompt-level, not enforced): may run `git add`, `git commit`, build commands, test commands. Must not run `git push`, `git rebase`, `git reset --hard`, `git push --force`, `git branch -D`, or `git checkout <branch>` (branch-mutating). **Exception:** when the captain explicitly dispatches the engineer to resolve a merge conflict, the engineer may run `git merge` and `git checkout <file>` as part of that narrowly-scoped workflow. Branch-creation and pushing remain reserved for the captain.
 - **Stuck protocol**: Make the most reasonable choice based on `plan.md` and `context.md`, log the decision in `decisions.md`, continue. Only escalate to captain if the choice would meaningfully change scope or break the plan.
 - **System prompt highlights**:
   - "You implement features. You commit your work. You do not push branches or open PRs."
