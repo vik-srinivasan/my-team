@@ -16,3 +16,29 @@ Commits:
  - feature branch: 36fae46 `feat(wrapper): wire AskUserQuestion PreToolUse hook`
  - feature branch: 18acb7d `feat(wrapper): auto-heal stale awaiting_approval on refresh`
 Verification: `pnpm --filter @my-team/wrapper build` clean; `npx vitest run packages/wrapper/src` → 64/64 green. No tester-owned tests are currently broken (I patched the strict-shape assertions that the new `PreToolUse` entry would have broken — both in `session-manager.test.ts` and `server.test.ts`). Tester still owes the new `mark-must-ask-on-question.test.ts` shell-script tests + the `refreshStateFromDisk` auto-heal integration test (see `.team/tasks.md` Testing section).
+
+## 2026-05-13T02:40:00Z — engineer
+Completed: Task A1-A2 (drop `awaiting_approval` AT critical branch in `getAttention()`; collapse the rank-0 bucket in `compareByAttention()`).
+Modified: `packages/cli/src/format.ts` (priority comment + branch removal + sort docstring), `packages/cli/src/format.test.ts` (flipped `phase=awaiting_approval -> approve` and `awaiting_approval wins over must_ask_count` cases to assert the new "calm unless must_ask" behavior), `packages/cli/src/commands/list.test.ts` (sort order assertion updated; awaiting_approval now folds into must_ask bucket or idle bucket).
+Verification: `pnpm --filter @my-team/cli build` clean; `pnpm vitest run packages/cli/src/format.test.ts packages/cli/src/commands/list.test.ts` → 35/35 green.
+Commit: d3dbb2d
+
+## 2026-05-13T02:45:00Z — engineer
+Completed: Task A3-A5 (new `effectivePhase()` helper in format.ts; both `list` and `watch` render PHASE via `effectivePhase(s)` instead of raw `s.phase`).
+Modified: `packages/cli/src/format.ts` (new `effectivePhase()` exported helper after `phaseColor()`), `packages/cli/src/commands/list.ts` (import + apply in row builder), `packages/cli/src/commands/watch.ts` (import + apply in `drawOnce()` row loop).
+Verification: `pnpm --filter @my-team/cli build` clean; format + list tests still green.
+Commit: dfbe141
+
+## 2026-05-13T02:50:00Z — engineer
+Completed: Task D (captain prompt tightening). Updated `agent-prompts/captain.md` "Phase: Executing" step 1 to require setting BOTH `phase` to `"executing"` AND `active_specialist` to `"engineer"` in one write; added a one-line caution under "Dispatch tester + reviewer in parallel" step 1 warning that dispatching while `phase` is still `"awaiting_approval"` triggers a wrapper auto-heal warning.
+Source-repo status check before edit: `captain.md` and `agent-prompts/` were clean (only unrelated `pnpm-lock.yaml` + untracked `docs/`, `packages/ui/`, etc.).
+Modified: `/Users/vik/Documents/my-team/agent-prompts/captain.md` (NOT in the session worktree — agent-prompts is a shared resource per the task instructions, lives on `main` of the source repo).
+Worktree's `.claude/agents/captain.md` deliberately left unchanged — running specialists in this session already read their cached copies, and the source-of-truth change benefits future sessions via `worktree.ts:copyAgentPrompts`.
+Commit (source repo `main`): 01a2fbb
+
+## 2026-05-13T02:55:00Z — engineer
+Completed: Task E (SPEC.md AT-column docs). Replaced the single-paragraph clear-must-ask blurb at §176 with a richer description: AT lights up on `must_ask_pending` non-empty or `phase === 'blocked'`; the three hooks (`UserPromptSubmit` clear, `PreToolUse` AskUserQuestion mark, `Stop` end-of-turn safety net) keep `must_ask_pending` accurate without captain effort; PHASE column derives from `active_specialist` so stale `phase` doesn't show the wrong label; wrapper auto-heals stale `awaiting_approval`.
+Modified: `SPEC.md`.
+
+Preview: no UI changes — these are CLI table renderers + docs/prompts. To eyeball the new behavior locally:
+- `pnpm --filter @my-team/cli build && node packages/cli/dist/index.js list` (or `watch`) against any wrapper running a session with `active_specialist: "engineer"` and stale `phase: "awaiting_approval"` — PHASE column should now read `exec`, AT column should be calm.

@@ -18,10 +18,10 @@
 - [x] @engineer Update the wrapper entry point (where `SessionManager` is constructed) to pass the new hook path. — `packages/wrapper/src/index.ts`.
 
 ### D. Captain prompt tightening
-- [ ] @engineer In `agent-prompts/captain.md` "Phase: Executing" step 1: explicitly say "set `phase` to `'executing'`" alongside `active_specialist`. Same for the Reviewing dispatch step.
+- [x] @engineer In `agent-prompts/captain.md` "Phase: Executing" step 1: explicitly say "set `phase` to `'executing'`" alongside `active_specialist`. Same for the Reviewing dispatch step. — committed on `main` in the source repo `/Users/vik/Documents/my-team` (01a2fbb), not on the session branch (agent-prompts is a shared resource per Task D instructions).
 
 ### E. Docs
-- [ ] @engineer Update `SPEC.md` AT-column description (§174-176) to reflect: AT lights up on must_ask_pending or blocked; AskUserQuestion auto-pushes via PreToolUse hook; wrapper auto-heals stale awaiting_approval.
+- [x] @engineer Update `SPEC.md` AT-column description (§174-176) to reflect: AT lights up on must_ask_pending or blocked; AskUserQuestion auto-pushes via PreToolUse hook; wrapper auto-heals stale awaiting_approval. — replaced the single-paragraph clear-must-ask blurb with a richer breakdown of the three hooks + PHASE derivation + auto-heal.
 
 ## Testing
 - [ ] @tester `packages/cli/src/format.test.ts`: new cases for `getAttention()` and `effectivePhase()`.
