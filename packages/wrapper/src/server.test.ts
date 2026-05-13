@@ -139,9 +139,9 @@ describe('HTTP API integration', () => {
     expect(meta.title).toBe('Test Feature');
     expect(meta.source_repo).toBe(tempRepo);
 
-    // Verify .claude/settings.json was written with both the UserPromptSubmit
-    // and Stop hooks pointing at the (absolute) hook script paths the wrapper
-    // was configured with.
+    // Verify .claude/settings.json was written with all three captain
+    // hooks (UserPromptSubmit, Stop, PreToolUse) pointing at the
+    // (absolute) hook script paths the wrapper was configured with.
     const settingsPath = join(worktreePath, '.claude', 'settings.json');
     expect(existsSync(settingsPath)).toBe(true);
     const settings = JSON.parse(await readFile(settingsPath, 'utf-8'));
@@ -157,6 +157,12 @@ describe('HTTP API integration', () => {
           {
             matcher: '',
             hooks: [{ type: 'command', command: stopHookPath }],
+          },
+        ],
+        PreToolUse: [
+          {
+            matcher: 'AskUserQuestion',
+            hooks: [{ type: 'command', command: askQuestionHookPath }],
           },
         ],
       },

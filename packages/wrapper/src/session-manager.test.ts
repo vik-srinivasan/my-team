@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import { buildCaptainSettings } from './session-manager.js';
+import { buildCaptainSettings, healedPhaseFor } from './session-manager.js';
 
 describe('buildCaptainSettings', () => {
   const PATHS = {
@@ -100,5 +100,77 @@ describe('buildCaptainSettings', () => {
     const parsed = JSON.parse(serialised);
 
     expect(parsed).toEqual(buildCaptainSettings(PATHS));
+  });
+});
+
+describe('healedPhaseFor', () => {
+  it('returns null when phase is not awaiting_approval', () => {
+    // No matter the specialist, healing only kicks in for the stale
+    // awaiting_approval pattern.
+    expect(
+      healedPhaseFor({ phase: 'executing', active_specialist: 'engineer' }),
+    ).toBeNull();
+    expect(
+      healedPhaseFor({ phase: 'reviewing', active_specialist: 'reviewer' }),
+    ).toBeNull();
+    expect(
+      healedPhaseFor({ phase: 'done', active_specialist: null }),
+    ).toBeNull();
+    expect(
+      healedPhaseFor({ phase: 'blocked', active_specialist: 'engineer' }),
+    ).toBeNull();
+  });
+
+  it('returns null when active_specialist is null or not a real specialist', () => {
+    // awaiting_approval is the captain's legitimate idle state when no
+    // specialist owns the next move — don't heal that.
+    expect(
+      healedPhaseFor({ phase: 'awaiting_approval', active_specialist: null }),
+    ).toBeNull();
+    expect(
+      healedPhaseFor({ phase: 'awaiting_approval', active_specialist: '' }),
+    ).toBeNull();
+    expect(
+      healedPhaseFor({ phase: 'awaiting_approval', active_specialist: 'captain' }),
+    ).toBeNull();
+  });
+
+  it('maps engineer to executing', () => {
+    expect(
+      healedPhaseFor({
+        phase: 'awaiting_approval',
+        active_specialist: 'engineer',
+      }),
+    ).toBe('executing');
+  });
+
+  it('maps tester/reviewer/tester+reviewer to reviewing', () => {
+    expect(
+      healedPhaseFor({
+        phase: 'awaiting_approval',
+        active_specialist: 'tester',
+      }),
+    ).toBe('reviewing');
+    expect(
+      healedPhaseFor({
+        phase: 'awaiting_approval',
+        active_specialist: 'reviewer',
+      }),
+    ).toBe('reviewing');
+    expect(
+      healedPhaseFor({
+        phase: 'awaiting_approval',
+        active_specialist: 'tester+reviewer',
+      }),
+    ).toBe('reviewing');
+  });
+
+  it('maps scout to scouting', () => {
+    expect(
+      healedPhaseFor({
+        phase: 'awaiting_approval',
+        active_specialist: 'scout',
+      }),
+    ).toBe('scouting');
   });
 });

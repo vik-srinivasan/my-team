@@ -53,6 +53,39 @@ interface SessionManagerEventMap {
   event: [sessionId: string, event: WsServerEvent];
 }
 
+/**
+ * Returns the canonical `phase` for a `SessionState` whose `phase` is the
+ * stale `awaiting_approval` value left over from before the captain
+ * dispatched a real specialist. Returns `null` when no healing is
+ * warranted — i.e., when `phase` is not `awaiting_approval`, or when
+ * `active_specialist` is not one of the real specialists.
+ *
+ * Mapping mirrors `effectivePhase()` in the CLI's `format.ts`:
+ *   - engineer                                       → executing
+ *   - tester | reviewer | tester+reviewer            → reviewing
+ *   - scout                                          → scouting
+ *
+ * Exported so tests can hit the pure function without booting a
+ * `SessionManager`.
+ */
+export function healedPhaseFor(
+  state: Pick<SessionState, 'phase' | 'active_specialist'>,
+): SessionState['phase'] | null {
+  if (state.phase !== 'awaiting_approval') return null;
+  switch (state.active_specialist) {
+    case 'engineer':
+      return 'executing';
+    case 'tester':
+    case 'reviewer':
+    case 'tester+reviewer':
+      return 'reviewing';
+    case 'scout':
+      return 'scouting';
+    default:
+      return null;
+  }
+}
+
 interface ManagedSession {
   session: Session;
   captain: CaptainProcess | null;
@@ -390,9 +423,45 @@ export class SessionManager extends EventEmitter<SessionManagerEventMap> {
 
   // Reads state.json from disk and updates the in-memory copy. Silent no-op
   // on read/parse failure — fall back to whatever in-memory state we have.
+  //
+  // Side-effect: auto-heals the stale `awaiting_approval` + real
+  // `active_specialist` pattern. The captain is supposed to advance
+  // `phase` to `executing`/`reviewing`/`scouting` when it dispatches a
+  // specialist, but it sometimes forgets — leaving `phase` stuck at
+  // `awaiting_approval` with `active_specialist` already set. That
+  // pattern lights up the AT column red (and shows PHASE=approve)
+  // forever. We detect it here, rewrite state.json to the canonical
+  // phase derived from `active_specialist`, and log a warn so we can see
+  // how often captains drop the ball. Healing is best-effort: any write
+  // error is swallowed (matches the existing silent-on-failure contract).
   private async refreshStateFromDisk(managed: ManagedSession): Promise<void> {
     try {
       const fresh = await readTeamState(managed.session.worktree_path);
+
+      const targetPhase = healedPhaseFor(fresh);
+      if (targetPhase !== null) {
+        const fromPhase = fresh.phase;
+        const specialist = fresh.active_specialist;
+        fresh.phase = targetPhase;
+        try {
+          const statePath = join(managed.session.worktree_path, '.team', 'state.json');
+          await writeFile(statePath, JSON.stringify(fresh, null, 2));
+          this.log.warn(
+            {
+              sessionId: managed.session.meta.id,
+              from: fromPhase,
+              to: targetPhase,
+              specialist,
+            },
+            'Auto-healed stale phase on disk',
+          );
+        } catch {
+          // Best-effort: if the write fails, keep the in-memory mutation
+          // so list/detail returns the healed phase to clients, but
+          // don't throw — disk state is allowed to drift transiently.
+        }
+      }
+
       managed.session.state = fresh;
     } catch {
       // ignore — disk state unreadable, keep in-memory copy
