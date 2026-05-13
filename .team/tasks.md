@@ -1,35 +1,37 @@
-# Tasks — keep-session-open
+# Tasks — team-watch-changes
 
 ## Engineering
 
-### Wrapper code
-- [x] @engineer Remove auto-cleanup trigger in `packages/wrapper/src/session-manager.ts` (the `oldState.phase !== 'done' && newState.phase === 'done'` block around L231-L233).
-- [x] @engineer Delete the now-unused `scheduleCleanup` method in `packages/wrapper/src/session-manager.ts` (around L482–L516). Verify it has no other callers. (grep across repo confirms zero remaining references.)
-- [x] @engineer Verify `cleanSession` is still called by the DELETE route and `team purge`, and that path still works. (Unit-test regression added in `server.test.ts` exercises `cleanSession` end-to-end.)
+### A. Display fixes (format.ts + commands)
+- [x] @engineer In `packages/cli/src/format.ts`: drop the `phase === 'awaiting_approval'` critical branch from `getAttention()`. — stale test assertions in `format.test.ts` flipped to new behavior in the same commit.
+- [x] @engineer In `packages/cli/src/format.ts`: update `compareByAttention()` — collapse the awaiting_approval rank-0 bucket into rank 2 (must_ask). — `list.test.ts` sort assertions updated to match.
+- [ ] @engineer In `packages/cli/src/format.ts`: add `effectivePhase(s: SessionSummary): SessionPhase` mapping active_specialist → canonical phase.
+- [ ] @engineer In `packages/cli/src/commands/list.ts`: render PHASE column via `effectivePhase(s)`.
+- [ ] @engineer In `packages/cli/src/commands/watch.ts`: same.
 
-### Prompt edits
-- [x] @engineer Update `agent-prompts/captain.md` Done phase: change the closing user-facing message to mention the session stays alive and how to finalise (`team purge <id>`). — captain Done phase step 11
-- [x] @engineer Add a new "Phase: Follow-up" section to `agent-prompts/captain.md` after the Done phase, describing re-engagement: flip phase, append `## Follow-up round N` headers to `journal.md` / `plan.md` / `tasks.md`, dispatch specialists for the round, push commits (PR auto-updates), optionally `gh pr comment` the round summary.
-- [x] @engineer Guard the captain's `gh pr create` call so it does not run twice: check `gh pr view --json url,number` first; on a hit, skip create and just push. — captain Done phase step 1
-- [x] @engineer Have the captain write the final PR URL to `.team/pr.url` (one line) after PR open. Update the captain's Done phase to do this. — captain Done phase step 9
-- [x] @engineer Relax the captain's blocked-git-commands list to allow `git merge` and `git checkout <file>` for the narrow merge-conflict-resolution workflow. Keep `git rebase`, `git reset --hard`, `git push --force`, `git branch -D` blocked. Document the workflow inline.
-- [x] @engineer Mirror the same merge-conflict allowlist relaxation in `agent-prompts/engineer.md` if needed; engineer must be able to stage and commit conflict resolutions.
-- [x] @engineer Add a note to `agent-prompts/engineer.md` telling the engineer to read the most-recent `## Round N` section in `tasks.md` (not the first).
-- [x] @engineer Verify `agent-prompts/reviewer.md` already appends `# Review pass N`. If it overwrites, fix to append. — verified: already says "Append a new review pass section to `.team/review.md`" (line 68). No change needed.
-- [x] @engineer Verify how `agent-prompts/` is mirrored to `.claude/agents/` (build step? copy script?) and update the authoritative source so both stay in sync. — No copy mechanism / script / symlink. Wrapper reads `agent-prompts/` (repo-root, source of truth for future sessions) and copies into the worktree's `.claude/agents/` at session creation (`worktree.ts:copyAgentPrompts`). Both updated by hand. Captain.md was identical pre-edit; engineer/tester.md diverged from past partial commits. Edited BOTH copies for every prompt change in this PR. See journal for full details.
+### B. Wrapper auto-heal
+- [x] @engineer In `packages/wrapper/src/session-manager.ts`: extend `refreshStateFromDisk()` to auto-heal stale `awaiting_approval` when active_specialist is set to a real specialist. Atomic write. Log `warn` when healing fires. — heal logic via new pure `healedPhaseFor()` helper; write wrapped in its own try/catch.
 
-### Docs
-- [x] @engineer Update `SPEC.md` section 12 (around L298) to remove the auto-cleanup-on-done step and replace with explicit `team purge` / `team clean` for finalisation; mention follow-up rounds. — also updated the phase diagram and lifecycle-hook sentence in §4.
-- [x] @engineer Scan `README.md` for any mention of done-lifecycle / auto-cleanup and update if present (otherwise leave alone). — README has no done-auto-cleanup language; left alone.
+### C. AskUserQuestion hook
+- [x] @engineer Create `agent-prompts/hooks/mark-must-ask-on-question.sh` — PreToolUse hook that pushes `"user question pending"` to `must_ask_pending` if empty. Mirror the atomic-write + skip-conditions pattern of `mark-must-ask.sh`. chmod +x. — committed on `main` in the source repo (vik/Documents/my-team) AND copied into this branch's worktree so the wrapper entry point can resolve it.
+- [x] @engineer In `packages/wrapper/src/session-manager.ts`: add `askQuestionHookPath` to `CaptainHookPaths`; add `PreToolUse` (matcher: `AskUserQuestion`) section to `buildCaptainSettings()`; thread through `SessionManager` constructor.
+- [x] @engineer Update the wrapper entry point (where `SessionManager` is constructed) to pass the new hook path. — `packages/wrapper/src/index.ts`.
+
+### D. Captain prompt tightening
+- [ ] @engineer In `agent-prompts/captain.md` "Phase: Executing" step 1: explicitly say "set `phase` to `'executing'`" alongside `active_specialist`. Same for the Reviewing dispatch step.
+
+### E. Docs
+- [ ] @engineer Update `SPEC.md` AT-column description (§174-176) to reflect: AT lights up on must_ask_pending or blocked; AskUserQuestion auto-pushes via PreToolUse hook; wrapper auto-heals stale awaiting_approval.
 
 ## Testing
-- [x] @tester Build the wrapper and run the full test suite — confirm no regressions.
-- [x] @tester Add a unit/integration test in `packages/wrapper/src/__tests__/` (or wherever wrapper tests live) that asserts: transitioning a session to `phase: done` does NOT trigger any cleanup, and the session remains in the manager's registry indefinitely.
-- [x] @tester Add a test that `cleanSession` (invoked via the API DELETE route or directly) still removes the worktree and evicts from the registry.
-- [x] @tester Smoke-check `team list` shows a `done` session correctly and that flipping `state.json` back to `planning` is reflected on the next watch poll (can be a manual instruction in the test plan if integration test is impractical).
+- [ ] @tester `packages/cli/src/format.test.ts`: new cases for `getAttention()` and `effectivePhase()`.
+- [ ] @tester `packages/cli/src/commands/list.test.ts`: sort order — awaiting_approval folds into must_ask bucket.
+- [ ] @tester `packages/wrapper/src/session-manager.test.ts`: assert `buildCaptainSettings()` includes the new PreToolUse entry; assert `refreshStateFromDisk` auto-heals stale phase.
+- [ ] @tester New `packages/wrapper/src/mark-must-ask-on-question.test.ts`: shell-script integration tests mirroring `mark-must-ask.test.ts`.
+- [ ] @tester `pnpm -r build && pnpm -r test` green.
 
 ## Review
-- [ ] @reviewer Standard-effort review pass: wrapper change correctness, prompt clarity, doc-spec consistency, no leftover references to `scheduleCleanup`, follow-up phase logic, merge-allowlist scope is narrow enough.
+- [ ] @reviewer Code review pass — format.ts edge cases, auto-heal idempotency, hook script correctness, captain.md wording.
 
 ## Git
 - [ ] @captain Push branch and open PR.

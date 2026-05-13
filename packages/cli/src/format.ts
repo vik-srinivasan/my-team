@@ -110,13 +110,14 @@ export const ATTN_GLYPHS = {
 } as const;
 
 /**
- * Priority: awaiting_approval > blocked > must_ask_count > done > (idle).
- * Returns the glyph + label to show in the ATTN column.
+ * Priority: blocked > must_ask_count > done > (idle).
+ *
+ * `awaiting_approval` no longer forces AT critical — captains advance the
+ * phase as soon as they dispatch, and the wrapper auto-heals stale
+ * `awaiting_approval` paired with a real `active_specialist`. AT lights up
+ * for genuine user-input demand (`must_ask_pending` non-empty) or `blocked`.
  */
 export function getAttention(s: Pick<SessionSummary, 'phase' | 'must_ask_count'>): AttentionInfo {
-  if (s.phase === 'awaiting_approval') {
-    return { glyph: ATTN_GLYPHS.needsInput, label: 'approve', critical: true, done: false };
-  }
   if (s.phase === 'blocked') {
     return { glyph: ATTN_GLYPHS.blocked, label: 'blocked', critical: true, done: false };
   }
@@ -154,14 +155,17 @@ export const LIST_COL_WIDTHS = {
 
 /**
  * Attention-first comparator for `SessionSummary` rows:
- *   awaiting_approval → blocked → must_ask → idle/running → done
+ *   blocked → must_ask → idle/running → done
  * Tie-break by `created_at` (newest first within each bucket).
+ *
+ * `awaiting_approval` is no longer a critical bucket — sessions that still
+ * need user input while in that phase will surface via `must_ask_count > 0`
+ * (rank 2). Otherwise they rank with idle/running.
  */
 export function compareByAttention(a: SessionSummary, b: SessionSummary): number {
   const rank = (s: SessionSummary): number => {
     const att = getAttention(s);
     if (att.critical) {
-      if (s.phase === 'awaiting_approval') return 0;
       if (s.phase === 'blocked') return 1;
       return 2; // must_ask
     }

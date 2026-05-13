@@ -130,11 +130,13 @@ describe('abbreviatePhase / phaseColor', () => {
 });
 
 describe('getAttention parity with UI attention.ts priority order', () => {
-  it('phase=awaiting_approval -> approve', () => {
+  it('phase=awaiting_approval with no must_ask -> idle (not critical)', () => {
+    // awaiting_approval is no longer a forced AT-critical signal — must_ask
+    // pending is the canonical demand-for-user-input.
     const a = getAttention({ phase: 'awaiting_approval', must_ask_count: 0 });
-    expect(a.critical).toBe(true);
-    expect(a.label).toBe('approve');
-    expect(a.glyph).toBe(ATTN_GLYPHS.needsInput);
+    expect(a.critical).toBe(false);
+    expect(a.glyph).toBe(ATTN_GLYPHS.idle);
+    expect(a.label).toBe('');
   });
 
   it('phase=blocked -> blocked (with warning glyph)', () => {
@@ -163,10 +165,12 @@ describe('getAttention parity with UI attention.ts priority order', () => {
     expect(a.label).toBe('');
   });
 
-  it('awaiting_approval wins over must_ask_count', () => {
+  it('awaiting_approval with must_ask_count falls through to must_ask label', () => {
+    // awaiting_approval no longer pre-empts must_ask — the user-facing label
+    // matches the actual ask-pending count.
     expect(
       getAttention({ phase: 'awaiting_approval', must_ask_count: 5 }).label,
-    ).toBe('approve');
+    ).toBe('ask (5)');
   });
 
   it('blocked wins over must_ask_count', () => {

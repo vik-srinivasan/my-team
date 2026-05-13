@@ -19,7 +19,10 @@ function makeSession(over: Partial<SessionSummary>): SessionSummary {
 }
 
 describe('list compareByAttention', () => {
-  it('puts awaiting_approval first, then blocked, then must_ask, then idle, then done', () => {
+  it('puts blocked first, then must_ask, then idle (incl. awaiting_approval), then done', () => {
+    // awaiting_approval is no longer its own critical bucket — bare
+    // awaiting_approval ranks with idle/running. Pair it with must_ask if
+    // user input is genuinely pending.
     const ses = [
       makeSession({ id: 'idle', phase: 'executing' }),
       makeSession({ id: 'done', phase: 'done' }),
@@ -29,7 +32,7 @@ describe('list compareByAttention', () => {
     ];
 
     const sorted = [...ses].sort(compareByAttention).map((s) => s.id);
-    expect(sorted).toEqual(['approve', 'block', 'ask', 'idle', 'done']);
+    expect(sorted).toEqual(['block', 'ask', 'idle', 'approve', 'done']);
   });
 
   it('within same priority bucket, newer sessions come first', () => {
@@ -39,9 +42,20 @@ describe('list compareByAttention', () => {
     expect(sorted).toEqual(['newer', 'older']);
   });
 
-  it('awaiting_approval ranks above must_ask even when must_ask_count > 0 on both', () => {
-    const a = makeSession({ id: 'a', phase: 'awaiting_approval', must_ask_count: 1 });
-    const b = makeSession({ id: 'b', phase: 'executing', must_ask_count: 1 });
+  it('awaiting_approval folds into the must_ask bucket when must_ask_count > 0', () => {
+    // Both sessions land in rank 2 (must_ask); tie-break by created_at.
+    const a = makeSession({
+      id: 'a',
+      phase: 'awaiting_approval',
+      must_ask_count: 1,
+      created_at: new Date(Date.now() - 60_000).toISOString(),
+    });
+    const b = makeSession({
+      id: 'b',
+      phase: 'executing',
+      must_ask_count: 1,
+      created_at: new Date(Date.now() - 3_600_000).toISOString(),
+    });
     const sorted = [b, a].sort(compareByAttention).map((s) => s.id);
     expect(sorted).toEqual(['a', 'b']);
   });
