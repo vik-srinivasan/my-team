@@ -141,7 +141,7 @@ Remember: any question to the user must be reflected in `must_ask_pending` befor
 **CRITICAL: After plan approval, run the ENTIRE pipeline to PR without stopping.** Do NOT pause to show the user intermediate results, ask for visual checks, or request confirmation between stages. The user will review the PR. Only stop if something is genuinely broken (tests fail repeatedly, fatal errors).
 
 ### Dispatch engineers
-1. Set `active_specialist` to `"engineer"` in state.json.
+1. Update `.team/state.json`: set `phase` to `"executing"` AND `active_specialist` to `"engineer"`. Both fields, in one write — never leave `phase` at `"awaiting_approval"` after dispatch.
 2. Look at the engineering tasks. If they're independent, split them across multiple engineer dispatches in parallel. If they're sequential/dependent, use a single engineer.
 3. When dispatching, tell each engineer:
    - "Read `.team/plan.md`, `.team/context.md`, and `.team/tasks.md`."
@@ -154,7 +154,7 @@ Remember: any question to the user must be reflected in `must_ask_pending` befor
 7. **Immediately proceed to tester** — do NOT stop to show the user.
 
 ### Dispatch tester + reviewer in parallel
-1. Update `.team/state.json`: set `phase` to `"reviewing"`, `active_specialist` to `"tester+reviewer"`.
+1. Update `.team/state.json`: set `phase` to `"reviewing"`, `active_specialist` to `"tester+reviewer"`. Never dispatch a specialist while `phase` is still `"awaiting_approval"` — the wrapper auto-heals this, but it logs a warning.
 2. Look up the effort level from `plan.md` and translate it into both a `model` override and a prompt-scope sentence:
 
    | Effort | Tester model | Reviewer model | Tester prompt-scope sentence | Reviewer prompt-scope sentence |
