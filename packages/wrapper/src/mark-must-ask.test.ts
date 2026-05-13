@@ -188,6 +188,26 @@ describe('mark-must-ask.sh Stop hook', () => {
     expect((await readState()).must_ask_pending).toEqual(['approve plan?']);
   });
 
+  it('pushes entry when must_ask_pending key is entirely absent (not just empty array)', async () => {
+    // The script uses `jq '.must_ask_pending | length'` — in jq, null|length == 0,
+    // so a state.json that never had the key should behave the same as one with [].
+    const stateWithoutPending = {
+      phase: 'executing',
+      active_specialist: null,
+      review_iterations: 0,
+      last_checkpoint: '2026-05-12T00:00:00Z',
+      blockers: [],
+      // must_ask_pending intentionally omitted
+    };
+    await writeFile(stateFile, JSON.stringify(stateWithoutPending, null, 2));
+
+    const { status } = runHook();
+    expect(status).toBe(0);
+
+    const after = JSON.parse(await readFile(stateFile, 'utf-8')) as Record<string, unknown>;
+    expect(after['must_ask_pending']).toEqual(['captain awaiting user reply']);
+  });
+
   it('exits 0 silently when state.json is missing', async () => {
     // No state.json → hook should be a no-op, not an error.
     expect(existsSync(stateFile)).toBe(false);
