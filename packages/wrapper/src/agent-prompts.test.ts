@@ -191,6 +191,28 @@ describe('agent-prompts/captain.md', () => {
   });
 });
 
+// ── Designer-specific regression test ───────────────────────────────
+//
+// The designer specialist was previously granted the `Edit` tool, which
+// let it surgically modify source files despite prose saying it should
+// only critique. This guard locks the fix in place — any future
+// reintroduction of `Edit` to designer's tool grants must fail this
+// test loudly.
+
+describe('agent-prompts/designer.md tool grants', () => {
+  it('designer tool grants do not include Edit (prevents source-edit regression)', () => {
+    const designer = files.find((f) => f.name === 'designer');
+    if (!designer) throw new Error('designer.md missing');
+    const fm = parseFrontmatter(designer.body);
+    if (!fm) throw new Error('designer.md has no parseable frontmatter');
+    const tools = fm.fields.find((f) => f.key === 'tools');
+    expect(tools?.value, 'designer has no tools field').toBeTruthy();
+    const parsed = tools!.value.split(',').map((t) => t.trim()).filter(Boolean);
+    expect(parsed).not.toContain('Edit');
+    expect(parsed).toContain('Write');
+  });
+});
+
 function assertHeadersInOrder(agentName: string, body: string): void {
   let cursor = 0;
   for (const header of STANDARDIZED_HEADERS) {
