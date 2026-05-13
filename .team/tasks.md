@@ -38,9 +38,9 @@
 - [x] @engineer Add `srd.md` to `TEAM_FILES` in `apps/landing/app/components/GettingStarted.tsx`.
 
 ### Slice 6 — Docs
-- [ ] @engineer Update `README.md` — "The team" section (lines 44-52), command table (lines 55-74) with `team srd <id>`, "How it works" prose (line 117).
-- [ ] @engineer Update `SPEC.md` — glossary line 15, add §5.6–5.10 specialist subsections, update §12 phases to include SRD, update file layout tree at lines 428-434.
-- [ ] @engineer Update agent team list in `packages/cli/src/commands/help-info.ts` (lines 52-57) to include all 9 specialists.
+- [x] @engineer Update `README.md` — "The team" section (lines 44-52), command table (lines 55-74) with `team srd <id>`, "How it works" prose (line 117).
+- [x] @engineer Update `SPEC.md` — glossary line 15, add §5.6–5.10 specialist subsections, update §12 phases to include SRD, update file layout tree at lines 428-434.
+- [x] @engineer Update agent team list in `packages/cli/src/commands/help-info.ts` (lines 52-57) to include all 9 specialists.
 
 ## Testing
 

@@ -51,11 +51,21 @@ export function helpInfoCommand(): Command {
 \x1b[36m── Agent Team ──\x1b[0m
 
   Captain    Orchestrates the session — plans, dispatches, decides
-  Scout      Read-only codebase exploration (fast, cheap)
-  Engineer   Implements features, writes code + unit tests
-  Tester     Writes integration tests, runs test suite
-  Reviewer   Code review with severity-bucketed findings
-  Git        Pushes branch and opens a pull request
+
+  Always on:
+    Scout      Read-only codebase exploration (fast, cheap)
+    Engineer   Implements features, writes code + unit tests
+    Tester     Writes integration tests, runs test suite
+    Reviewer   Code review with severity-bucketed findings
+
+  Conditional (captain dispatches when triggered):
+    Debugger   Root-cause investigation when engineer stalls
+    Designer   Screenshot-driven visual critique on UI sessions
+    Runner     End-to-end behaviour check via real dev server / CLI hit
+    Auditor    Security pass on auth / payments / PII / migrations
+    Documenter Updates README / CHANGELOG / docs/ after engineer commits
+
+  The captain also pushes the session branch and opens the pull request.
 
 \x1b[36m── Session Phases ──\x1b[0m
 

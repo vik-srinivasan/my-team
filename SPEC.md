@@ -12,7 +12,7 @@ All Claude calls go through the `claude` CLI (Claude Code), which means the user
 
 - **Captain**: The main `claude` process the user chats with. Plans the work, dispatches specialists, ferries feedback, decides when the session is done. One per session.
 - **Specialist**: A Claude Code subagent defined in `.claude/agents/<name>.md`. Has its own system prompt, tool allowlist, and model. Invoked by the captain via the Task tool.
-- **Team**: The captain plus its specialists for one session. Always: captain + scout + engineer + tester + reviewer.
+- **Team**: The captain plus its specialists for one session. Always on: captain + scout + engineer + tester + reviewer. Plus five **conditional** specialists the captain dispatches only when their triggers fire: debugger, designer, runner, auditor, documenter.
 - **Session**: One unit of work, from "I want feature X" through PR opened. Has its own git worktree, branch, and `.team/` directory.
 - **Worktree**: A git worktree created at `~/team/sessions/<session-id>/`, checked out to a session-specific branch off the source repo's main branch.
 - **`.team/` directory**: Shared file-based state inside the worktree. How specialists communicate without talking to each other directly.
@@ -70,6 +70,7 @@ Each session lives at `~/team/sessions/<session-id>/`. Inside:
 ├── <full clone of source repo at session branch>
 ├── .team/
 │   ├── meta.json
+│   ├── srd.md
 │   ├── plan.md
 │   ├── context.md
 │   ├── tasks.md
@@ -96,7 +97,9 @@ The session branch is `my-team/<session-id>` off the source repo's default branc
 }
 ```
 
-**`plan.md`** — captain writes during planning, locked after user approval. Markdown. Includes goals, approach, file-level scope, must-ask items, and the agreed acceptance criteria.
+**`srd.md`** — captain writes during planning, immediately after scout returns and before drafting `plan.md`. The Session Requirements Doc captures *what* we're building (problem, users, goals, non-goals, success criteria, open questions) as agreed with the user. Locked once the user approves the requirements. Read by every downstream specialist as the source of truth for intent. Initialised as an empty file at session creation.
+
+**`plan.md`** — captain writes during planning, after `srd.md` is approved, locked after user approves the plan. Markdown. Captures *how* we'll deliver the SRD: approach, file-level scope, must-ask items, and the agreed acceptance criteria.
 
 **`context.md`** — scout writes once during planning. Codebase exploration findings: relevant files, existing conventions, related tests, dependencies the work will touch.
 
@@ -225,9 +228,9 @@ The four specialists plus captain (the captain also handles the final push + PR 
 - **Tools**: All standard Claude Code tools. Captain needs broad access for orchestration but should not directly write source files — that's engineer's job.
 - **Role**:
   - Phase: scouting → calls scout subagent, ingests `context.md`
-  - Phase: planning → chats with user, drafts `plan.md` and `tasks.md`, flags must-ask items
+  - Phase: planning → chats with user, **first drafts `srd.md`** (the session requirements doc — problem, goals, success criteria) and gets user confirmation, **then drafts `plan.md`** (implementation approach) and `tasks.md`, flags must-ask items
   - Phase: awaiting_approval → presents plan, waits for explicit "approved"
-  - Phase: executing → dispatches engineer, then tester, then reviewer; ferries `review.md` feedback back to engineer; loops until done criteria met
+  - Phase: executing → dispatches engineer, then tester, then reviewer; ferries `review.md` feedback back to engineer; conditionally dispatches debugger/designer/runner/auditor/documenter when their triggers fire (see §5.6–§5.10); loops until done criteria met
   - Phase: done → pushes the session branch and opens the PR itself (no subagent), then marks state done
 - **Stuck protocol**: When a specialist escalates, captain decides. When a must-ask item is hit, captain pauses session and writes a notification (v1: file at `~/team/notifications/`, surfaced via `team notifications`).
 
@@ -270,6 +273,60 @@ The four specialists plus captain (the captain also handles the final push + PR 
   - "Be thorough on first pass. Subsequent passes only check whether prior blockers were addressed plus any new code."
   - "Format: file:line headers, severity buckets (Blocking, Suggestion, Approved)."
 
+The remaining five specialists are **conditional** — the captain dispatches them only when their triggers fire, not on every session. They share the same `.claude/agents/<name>.md` definition shape as the always-on four.
+
+### 5.6 Debugger
+- **Tools**: Read, Grep, Glob, Bash (no Write, no Edit — debugger investigates, doesn't patch)
+- **Model**: most recent sonnet model
+- **Trigger**: Engineer has stalled — a failing test it can't get past after two iterations, or unexplained runtime behaviour. Captain dispatches debugger before sending the engineer in for another spin.
+- **Role**: Root-cause investigation. Reads failing test output, reproduces the failure minimally, forms a hypothesis, instruments if needed, then hands a written explanation back to the engineer through `.team/journal.md`. Never fixes the bug itself — that's the engineer's job after reading the findings.
+- **Output artifact**: Appends a `## <ISO timestamp> — debugger` entry to `journal.md` containing the failing case, the hypothesis, supporting evidence (file:line refs), and the recommended fix shape.
+- **System prompt highlights**:
+  - "You investigate. You don't fix. Hand the engineer a clear explanation and let them patch it."
+  - "Reproduce the failure with the smallest possible test or command before forming a hypothesis."
+
+### 5.7 Designer
+- **Tools**: Read, Edit, Bash
+- **Model**: most recent sonnet model
+- **Trigger**: Session touched UI surface (component files, CSS, landing page, etc.). Captain dispatches designer after the engineer commits a UI-affecting change.
+- **Role**: Screenshot-driven visual critique. Boots the dev server in the background, drives Playwright to capture key views, writes a critique covering hierarchy, spacing, typography, and overall taste, hands a revision list back to the engineer. Capped at 2–3 iterations per session to avoid infinite polish loops.
+- **Output artifact**: Appends a `## <ISO timestamp> — designer` entry to `journal.md` with paths to screenshots saved under `.team/artifacts/` and the prioritised revision list. The captain creates `.team/artifacts/` on first designer dispatch.
+- **Playwright**: lazy-installed on first use within the session — designer runs `pnpm add -D playwright && pnpm exec playwright install chromium`. Adds latency to the first dispatch only.
+- **System prompt highlights**:
+  - "Compare against the SRD and plan — does the rendered UI match what we said we'd build?"
+  - "Be specific. 'Spacing feels cramped' is useless; 'card padding should be 24px not 12px' is actionable."
+
+### 5.8 Runner
+- **Tools**: Read, Bash (no Write, no Edit — runner exercises, doesn't modify)
+- **Model**: most recent sonnet model
+- **Trigger**: Session ships a runnable surface (dev server, CLI, function, endpoint). Captain dispatches runner after the engineer commits and tester has run unit/integration suites.
+- **Role**: End-to-end behaviour check. Boots the actual feature like a real caller would — starts a dev server and hits the endpoint with `curl`; invokes the new CLI command and inspects stdout/exit code; calls the new function and prints the return value. Compares observed behaviour against the SRD's success criteria. Flags any mismatch.
+- **Output artifact**: Appends a `## <ISO timestamp> — runner` entry to `journal.md` with the commands run, the observed responses (truncated where huge), and a verdict (matches / mismatch + which SRD criterion failed). Curl transcripts and CLI captures saved under `.team/artifacts/`.
+- **System prompt highlights**:
+  - "You are the user. Hit the feature like a user would and report what you saw."
+  - "If something matches the SRD but feels wrong, flag it — taste matters."
+
+### 5.9 Auditor
+- **Tools**: Read, Grep, Glob, Write
+- **Model**: most recent opus model (security-sensitive)
+- **Trigger**: Diff touches auth code, payment code, anything with PII, or DB migrations. Captain matches file paths against these patterns and dispatches auditor before the final reviewer pass.
+- **Role**: Narrow security pass. Walks OWASP top-10 categories — injection, broken auth, sensitive-data exposure, XXE, broken access control, security misconfig, XSS, insecure deserialization, vulnerable components, insufficient logging — against the diff. Writes findings, not fixes.
+- **Output artifact**: Appends a `## Security audit (auditor) — <ISO timestamp>` subsection to `.team/review.md` so the reviewer sees it inline. Findings carry the same Blocking / Suggestion / Approved buckets as the rest of `review.md`.
+- **Tool restriction is prompt-level**: auditor has Write, but the prompt strictly forbids writing anywhere except `.team/review.md`.
+- **System prompt highlights**:
+  - "You may write to `.team/review.md` and nowhere else."
+  - "Cite OWASP category + file:line for every finding. Vague findings ('this looks risky') are not actionable."
+
+### 5.10 Documenter
+- **Tools**: Read, Edit (no Write — documenter only edits existing docs, doesn't invent new ones)
+- **Model**: most recent haiku model (cheap, mechanical)
+- **Trigger**: Diff changes public-surface files — CLI command additions, exported types, README references, env var changes, new commands or flags. Captain dispatches documenter after the engineer's final commit, before the reviewer's final pass.
+- **Role**: Reads the diff, identifies which docs are now stale (README, CHANGELOG, AGENTS.md, CLAUDE.md, `docs/`), updates them in place, commits separately so the doc churn doesn't pollute feature commits.
+- **Scope is intentionally narrow**: per-session, documenter only updates docs in the working repo — not landing page, not SPEC.md. Captain decides whether documenter runs at all (UI-only sessions may skip).
+- **System prompt highlights**:
+  - "You don't write new documentation files. You update existing ones."
+  - "If the diff doesn't change any documented surface, exit cleanly with a journal entry saying so."
+
 ## 6. Workflow phases
 
 The end-to-end happy path:
@@ -282,7 +339,14 @@ The end-to-end happy path:
 - Spawns `claude` in the worktree with the captain system prompt appended
 - Prints the session ID and drops the user into the captain's chat
 
-**2. Scouting + Planning.** Captain dispatches scout in the background and immediately begins chatting with the user (no waiting). Scout produces `context.md` which enriches the plan. Captain drafts `plan.md` and `tasks.md`. Captain identifies must-ask items and surfaces them in chat. State → `awaiting_approval`.
+**2. Scouting + Planning.** Captain dispatches scout in the background and immediately begins chatting with the user (no waiting). Scout produces `context.md` which enriches the plan.
+
+Planning proceeds in two passes:
+
+1. **SRD pass.** Captain drafts `.team/srd.md` from the conversation with the user — problem statement, users, goals, non-goals, success criteria, open questions. Captain reads it back to the user and waits for confirmation that requirements are right. The SRD captures *what* we're building.
+2. **Plan pass.** Once the user confirms the SRD, captain drafts `.team/plan.md` and `.team/tasks.md` describing *how* we'll deliver it — approach, file-level scope, slice breakdown, must-ask items. The plan must satisfy the SRD's success criteria.
+
+Captain surfaces must-ask items in chat. State → `awaiting_approval`.
 
 **3. Approval.** User says some variant of "approved" / "go" / "ship it". Captain locks the plan (writes a note to `journal.md`) and transitions state → `executing`.
 
@@ -294,6 +358,15 @@ The end-to-end happy path:
 If reviewer returns blockers, captain re-dispatches engineer with the `review.md` brief. Engineer addresses blockers, marks resolutions inline in `review.md`, commits. Captain re-dispatches reviewer for a follow-up pass. Loop until reviewer returns no blockers OR `review_iterations` hits `max_review_iterations` (default 8).
 
 If tester reports failures during the loop, captain may insert another engineer pass to address them.
+
+**Conditional specialists** (§5.6–§5.10) interleave with this loop when their triggers fire:
+- Debugger before re-dispatching a stalled engineer.
+- Designer after a UI-affecting commit (capped at 2–3 iterations).
+- Runner after the unit/integration suite is green, to confirm SRD success criteria from the user-facing surface.
+- Auditor when the diff touches auth / payments / PII / migrations, before the final reviewer pass.
+- Documenter after the engineer's final commit when public-surface files changed, before the final reviewer pass.
+
+The captain decides per-session which conditional specialists are warranted based on file paths in the diff and the SRD's nature.
 
 **6. Done criteria.** All three must be true to ship:
 - Every task in `tasks.md` is `[x]`
@@ -430,7 +503,12 @@ my-team/
     ├── scout.md
     ├── engineer.md
     ├── tester.md
-    └── reviewer.md
+    ├── reviewer.md
+    ├── debugger.md                  (conditional: stuck-engineer rescue)
+    ├── designer.md                  (conditional: UI critique)
+    ├── runner.md                    (conditional: end-to-end behaviour check)
+    ├── auditor.md                   (conditional: security audit)
+    └── documenter.md                (conditional: docs updates)
 ```
 
 The wrapper installs/copies `agent-prompts/*.md` into `~/.claude/agents/` on first run (and the captain prompt path is referenced when spawning each session's `claude`).
@@ -470,6 +548,8 @@ The build order is roughly:
 
 **Phase 3 — Polish.** Better error messaging, recovery from common failure modes, rate-limit awareness (warn before exhausting Max usage), notification surface for blocked sessions, README and a short demo.
 
+**Phase 4 — Conditional specialists + SRD planning step.** Extend the captain's planning phase so that after scout returns the captain drafts `.team/srd.md` with the user *before* drafting `plan.md` — capturing requirements (what) separately from approach (how). Add five conditional specialists the captain dispatches when their triggers fire (debugger, designer, runner, auditor, documenter — see §5.6–§5.10). Standardise the opening structure of every agent `.md` prompt. Add the `team srd <id>` CLI command mirroring `team plan <id>`. Update README, SPEC, landing page, and `team help` to reflect the broader roster.
+
 Start each phase with a minimal end-to-end happy-path test, then layer in features and edge cases.
 
 ## 13. Out of scope for v1
@@ -485,7 +565,7 @@ Explicitly not building these now. Don't let scope creep happen mid-build:
 - Cost tracking and rate-limit enforcement. v1 ignores token costs and Max usage windows.
 - Persistent across wrapper restart (in-flight conversation recovery). v1 only persists git state.
 - LLM-driven session resumption. Manual recovery is fine for v1.
-- Plugins, custom workflow phases, custom specialist roles. The 4-specialist + captain shape is fixed for v1.
+- Plugins, custom workflow phases, custom specialist roles. The captain + 4 always-on + 5 conditional shape is fixed; users cannot add their own specialist roles in this version.
 - Windows / Linux support beyond what works incidentally. Build for macOS first.
 - A `gh` alternative for non-GitHub forges. GitHub only.
 
