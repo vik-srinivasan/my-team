@@ -1,72 +1,75 @@
-## 2026-05-12T17:30:00Z — captain
-Action: Session started. User reported PR #21 didn't fully fix the AT-column / `must_ask_pending` problem. Two sessions (`clear-hawk-29`, `thin-moss-58`) ended captain turns asking the user questions but never lit up the AT column. Dispatching scout to map current AT-column / hook plumbing while I diagnose with the user.
+## 2026-05-12T09:17:00Z — captain
+Session started. User wants to rework `team list` and `team status` CLIs:
+- `team list` rows wrap because columns are too wide → needs compaction.
+- No signal for "Captain is waiting on user input" — phase can say `scouting` while Captain is asking a question. Needs an attention/needs-input column.
+Dispatching scout in background to map the current CLI + state-detection surface.
 
-## 2026-05-12T17:36:00Z — captain
-Action: Scout returned. Wrote `context.md` from the scout's output (scout reported inline rather than writing the file). Confirmed two independent failures: (1) stale wrapper daemon predating PR #21 merge → `writeCaptainHooks` never ran for new sessions, no `.claude/settings.json` written; (2) captain prompt push protocol is unreliable — captain ends chat-heavy turns without writing to state.json. Phase → planning. Waiting on user for scope + effort level before drafting plan.
+## 2026-05-12T09:19:00Z — captain
+Scout returned. Key findings:
+- `list.ts` uses fixed `padEnd` widths (total ~97 chars); chalk escapes inflate `.length`, so colored cells pad short. Root cause of wrap.
+- `must_ask_count` + `last_checkpoint` are already on the wire in `SessionSummary` but the CLI's local `listSessions()` type drops them.
+- `packages/ui/src/lib/attention.ts` already has the exact derivation we want — mirror it in CLI.
+- No tests for `list.ts` or `status.ts`.
+- Captain prompt writes `must_ask_pending` only manually; main attention signals in practice are `phase==awaiting_approval` and `phase==blocked`.
 
-## 2026-05-12T17:52:00Z — captain
-Action: User locked scope (option B — Stop hook only, doctor as follow-up), effort=standard, and decided to skip the retrofit script in favor of letting live sessions finish naturally then restarting manually. Wrote plan.md and tasks.md. Awaiting plan approval.
+User added during planning:
+- `team status` should show MORE detail (open-ended — brainstorm).
+- New `team journal <id>` command to show recent journal entries.
+- "Brainstorm what else might be useful."
 
-## 2026-05-12T17:53:00Z — captain
-Action: Plan approved by user ("go"). Phase → executing. Dispatching single engineer for all engineering tasks (they're tightly coupled — hook script + wrapper wiring + prompt edit + unit test all need to ship together).
+User picked: single-glyph ATTN column, responsive tty-width trimming, all three attention signals (phase + must_ask_count + notification file), full overhaul of both list and status.
 
-## 2026-05-12T18:09:00Z — engineer
-Completed: Stop hook implementation (mark-must-ask.sh + wrapper wiring + captain prompt edit + unit tests).
-Created:
-  - `agent-prompts/hooks/mark-must-ask.sh` — Stop hook script, executable, idempotent atomic rewrite.
-  - `packages/wrapper/src/mark-must-ask.test.ts` — 11 vitest cases shelling out to the script with controlled `$CLAUDE_PROJECT_DIR`.
-Modified:
-  - `packages/wrapper/src/index.ts` — added `STOP_HOOK_PATH` resolved from `__dirname`; passed as 4th `SessionManager` arg.
-  - `packages/wrapper/src/session-manager.ts` — `buildCaptainSettings` now takes a `CaptainHookPaths` options object and emits both `UserPromptSubmit` and `Stop` hooks; `SessionManager` ctor accepts and stores `stopHookPath`; `writeCaptainHooks` threads both paths through.
-  - `packages/wrapper/src/session-manager.test.ts` — updated for new signature; added Stop-hook shape assertion and a `[Stop, UserPromptSubmit]` coexistence check.
-  - `packages/wrapper/src/server.test.ts` — added `stopHookPath` stub, passes both paths to ctor, asserts written `.claude/settings.json` includes the Stop hook.
-  - `packages/wrapper/src/websocket.test.ts` — same constructor signature update.
-  - `agent-prompts/captain.md` + `.claude/agents/captain.md` — one paragraph noting the Stop hook is a safety net, not a substitute for specific captain pushes.
-Decisions:
-  - Used a `CaptainHookPaths` options-object signature for `buildCaptainSettings` instead of a second positional arg — easier to extend, harder to mix up at the call site. Logged in `.team/decisions.md` (no decisions.md entry needed; this is mentioned inline in the commit).
-Commits: f251849 (hook), 0aaca3a (wrapper wiring), 1710e26 (captain prompt), ac14229 (hook tests).
-Tests passed: 157, Tests failed: 0, Tests written: packages/wrapper/src/mark-must-ask.test.ts (11 cases), plus extensions to session-manager.test.ts (1 new case, others reshaped) and server.test.ts (assertion extended).
-Build: `pnpm -r build` green. `pnpm test` green (first run had a 1/157 chokidar flake — known pre-existing macOS fsevents issue noted in context.md gotchas; second run clean).
-Preview: not applicable — backend/CLI repo, no UI changes.
+## 2026-05-12T09:25:00Z — captain
+Plan approved. Scope: rewrite list (with REPO col) + status (1 recent journal entry), plus new commands watch/journal/tasks/plan/diff/logs. Skipping review viewer and `open` per user. `team --help` must list everything. Dispatching engineer.
 
-## 2026-05-12T18:10:00Z — captain
-Action: Engineer done (4 commits, 157/0 tests, 11 new). Dispatching tester + reviewer in parallel. Tester double-checks the suite + smoke-tests the Stop hook script directly (engineer's vitest cases already cover the four acceptance cases — tester looks for gaps the engineer missed). Reviewer does standard scope.
+## 2026-05-12T10:00:00Z — engineer
+Shared infra landed: format.ts (ANSI-safe padEndVisible, humanizeAgo, abbreviatePhase, phaseColor, getAttention mirroring packages/ui/src/lib/attention.ts) + session-paths.ts + api-client SessionSummary widening. 25 format.test.ts cases green. Commit b37ae7d.
 
-## 2026-05-12T18:14:00Z — tester
-Completed: Ran full test suite, smoke-tested mark-must-ask.sh against real state.json files in a scratch temp dir, analyzed coverage gaps and bugs.
+## 2026-05-12T10:05:00Z — engineer
+list rewrite + tests committed (249250a). ATTN/ID/TITLE/PHASE/REPO/AGE columns, attention-first sort, --json + -a, footer. REPO column dropped on < 80-col terminals. Padding computed on stripped string so chalk escapes no longer skew widths.
 
-Smoke test commands and outputs (all run against /tmp/mark-must-ask-smoke-zHuz4Q):
+## 2026-05-12T10:10:00Z — engineer
+status rewrite + tests committed (7673618). Sectioned triage view: heading, phase/specialist, attention line (only when critical), checkpoint, review iter, branch/PR, tasks N/M, plan presence, review summary (approved/changes_requested/pending), pending must-ask questions, single most recent journal entry. --json for scripting.
 
-  CASE 1 — Idle state → entry pushed:
-    Input: {"phase":"executing","active_specialist":null,"must_ask_pending":[],"review_iterations":0}
-    Command: CLAUDE_PROJECT_DIR=/tmp/... mark-must-ask.sh
-    Exit: 0; must_ask_pending = ["captain awaiting user reply"] ✓
+## 2026-05-12T10:15:00Z — engineer
+New commands committed one-by-one: journal (5474102), tasks (5a0c70e), plan (c0405a0), diff (19745d1), logs rewrite to tail pino (c0ebca6), watch (de5bf0a). diff uses spawn-array form (no shell injection); logs gracefully says "no logs yet" when wrapper log file is absent (wrapper currently logs to stdout only — see decisions.md). watch handles SIGINT/q cleanly with ANSI clear+home.
 
-  CASE 2 — active_specialist=engineer → file unchanged:
-    Input: {"phase":"executing","active_specialist":"engineer","must_ask_pending":[]}
-    Exit: 0; must_ask_pending = [] (unchanged) ✓
+## 2026-05-12T10:20:00Z — engineer
+Final pass on index.ts (89acf27): all 20 commands registered alphabetically. `team --help` lists every command with a one-line description. `team <cmd> --help` works for each. Full vitest suite (167 tests) passes. `pnpm -r build` clean across all packages.
 
-  CASE 3 — Missing state.json → exit 0, no stderr:
-    Exit: 0; stderr = '' ✓
+## 2026-05-12T11:00:00Z — tester
+Full vitest suite: 167 tests pass across 21 test files. `pnpm -r build` clean on all packages. All manual checks passed: `list` (no wrap, ATTN column present, --json valid, -a filter works), `status`, `journal` (default 5 entries + -n count), `tasks`, `plan`, `diff`, `logs` ("no logs yet"), `watch` (redraws on interval, clean exit), `--help`. Two minor bugs filed in review.md: (1) "Worktree" label shows source_repo path instead of actual session worktree path; (2) remote_url fallback for PR line contains BEL + duplicate URL from wrapper's OSC 8 regex. Neither is blocking.
 
-  CASE 4 — Run twice with idle state → second run is no-op (idempotent):
-    First run: must_ask_pending = ["captain awaiting user reply"]
-    Second run: must_ask_pending = ["captain awaiting user reply"] (unchanged, count still 1) ✓
+## 2026-05-12T11:30:00Z — reviewer
+Completed: Review pass 1
+Blockers: 3
+Suggestions: 4
+Verdict: Changes Requested
 
-  BONUS — must_ask_pending key entirely absent: hook pushes entry correctly ✓
-  BONUS — active_specialist is string "null" (not JSON null): hook fires correctly ✓
-  BONUS — phase=reviewing + active_specialist=null (inconsistent state): hook fires (documented as suggestion in review.md)
+Confirmed both tester findings as Blocking. Found one additional Blocking issue: `status.ts:122` computes the separator line width using `heading.length` which includes chalk bold ANSI escape bytes (~9 extra chars), causing the `─` line to render ~9 columns wider than the visible heading on a TTY. Fix: use `visibleLength(heading)` from format.ts. All three blockers are localized to `status.ts`. Everything else (format.ts, list.ts, session-paths.ts, diff.ts, logs.ts, watch.ts, journal.ts, tasks.ts, plan.ts, index.ts, all tests) is clean.
 
-Coverage gaps found and addressed:
-  - mark-must-ask.test.ts was missing a test for must_ask_pending key entirely absent. Added one test case. All other engineer gaps (absolute path in server.test.ts, JSON round-trip in session-manager.test.ts) were already covered.
+## 2026-05-12T12:10:00Z — engineer
+Completed: Review iteration 1 fixes (all 3 blockers + all 4 suggestions).
 
-Bug analysis:
-  - jq null/string-null distinction: no bug — script correctly handles both.
-  - phase=reviewing + active_specialist=null false positive: by-design; filed as suggestion in review.md.
-  - Race condition (hook fires while user mid-typing): harmless — UserPromptSubmit clears on submit.
-  - Captain prompt push protocol: intact and not weakened by Stop hook paragraph addition.
+Blockers (commit 32eaeb2, `fix(cli): address review pass 1 blockers in status`):
+- `status.ts` — thread `worktree_path` from the API response through `RenderArgs`; render the actual session worktree (`/Users/vik/team/sessions/<id>`) instead of `meta.source_repo` (the user's source repo). Also surfaced in `--json` as `worktree_path`.
+- `status.ts` — sanitize `session.remote_url` by splitting on `\x07` (OSC 8 BEL) and taking `[0]`. Fixes the duplicated `https://...https://...` PR line caused by the wrapper's URL regex capturing the hyperlink escape sequence.
+- `status.ts` — replace `heading.length` with `visibleLength(heading)` for the separator bar; chalk.bold escapes were inflating the bar by ~9 cols on a TTY. Added a regression test in `format.test.ts` to lock this in.
 
-Tests written: packages/wrapper/src/mark-must-ask.test.ts (1 new case added)
-Tests passed: 158
-Tests failed: 0
-Bugs filed: 0 blocking (1 suggestion in review.md)
+Suggestions (commit 2030d5a, `refactor(cli): address review pass 1 suggestions`):
+- Moved `compareByAttention` + `LIST_COL_WIDTHS` from `list.ts`/`watch.ts` into `format.ts`. Both files now import the shared helpers.
+- Wrapped `journal`/`tasks`/`plan` actions in top-level try/catch; non-ENOENT I/O errors now print a chalk-red message and exit 1.
+- `diff.ts` sets a non-zero exit code on git/pager spawn failure in both TTY (pager) and non-TTY (streaming) paths.
+
+Verification:
+- Full vitest suite: 168 / 168 pass (was 167; added one regression test).
+- `pnpm -r build` clean across all packages.
+- Eyeballed `node packages/cli/dist/index.js status mild-moon-80`:
+  - Worktree line reads `/Users/vik/team/sessions/mild-moon-80`.
+  - PR line is clean (no BEL, no duplicate).
+  - Separator bar width matches visible heading.
+- `team list` still renders correctly after the refactor.
+
+Created: (none — refactor only)
+Modified: packages/cli/src/commands/status.ts, packages/cli/src/format.ts, packages/cli/src/format.test.ts, packages/cli/src/commands/list.ts, packages/cli/src/commands/watch.ts, packages/cli/src/commands/journal.ts, packages/cli/src/commands/tasks.ts, packages/cli/src/commands/plan.ts, packages/cli/src/commands/diff.ts
+Commits: 32eaeb2 (blockers), 2030d5a (suggestions)
