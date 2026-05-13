@@ -62,6 +62,7 @@ Five agents share a session. The captain drives; the rest are dispatched as Clau
 | `team list-past` | List source repos used in past sessions (works without the daemon) |
 | `team status <id>` | Detailed status for one session |
 | `team attach <id>` | Re-attach to a session's chat |
+| `team jump <id>` | Print a session's worktree path (use with `cd "$(team jump <id>)"`) |
 | `team kill <id>` | Terminate a session |
 | `team logs <id>` | Print recent journal entries |
 | `team open <id>` | Open a session worktree in VS Code |
@@ -71,6 +72,16 @@ Five agents share a session. The captain drives; the rest are dispatched as Clau
 | `team notifications` | Show blocked session alerts |
 | `team notifications --clear` | Clear all notifications |
 | `team help` | Show this help summary |
+
+### Shell integration
+
+Drop this in your `~/.zshrc` or `~/.bashrc` to `cd` into any session's worktree by id:
+
+```bash
+tj() { cd "$(team jump "$1")"; }
+```
+
+Then `tj calm-brook-81` jumps you straight into `~/team/sessions/calm-brook-81`. Works even when the daemon isn't running — the path is deterministic.
 
 ### Recents and shortcuts
 
