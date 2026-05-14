@@ -4,7 +4,15 @@ import WebSocket from 'ws';
 
 import type { WsServerEvent } from '@my-team/shared';
 
-const WS_BASE = 'ws://127.0.0.1:3001';
+/**
+ * WebSocket base for the wrapper daemon. Hard-coded to the daemon's
+ * fixed `127.0.0.1:3001`. The `MY_TEAM_WS_BASE` override exists solely
+ * for tests that need to point at an ephemeral port — production paths
+ * (CLI invocation, scripted retry) always hit the daemon.
+ */
+function wsBase(): string {
+  return process.env['MY_TEAM_WS_BASE'] ?? 'ws://127.0.0.1:3001';
+}
 
 export function attachCommand(): Command {
   return new Command('attach')
@@ -17,7 +25,7 @@ export function attachCommand(): Command {
 
 export function attachToSession(id: string): Promise<void> {
   return new Promise((resolve, reject) => {
-    const url = `${WS_BASE}/ws/sessions/${id}`;
+    const url = `${wsBase()}/ws/sessions/${id}`;
     const ws = new WebSocket(url);
 
     // Cleanup is installed by the `open` handler. The `close` handler
