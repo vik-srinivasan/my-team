@@ -766,7 +766,7 @@ describe('HTTP API integration', () => {
     });
   });
 
-  describe.skip('Workflow config endpoints', () => {
+  describe('Workflow config endpoints', () => {
     async function createTestSession(title: string): Promise<{ id: string; worktreePath: string }> {
       const res = await request(app)
         .post('/api/sessions')
@@ -870,7 +870,7 @@ describe('HTTP API integration', () => {
     });
   });
 
-  describe.skip('Recents endpoint', () => {
+  describe('Recents endpoint', () => {
     it('GET /api/repos/recents returns the registry as { repos: [...] }', async () => {
       // Seed the registry with one entry so we have something to assert on.
       // The shared beforeAll set MY_TEAM_REGISTRY_PATH to a temp file; we

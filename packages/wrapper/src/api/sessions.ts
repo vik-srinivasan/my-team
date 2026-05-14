@@ -17,6 +17,7 @@ import {
   getAgent,
   putAgent,
 } from '../agent-prompts.js';
+import { getWorkflowConfig, putWorkflowConfig } from '../workflow-config.js';
 
 const CreateSessionSchema = z.object({
   source_repo: z.string().min(1),
@@ -52,6 +53,7 @@ function handleError(res: Response, err: unknown, log: Logger): void {
     const statusCode = err.code === 'SESSION_NOT_FOUND' ? 404
       : err.code === 'AGENT_NOT_FOUND' ? 404
       : err.code === 'INVALID_AGENT_NAME' ? 400
+      : err.code === 'INVALID_WORKFLOW_CONFIG' ? 400
       : err.code === 'SESSION_ACTIVE' ? 409
       : err.code === 'SESSION_PROCESS_DEAD' ? 409
       : err.code === 'NOT_A_GIT_REPO' ? 400
@@ -243,6 +245,33 @@ export function createSessionsRouter(
         body.content,
       );
       res.json(data);
+    } catch (err) {
+      handleError(res, err, log);
+    }
+  });
+
+  // ── Workflow config (Workflow tab) ────────────────────────────────
+  //
+  // Per-session overrides for conditional-specialist dispatch + effort
+  // level. Stored at `<worktree>/.team/workflow.json`. The captain reads
+  // this file before dispatching designer / runner / auditor /
+  // documenter / debugger (see `agent-prompts/captain.md`).
+
+  // GET /api/sessions/:id/workflow
+  router.get('/:id/workflow', async (req: Request, res: Response) => {
+    try {
+      const config = await getWorkflowConfig(sessionLookup, param(req, 'id'));
+      res.json(config);
+    } catch (err) {
+      handleError(res, err, log);
+    }
+  });
+
+  // PUT /api/sessions/:id/workflow
+  router.put('/:id/workflow', async (req: Request, res: Response) => {
+    try {
+      const saved = await putWorkflowConfig(sessionLookup, param(req, 'id'), req.body);
+      res.json(saved);
     } catch (err) {
       handleError(res, err, log);
     }
