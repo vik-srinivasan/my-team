@@ -28,9 +28,9 @@
 
 ## Testing
 
-- [ ] @tester Run full vitest suite (`apps/ui` + `packages/wrapper` + `packages/cli`); confirm green.
-- [ ] @tester Add `packages/wrapper/src/api/websocket.test.ts` cases for CLI-priority resize: (a) `web` + `cli` both send resize → only the `cli` resize reaches `sessionManager.resizeCaptain`; (b) only `web` client connected → its resize is forwarded; (c) `cli` disconnects → `web` resize starts being forwarded again.
-- [ ] @tester Verify the ChatTab tests cover the listed behaviors (send echo, ANSI strip, merge window, autoscroll, disabled-input).
+- [x] @tester Run full vitest suite (`apps/ui` + `packages/wrapper` + `packages/cli`); confirm green.
+- [x] @tester Add `packages/wrapper/src/api/websocket.test.ts` cases for CLI-priority resize: (a) `web` + `cli` both send resize → only the `cli` resize reaches `sessionManager.resizeCaptain`; (b) only `web` client connected → its resize is forwarded; (c) `cli` disconnects → `web` resize starts being forwarded again.
+- [x] @tester Verify the ChatTab tests cover the listed behaviors (send echo, ANSI strip, merge window, autoscroll, disabled-input).
 
 ## End-to-end
 

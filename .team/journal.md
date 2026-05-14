@@ -57,3 +57,23 @@ Preview: UI changes — the user can see them by running `pnpm --filter @my-team
 Surprises:
 - ChatTab's "reset transcript when session changes" effect originally ran in a separate `useEffect` from the output ingest; React's effect ordering caused it to wipe the messages the ingest had just appended on mount. Folded the session-change check into the ingest effect (guarded by a `transcriptSessionId` ref) so we get exactly one reducer-style pass per render.
 - The keyboard-shortcut suite already asserted ⌘1..⌘8 maps to specific tabs — adding chat as the new leftmost entry necessarily shifted everything by one. Updated the tests + docstring to ⌘1..⌘9 (workflow is now reachable via ⌘9, which wasn't a valid key before). No production keyboard handler logic changed beyond comment text.
+
+## 2026-05-14T10:25:30Z — captain
+Action: Both engineers returned clean. Total: 11 commits, 438/438 tests across the monorepo, `pnpm -r build` green. Dispatching tester + reviewer + designer in parallel. Tester verifies the suite + reads new tests for behavioral coverage; reviewer applies the full standard checklist; designer screenshots the new Chat tab and critiques. Runner will follow after these complete (sequenced to avoid Vite port contention with designer).
+
+## 2026-05-14T10:35:00Z — tester
+Completed: Full suite audit + behavioral coverage review for Tracks A, B, C.
+Tests written: apps/ui/src/components/tabs/ChatTab.test.tsx (2 new cases added: ANSI-only suppression, multi-line Shift+Enter)
+Tests passed: 438 (root monorepo) + 128 (apps/ui) = 566 total
+Tests failed: 0 (one intermittent flake in server.test.ts "POST /api/sessions/:id/resume > already-running" under full parallel run; passes in isolation — pre-existing timing sensitivity, not a regression from this session)
+Bugs filed: none
+
+Behavioral audit results:
+- ChatTab.test.tsx: all 6 required behaviors covered (echo, ANSI strip, 2s merge, >2s split, disabled-input, autoscroll pinned/scrolled-up). Added 2 edge cases: (g) ANSI-only chunk produces no message; (h) Shift+Enter inserts newline, plain Enter sends full multi-line draft.
+- useSessionWebSocket.test.ts: ring buffer accumulates correctly, caps at RECENT_OUTPUT_CAP, drops oldest first — fully covered.
+- packages/wrapper/src/api/websocket.test.ts: all 4 CLI-priority cases covered (web+cli drops web, web-only forwards, cli-disconnect restores web, dedupe). Engineer wrote these; I audited and confirmed they match the plan spec exactly.
+- Terminal.test.tsx: asserts convertEol: false via constructor spy — covered.
+- TerminalTab.test.tsx: resize debounce burst test (3 resizes in 16ms → 1 WS send) — covered.
+- useKeyboardShortcuts.test.ts: tabForDigit asserts all 9 digits (1-9) including new chat=1 and workflow=9; integration test checks ⌘1, ⌘4, ⌘8, ⌘9. All 9 are present in the tabForDigit unit test.
+- ANSI-only chunk edge case: code already has the guard (stripped.length === 0 → skip); added test to pin the contract.
+- Multi-line paste edge case: Shift+Enter must not trigger send; plain Enter sends full draft. Test added and verified.
