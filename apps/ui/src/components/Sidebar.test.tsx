@@ -168,6 +168,55 @@ describe('Sidebar', () => {
     });
   });
 
+  it('renders a red daemon-status row when the sessions query errors', async () => {
+    vi.spyOn(api, 'listSessions').mockRejectedValue(new Error('boom'));
+
+    render(
+      <Providers>
+        <Sidebar />
+      </Providers>,
+    );
+
+    const status = await screen.findByTestId('daemon-status');
+    await waitFor(() => {
+      expect(status).toHaveAttribute('data-status', 'error');
+    });
+    expect(status).toHaveTextContent(/Wrapper daemon unreachable/i);
+    // `team start` should render inside a <code> element, not as backtick body type.
+    expect(within(status).getByText('team start').tagName).toBe('CODE');
+  });
+
+  it('still shows the empty-state hint when the daemon is down (no sessions to render)', async () => {
+    vi.spyOn(api, 'listSessions').mockRejectedValue(new Error('boom'));
+
+    render(
+      <Providers>
+        <Sidebar />
+      </Providers>,
+    );
+
+    // The empty-state copy lives next to the error row now, not as a replacement.
+    expect(
+      await screen.findByText(/No sessions yet\. Click \+ to create one\./i),
+    ).toBeInTheDocument();
+  });
+
+  it('renders a green daemon-status row when sessions load successfully', async () => {
+    vi.spyOn(api, 'listSessions').mockResolvedValue([]);
+
+    render(
+      <Providers>
+        <Sidebar />
+      </Providers>,
+    );
+
+    const status = await screen.findByTestId('daemon-status');
+    await waitFor(() => {
+      expect(status).toHaveAttribute('data-status', 'connected');
+    });
+    expect(status).toHaveTextContent(/Daemon connected/i);
+  });
+
   it('clicking a session item sets the global selected id', async () => {
     vi.spyOn(api, 'listSessions').mockResolvedValue([
       makeSession({ id: 'click-me', title: 'click target' }),

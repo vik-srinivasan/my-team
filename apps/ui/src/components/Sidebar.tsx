@@ -49,7 +49,7 @@ export function Sidebar(): ReactElement {
         <input
           type="search"
           aria-label="Search sessions"
-          placeholder="Search…"
+          placeholder="Search sessions"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           className="flex-1 min-w-0 rounded-sm bg-neutral-900 border border-neutral-800 px-2 py-1 text-sm text-neutral-100 placeholder:text-neutral-600 focus:outline-none focus:border-neutral-600"
@@ -72,11 +72,10 @@ export function Sidebar(): ReactElement {
             rowClassName="h-12 w-full"
             containerClassName="space-y-2 p-3"
           />
-        ) : isError ? (
-          <p className="p-4 text-sm text-red-400">
-            Wrapper daemon unreachable. Is `team start` running?
-          </p>
         ) : filtered.length === 0 && query.length === 0 ? (
+          // Show the "no sessions yet" hint even when the daemon is down so
+          // first-time users see something useful instead of a wall of red.
+          // The daemon-state pill at the bottom carries the error signal.
           <p className="p-4 text-sm text-neutral-500">
             No sessions yet. Click + to create one.
           </p>
@@ -97,6 +96,8 @@ export function Sidebar(): ReactElement {
         )}
       </div>
 
+      <DaemonStatusRow isError={isError} isLoading={isLoading} />
+
       {showNewModal ? (
         <NewSessionModal
           onClose={() => setShowNewModal(false)}
@@ -107,5 +108,58 @@ export function Sidebar(): ReactElement {
         />
       ) : null}
     </aside>
+  );
+}
+
+/**
+ * Small status pill at the bottom of the sidebar. Surfaces wrapper-daemon
+ * reachability as a colored dot + short caption rather than swallowing the
+ * session list when the daemon is unreachable. Keep the copy short — the
+ * full instructions live in `apps/ui/README.md`.
+ */
+function DaemonStatusRow({
+  isError,
+  isLoading,
+}: {
+  isError: boolean;
+  isLoading: boolean;
+}): ReactElement {
+  if (isError) {
+    return (
+      <div
+        data-testid="daemon-status"
+        data-status="error"
+        className="border-t border-neutral-800 px-3 py-2 flex items-center gap-2 text-xs text-neutral-400"
+        role="status"
+      >
+        <span
+          aria-hidden
+          className="size-2 rounded-full bg-red-500 shrink-0"
+        />
+        <span>
+          Wrapper daemon unreachable. Run{' '}
+          <code className="rounded-sm bg-neutral-900 px-1 py-0.5 text-[11px] text-neutral-200">
+            team start
+          </code>
+          .
+        </span>
+      </div>
+    );
+  }
+  return (
+    <div
+      data-testid="daemon-status"
+      data-status={isLoading ? 'connecting' : 'connected'}
+      className="border-t border-neutral-800 px-3 py-2 flex items-center gap-2 text-xs text-neutral-500"
+      role="status"
+    >
+      <span
+        aria-hidden
+        className={`size-2 rounded-full shrink-0 ${
+          isLoading ? 'bg-yellow-500' : 'bg-green-500'
+        }`}
+      />
+      <span>{isLoading ? 'Connecting to daemon…' : 'Daemon connected'}</span>
+    </div>
   );
 }
