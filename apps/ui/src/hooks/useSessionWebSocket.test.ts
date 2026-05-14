@@ -160,6 +160,51 @@ describe('useSessionWebSocket', () => {
     }
   });
 
+  it('does not log unhandled errors after unmount when the server later closes (closedByCaller guard)', async () => {
+    // Regression: before the lib/ws.ts closedByCaller guard, a delayed
+    // mock-socket close fired AFTER React tore down the hook would
+    // dispatch into a stale reducer and surface as "ReferenceError:
+    // window is not defined" from React's scheduler. The fix gates
+    // every callback (status, dispatch, reconnect) behind the
+    // closedByCaller flag. This test captures that contract by
+    // unmounting BEFORE letting the server close and asserting nothing
+    // leaks to console.error.
+    const server = makeServer('s-closeguard');
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      const { result, unmount } = renderHook(() => useSessionWebSocket('s-closeguard'));
+      await waitFor(() => expect(result.current.status).toBe('open'));
+
+      // Tear the hook down first. closedByCaller flips to true; further
+      // setStatus/dispatch calls become no-ops.
+      unmount();
+
+      // Now have the server close the connection. The underlying
+      // WebSocket WILL fire a `close` event after this — the guard must
+      // suppress the reducer dispatch.
+      server.close({ code: 1006, reason: 'late', wasClean: false });
+
+      // Give the event loop a couple of ticks so any leaked async
+      // dispatch has a chance to run.
+      await new Promise((r) => setTimeout(r, 50));
+
+      // No React internal error should have leaked through.
+      const leaked = errorSpy.mock.calls.find((args) => {
+        const msg = String(args[0] ?? '');
+        return (
+          msg.includes('ReferenceError') ||
+          msg.includes('not defined') ||
+          msg.includes('torn-down') ||
+          msg.includes('unmounted component')
+        );
+      });
+      expect(leaked).toBeUndefined();
+    } finally {
+      server.stop();
+      errorSpy.mockRestore();
+    }
+  });
+
   it('reconnects after an unexpected close', async () => {
     // The first server accepts the initial connection and then drops it.
     // After it stops, we spin up a second server on the same URL so the
