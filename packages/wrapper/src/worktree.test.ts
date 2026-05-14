@@ -9,6 +9,7 @@ import { resolveRepoRoot, getDefaultBranch, createWorktree, removeWorktree, arch
 
 describe('worktree', () => {
   let tempRepo: string;
+  let sessionsRootDir: string;
 
   beforeEach(async () => {
     // Create a real temp git repo for testing
@@ -18,11 +19,18 @@ describe('worktree', () => {
     execSync('echo "hello" > test.txt', { cwd: tempRepo });
     execSync('git add .', { cwd: tempRepo });
     execSync('git commit -m "init"', { cwd: tempRepo });
+
+    // Isolate sessions root so worktrees go to a temp dir, not the user's
+    // real ~/team/sessions/.
+    sessionsRootDir = await mkdtemp(join(tmpdir(), 'my-team-sessions-'));
+    process.env['MY_TEAM_SESSIONS_DIR'] = sessionsRootDir;
   });
 
   afterEach(async () => {
     // Clean up temp repo and any worktrees
     await rm(tempRepo, { recursive: true, force: true });
+    await rm(sessionsRootDir, { recursive: true, force: true });
+    delete process.env['MY_TEAM_SESSIONS_DIR'];
   });
 
   describe('resolveRepoRoot', () => {

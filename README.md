@@ -103,7 +103,7 @@ All changes are immediately visible in the `.team/` folder and reflected in the 
 | `team new "<title>"` | Create a session in the current repo |
 | `team new <shortcut> "<title>"` | Create a session against a known repo basename (no `cd` needed) |
 | `team new <name> --new` | Bootstrap a new project (`mkdir` + `git init` + initial commit) and start a session |
-| `team list` | List all active sessions |
+| `team list` | List all active and orphan sessions |
 | `team list-past` | List source repos used in past sessions (works without the daemon) |
 | `team status <id>` | Detailed status for one session |
 | `team attach <id>` | Re-attach to a session's chat |
@@ -112,6 +112,7 @@ All changes are immediately visible in the `.team/` folder and reflected in the 
 | `team logs <id>` | Print recent journal entries |
 | `team srd <id>` | Pretty-print `.team/srd.md` (captain's session requirements doc) |
 | `team open <id>` | Open a session worktree in VS Code |
+| `team resume <id>` | Re-spawn a captain on an orphan session (after daemon crash or restart) |
 | `team archive <id>` | Archive `.team/` files |
 | `team clean <id>` | Remove session worktree |
 | `team purge <id>` | Kill and clean a session in one step |
@@ -179,6 +180,10 @@ $ approve
   [reviewer] approved — 0 blocking, 2 suggestions
   captain › PR opened → github.com/you/repo/pull/482
 ```
+
+### Session recovery
+
+If the wrapper daemon (or the captain process) crashes mid-session, the worktree and all `.team/` files survive on disk. `team list` will show the session with `pid: null`. Use `team resume <id>` to re-spawn the captain on the existing worktree — the captain reads its `.team/journal.md`, `.team/state.json`, and other files to resume where it left off. After resume, `team open <id>` re-attaches to the captain cleanly.
 
 See `SPEC.md` for the full specification.
 

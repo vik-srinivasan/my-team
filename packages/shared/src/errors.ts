@@ -29,6 +29,25 @@ export class SessionProcessDeadError extends MyTeamError {
   }
 }
 
+/**
+ * The session's worktree directory exists on disk, but it is not in a
+ * resumable state — typically because `.team/meta.json` is missing,
+ * unreadable, or contains invalid JSON. Distinct from `SessionNotFoundError`
+ * (worktree absent) so callers can give the right guidance: a missing
+ * worktree warrants `team list` to find a real ID; a corrupt one warrants
+ * `team purge` to clean it up.
+ */
+export class SessionCorruptError extends MyTeamError {
+  constructor(id: string, reason?: string) {
+    const detail = reason ? ` (${reason})` : '';
+    super(
+      `Session '${id}' worktree is corrupt or not resumable${detail}. Consider 'team purge ${id}'.`,
+      'SESSION_CORRUPT',
+    );
+    this.name = 'SessionCorruptError';
+  }
+}
+
 export class NotAGitRepoError extends MyTeamError {
   constructor(path: string) {
     super(`Not a git repository: ${path}`, 'NOT_A_GIT_REPO');

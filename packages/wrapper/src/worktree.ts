@@ -9,7 +9,16 @@ import type { SessionMeta, SessionState } from '@my-team/shared';
 import { NotAGitRepoError, WorktreeError } from '@my-team/shared';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const SESSIONS_DIR = join(homedir(), 'team', 'sessions');
+
+/**
+ * Root directory containing all session worktrees. Resolved lazily so tests
+ * can override it via `MY_TEAM_SESSIONS_DIR` (set before the call) without
+ * clearing an ESM module cache.
+ */
+export function sessionsDir(): string {
+  return process.env['MY_TEAM_SESSIONS_DIR'] ?? join(homedir(), 'team', 'sessions');
+}
+
 const ARCHIVES_DIR = join(homedir(), 'team', 'archives');
 const GLOBAL_AGENTS_DIR = join(homedir(), '.claude', 'agents');
 const MY_TEAM_AGENTS_DIR = resolve(__dirname, '..', '..', '..', 'agent-prompts');
@@ -43,7 +52,7 @@ export async function getDefaultBranch(repoPath: string): Promise<string> {
 }
 
 export function getWorktreePath(sessionId: string): string {
-  return join(SESSIONS_DIR, sessionId);
+  return join(sessionsDir(), sessionId);
 }
 
 export async function createWorktree(
@@ -57,7 +66,7 @@ export async function createWorktree(
   const sessionBranch = `my-team/${sessionId}`;
 
   // Ensure sessions directory exists
-  await mkdir(SESSIONS_DIR, { recursive: true });
+  await mkdir(sessionsDir(), { recursive: true });
 
   // Create worktree
   const git = simpleGit(repoRoot);
