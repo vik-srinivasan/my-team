@@ -23,6 +23,10 @@ const SendInputSchema = z.object({
   text: z.string(),
 });
 
+const SessionIdParamSchema = z.object({
+  id: z.string().min(1, 'session id is required'),
+});
+
 function param(req: Request, name: string): string {
   const value = req.params[name];
   if (Array.isArray(value)) return value[0];
@@ -42,6 +46,7 @@ function handleError(res: Response, err: unknown, log: Logger): void {
     const statusCode = err.code === 'SESSION_NOT_FOUND' ? 404
       : err.code === 'SESSION_ACTIVE' ? 409
       : err.code === 'SESSION_PROCESS_DEAD' ? 409
+      : err.code === 'SESSION_CORRUPT' ? 422
       : err.code === 'NOT_A_GIT_REPO' ? 400
       : 500;
     res.status(statusCode).json({
@@ -124,6 +129,27 @@ export function createSessionsRouter(
     try {
       await sessionManager.killSession(param(req, 'id'));
       res.status(202).json({ ok: true });
+    } catch (err) {
+      handleError(res, err, log);
+    }
+  });
+
+  // POST /api/sessions/:id/resume
+  router.post('/:id/resume', async (req: Request, res: Response) => {
+    try {
+      const { id } = SessionIdParamSchema.parse({ id: param(req, 'id') });
+      const session = await sessionManager.resumeSession(id);
+      const response: SessionSummary = {
+        id: session.meta.id,
+        title: session.meta.title,
+        source_repo: session.meta.source_repo,
+        phase: session.state.phase,
+        active_specialist: session.state.active_specialist,
+        created_at: session.meta.created_at,
+        last_checkpoint: session.state.last_checkpoint,
+        must_ask_count: session.state.must_ask_pending.length,
+      };
+      res.status(200).json(response);
     } catch (err) {
       handleError(res, err, log);
     }
