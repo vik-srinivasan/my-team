@@ -69,8 +69,19 @@ export function SessionWorkspace(): ReactElement {
 
   if (selectedSessionId === null) {
     return (
-      <section className="flex-1 flex items-center justify-center text-neutral-500 text-sm bg-neutral-950">
-        Select a session from the sidebar.
+      <section
+        className="flex-1 flex flex-col items-center justify-center gap-3 bg-neutral-950"
+        data-testid="workspace-empty"
+      >
+        <p className="text-lg text-neutral-300">
+          Select a session from the sidebar.
+        </p>
+        <p className="flex items-center gap-2 text-sm text-neutral-500">
+          <kbd className="rounded-sm border border-neutral-700 bg-neutral-900 px-1.5 py-0.5 font-mono text-xs text-neutral-300">
+            ⌘N
+          </kbd>
+          <span>new session</span>
+        </p>
       </section>
     );
   }
