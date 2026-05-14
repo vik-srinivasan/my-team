@@ -89,8 +89,12 @@ export function createSessionsRouter(
 
   // GET /api/sessions
   router.get('/', async (_req: Request, res: Response) => {
-    const sessions: SessionSummary[] = await sessionManager.listSessions();
-    res.json(sessions);
+    try {
+      const sessions: SessionSummary[] = await sessionManager.listSessions();
+      res.json(sessions);
+    } catch (err) {
+      handleError(res, err, log);
+    }
   });
 
   // GET /api/sessions/:id
