@@ -19,8 +19,11 @@ import {
   recordSessionStart,
   SessionNotFoundError,
   SessionActiveError,
+  SessionCorruptError,
   SessionProcessDeadError,
 } from '@my-team/shared';
+
+import { existsSync } from 'node:fs';
 
 import {
   createWorktree,
@@ -240,7 +243,159 @@ export class SessionManager extends EventEmitter<SessionManagerEventMap> {
 
     session.pid = captain.pid;
 
-    // Capture remote control URL when detected
+    this.attachCaptainHandlers(sessionId, captain);
+    const watcher = this.attachTeamFileWatcher(sessionId, worktreePath);
+
+    const managed: ManagedSession = {
+      session,
+      captain,
+      watcher,
+      lastDiff: '',
+      diffTimer: null,
+    };
+    this.sessions.set(sessionId, managed);
+
+    // Record this session against the recents registry. Best-effort —
+    // a failed write must not block session creation.
+    try {
+      const overridePath = process.env['MY_TEAM_REGISTRY_PATH'];
+      await recordSessionStart(meta, overridePath);
+    } catch (err) {
+      this.log.warn({ sessionId, err }, 'Failed to update recents registry');
+    }
+
+    this.log.info({ sessionId, pid: captain.pid }, 'Session created');
+    return session;
+  }
+
+  /**
+   * Resumes an existing session whose worktree survived on disk but whose
+   * captain process is no longer running. Mirrors the spawn-side path of
+   * {@link createSession}: pre-trusts the directory, rewrites captain hooks,
+   * appends a `Session resumed` journal entry BEFORE spawning (so the
+   * captain reads it on startup), spawns the captain, wires the event
+   * handlers and watcher, then inserts the entry into the in-memory Map.
+   *
+   * Throws:
+   *   - `SessionNotFoundError` — worktree directory absent.
+   *   - `SessionCorruptError` — worktree present but `.team/meta.json` is
+   *     missing or unreadable.
+   *   - `SessionActiveError` — the captain is already running in this
+   *     daemon's memory (no double-spawn).
+   */
+  async resumeSession(id: string, cols?: number, rows?: number): Promise<Session> {
+    const worktreePath = getWorktreePath(id);
+    if (!existsSync(worktreePath)) {
+      throw new SessionNotFoundError(id);
+    }
+
+    let meta;
+    try {
+      meta = await readTeamMeta(worktreePath);
+    } catch (err) {
+      throw new SessionCorruptError(id, err instanceof Error ? err.message : String(err));
+    }
+
+    // Refuse double-spawn — a live captain already owns this worktree.
+    const existing = this.sessions.get(id);
+    if (existing?.captain?.running) {
+      throw new SessionActiveError(id);
+    }
+
+    this.log.info({ sessionId: id, worktreePath }, 'Resuming session');
+
+    // Mirror createSession pre-flight: pre-trust + hooks. Worktrees from
+    // earlier versions of my-team may have stale or missing settings.
+    await this.preTrustDirectory(worktreePath);
+    await this.writeCaptainHooks(worktreePath);
+
+    // Append a `Session resumed` journal entry BEFORE spawning so the
+    // captain reads it on startup. Best-effort: a journal append failure
+    // does not block the resume — it's just an observability loss.
+    const timestamp = new Date().toISOString();
+    try {
+      await appendFile(
+        join(worktreePath, '.team', 'journal.md'),
+        `\n## ${timestamp} — wrapper\nSession resumed.\n`,
+      );
+    } catch (err) {
+      this.log.warn({ id, err }, 'Failed to append resume journal entry');
+    }
+
+    // Best-effort read of current state from disk for the in-memory copy.
+    // If state.json is missing or corrupt, fall back to a minimal default —
+    // the captain will rewrite it on its first checkpoint anyway.
+    let state: SessionState;
+    try {
+      state = await readTeamState(worktreePath);
+    } catch {
+      state = {
+        phase: 'blocked',
+        active_specialist: null,
+        review_iterations: 0,
+        max_review_iterations: 8,
+        last_checkpoint: timestamp,
+        blockers: ['state.json unreadable at resume; captain will reinitialize'],
+        must_ask_pending: [],
+      };
+    }
+
+    const session: Session = {
+      meta,
+      state,
+      worktree_path: worktreePath,
+      pid: null,
+      started_at: timestamp,
+      remote_url: null,
+    };
+
+    // Stop any stale watcher from a prior in-memory entry (e.g. session
+    // was killed and is now being resumed) before we wire a new one.
+    if (existing?.watcher) {
+      await existing.watcher.close();
+    }
+
+    const captain = await spawnCaptain({
+      worktreePath,
+      captainPromptPath: this.captainPromptPath,
+      sessionId: id,
+      cols,
+      rows,
+    });
+    session.pid = captain.pid;
+
+    this.attachCaptainHandlers(id, captain);
+    const watcher = this.attachTeamFileWatcher(id, worktreePath);
+
+    const managed: ManagedSession = {
+      session,
+      captain,
+      watcher,
+      lastDiff: '',
+      diffTimer: null,
+    };
+    this.sessions.set(id, managed);
+
+    // Keep the recents registry accurate — surface the just-resumed session
+    // in `team list-past` ordering.
+    try {
+      const overridePath = process.env['MY_TEAM_REGISTRY_PATH'];
+      await recordSessionStart(meta, overridePath);
+    } catch (err) {
+      this.log.warn({ id, err }, 'Failed to update recents registry on resume');
+    }
+
+    this.log.info({ id, pid: captain.pid }, 'Session resumed');
+    return session;
+  }
+
+  /**
+   * Wires the standard captain event handlers (remoteUrl, data, exit) for
+   * a freshly-spawned captain. Mutates `this.sessions` on event delivery,
+   * so the entry must be inserted into the Map either before or
+   * immediately after this call (createSession / resumeSession both do).
+   */
+  private attachCaptainHandlers(sessionId: string, captain: CaptainProcess): void {
     captain.on('remoteUrl', (url) => {
       this.log.info({ sessionId, remoteUrl: url }, 'Remote control URL detected');
       const managed = this.sessions.get(sessionId);
@@ -250,8 +405,6 @@ export class SessionManager extends EventEmitter<SessionManagerEventMap> {
       this.emitEvent(sessionId, { type: 'remote_url', url });
     });
 
-    // Forward captain output as WS events immediately (no buffering —
-    // buffering can split ANSI escape sequences mid-sequence, causing garbled TUI output)
     captain.on('data', (text) => {
       this.emitEvent(sessionId, { type: 'output', text });
     });
@@ -276,9 +429,15 @@ export class SessionManager extends EventEmitter<SessionManagerEventMap> {
         }
       }
     });
+  }
 
-    // Watch .team/ files for changes
-    const watcher = watchTeamFiles(worktreePath, (filename, content) => {
+  /**
+   * Sets up the `.team/` file watcher with the standard broadcast +
+   * state.json + specialist + blocked notification handlers. Returns the
+   * watcher handle so the caller can persist it on the ManagedSession.
+   */
+  private attachTeamFileWatcher(sessionId: string, worktreePath: string): TeamFileWatcher {
+    return watchTeamFiles(worktreePath, (filename, content) => {
       this.log.debug({ sessionId, filename }, 'Team file changed');
 
       // Emit team_file event for the four broadcast markdown files.
@@ -329,27 +488,6 @@ export class SessionManager extends EventEmitter<SessionManagerEventMap> {
         }
       }
     });
-
-    const managed: ManagedSession = {
-      session,
-      captain,
-      watcher,
-      lastDiff: '',
-      diffTimer: null,
-    };
-    this.sessions.set(sessionId, managed);
-
-    // Record this session against the recents registry. Best-effort —
-    // a failed write must not block session creation.
-    try {
-      const overridePath = process.env['MY_TEAM_REGISTRY_PATH'];
-      await recordSessionStart(meta, overridePath);
-    } catch (err) {
-      this.log.warn({ sessionId, err }, 'Failed to update recents registry');
-    }
-
-    this.log.info({ sessionId, pid: captain.pid }, 'Session created');
-    return session;
   }
 
   getSession(id: string): Session {
