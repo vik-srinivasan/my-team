@@ -4,6 +4,23 @@ import { render } from '@testing-library/react';
 
 import { Terminal, type TerminalHandle } from './Terminal.js';
 
+// Spy on the xterm constructor so we can assert which options the
+// component passes in (convertEol, scrollback, etc.). We wrap the real
+// constructor rather than replacing it so the rest of these tests
+// continue to exercise real xterm behaviour in jsdom.
+const xtermConstructorSpy = vi.fn<(opts: Record<string, unknown>) => void>();
+vi.mock('@xterm/xterm', async () => {
+  const actual =
+    await vi.importActual<typeof import('@xterm/xterm')>('@xterm/xterm');
+  class SpyTerminal extends actual.Terminal {
+    constructor(opts: ConstructorParameters<typeof actual.Terminal>[0]) {
+      xtermConstructorSpy(opts as Record<string, unknown>);
+      super(opts);
+    }
+  }
+  return { ...actual, Terminal: SpyTerminal };
+});
+
 /**
  * jsdom doesn't implement enough of the browser surface for xterm.js's
  * renderer:
@@ -116,5 +133,13 @@ describe('Terminal', () => {
     const ref = createRef<TerminalHandle>();
     render(<Terminal ref={ref} onData={() => {}} onResize={() => {}} />);
     expect(() => ref.current!.clear()).not.toThrow();
+  });
+
+  it('constructs xterm with convertEol: false so the PTY-emitted \\r\\n is not double-translated', () => {
+    xtermConstructorSpy.mockClear();
+    render(<Terminal onData={() => {}} onResize={() => {}} />);
+    expect(xtermConstructorSpy).toHaveBeenCalledTimes(1);
+    const opts = xtermConstructorSpy.mock.calls[0][0];
+    expect(opts).toMatchObject({ convertEol: false });
   });
 });

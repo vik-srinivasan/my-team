@@ -152,12 +152,46 @@ describe('TerminalTab', () => {
   });
 
   it('forwards grid resizes via socket.send({ type: "resize" })', () => {
-    const sendSpy = vi.fn();
-    render(<Harness snapshot={makeSnapshot()} sendSpy={sendSpy} />);
+    vi.useFakeTimers();
+    try {
+      const sendSpy = vi.fn();
+      render(<Harness snapshot={makeSnapshot()} sendSpy={sendSpy} />);
 
-    expect(mockTerm.fireResize).not.toBeNull();
-    mockTerm.fireResize?.(120, 40);
-    expect(sendSpy).toHaveBeenCalledWith({ type: 'resize', cols: 120, rows: 40 });
+      expect(mockTerm.fireResize).not.toBeNull();
+      mockTerm.fireResize?.(120, 40);
+      // Trailing debounce — advance past the window so the WS send fires.
+      vi.advanceTimersByTime(20);
+      expect(sendSpy).toHaveBeenCalledWith({ type: 'resize', cols: 120, rows: 40 });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('collapses a burst of resizes within 16ms into a single WS message', () => {
+    vi.useFakeTimers();
+    try {
+      const sendSpy = vi.fn();
+      render(<Harness snapshot={makeSnapshot()} sendSpy={sendSpy} />);
+      expect(mockTerm.fireResize).not.toBeNull();
+
+      // Three resizes inside the debounce window. The last one wins.
+      mockTerm.fireResize?.(100, 30);
+      vi.advanceTimersByTime(5);
+      mockTerm.fireResize?.(110, 32);
+      vi.advanceTimersByTime(5);
+      mockTerm.fireResize?.(120, 40);
+
+      // Within the trailing window: nothing has been sent yet.
+      expect(sendSpy).not.toHaveBeenCalled();
+
+      // After the trailing window elapses, exactly one send with the
+      // final dimensions.
+      vi.advanceTimersByTime(20);
+      expect(sendSpy).toHaveBeenCalledTimes(1);
+      expect(sendSpy).toHaveBeenCalledWith({ type: 'resize', cols: 120, rows: 40 });
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('clears the terminal on closed → connecting transition', () => {
