@@ -47,6 +47,7 @@ describe('HTTP API integration', () => {
   let askQuestionHookPath: string;
   let registryPath: string;
   let registryDir: string;
+  let sessionsRootDir: string;
 
   beforeAll(async () => {
     // Create a temp git repo
@@ -73,12 +74,20 @@ describe('HTTP API integration', () => {
     registryDir = await mkdtemp(join(tmpdir(), 'my-team-registry-'));
     registryPath = join(registryDir, 'recents.json');
     process.env['MY_TEAM_REGISTRY_PATH'] = registryPath;
+
+    // Isolate the sessions root so the disk-merge in listSessions doesn't
+    // pick up the user's real ~/team/sessions/. Set BEFORE every call that
+    // resolves it (createSession / listSessions / getWorktreePath).
+    sessionsRootDir = await mkdtemp(join(tmpdir(), 'my-team-sessions-'));
+    process.env['MY_TEAM_SESSIONS_DIR'] = sessionsRootDir;
   });
 
   afterAll(async () => {
     await rm(tempRepo, { recursive: true, force: true });
     await rm(registryDir, { recursive: true, force: true });
+    await rm(sessionsRootDir, { recursive: true, force: true });
     delete process.env['MY_TEAM_REGISTRY_PATH'];
+    delete process.env['MY_TEAM_SESSIONS_DIR'];
   });
 
   beforeEach(() => {

@@ -1,6 +1,6 @@
 import { EventEmitter } from 'node:events';
 import { resolve, join } from 'node:path';
-import { mkdir, writeFile, readFile, appendFile } from 'node:fs/promises';
+import { mkdir, writeFile, readFile, appendFile, readdir, stat } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import type { Logger } from 'pino';
 
@@ -28,11 +28,13 @@ import {
   archiveSession as archiveWorktree,
   resolveRepoRoot,
   getWorktreePath,
+  sessionsDir,
 } from './worktree.js';
 import { spawnCaptain, type CaptainProcess } from './claude-process.js';
 import {
   readAllTeamFiles,
   readTeamState,
+  readTeamMeta,
   watchTeamFiles,
   type TeamFileWatcher,
 } from './team-files.js';
@@ -411,7 +413,7 @@ export class SessionManager extends EventEmitter<SessionManagerEventMap> {
     // list view.
     await Promise.all(managed.map((m) => this.refreshStateFromDisk(m)));
 
-    return managed.map(({ session }) => ({
+    const summaries: SessionSummary[] = managed.map(({ session }) => ({
       id: session.meta.id,
       title: session.meta.title,
       source_repo: session.meta.source_repo,
@@ -421,6 +423,76 @@ export class SessionManager extends EventEmitter<SessionManagerEventMap> {
       last_checkpoint: session.state.last_checkpoint,
       must_ask_count: session.state.must_ask_pending.length,
     }));
+
+    // Hydrate orphan sessions from disk — worktrees that survived a daemon
+    // restart and aren't in the in-memory Map. In-memory entries win on
+    // conflict (the loop below skips IDs already in `inMemoryIds`).
+    const inMemoryIds = new Set(summaries.map((s) => s.id));
+    const diskSummaries = await this.scanDiskSessions(inMemoryIds);
+    summaries.push(...diskSummaries);
+
+    return summaries;
+  }
+
+  /**
+   * Scans `~/team/sessions/` for worktree directories not already tracked
+   * in memory and returns a `SessionSummary` for each one with readable
+   * `.team/meta.json` and `.team/state.json`. Silently skips:
+   *   - non-directory entries
+   *   - sessions whose ID is already in `inMemoryIds`
+   *   - sessions missing `meta.json` or `state.json`
+   *   - sessions with corrupt JSON
+   *
+   * Disk-only sessions are surfaced as-is with no live captain — callers
+   * can use `team resume <id>` to bring them back.
+   */
+  private async scanDiskSessions(inMemoryIds: Set<string>): Promise<SessionSummary[]> {
+    let entries: string[];
+    try {
+      entries = await readdir(sessionsDir());
+    } catch {
+      // sessions dir doesn't exist (no sessions ever created) — silently
+      // return empty. This is the expected case on a fresh install.
+      return [];
+    }
+
+    const results = await Promise.all(
+      entries.map(async (id) => {
+        if (inMemoryIds.has(id)) return null;
+
+        const worktreePath = join(sessionsDir(), id);
+        try {
+          const s = await stat(worktreePath);
+          if (!s.isDirectory()) return null;
+        } catch {
+          return null;
+        }
+
+        try {
+          const [meta, state] = await Promise.all([
+            readTeamMeta(worktreePath),
+            readTeamState(worktreePath),
+          ]);
+          const summary: SessionSummary = {
+            id: meta.id,
+            title: meta.title,
+            source_repo: meta.source_repo,
+            phase: state.phase,
+            active_specialist: state.active_specialist,
+            created_at: meta.created_at,
+            last_checkpoint: state.last_checkpoint,
+            must_ask_count: state.must_ask_pending.length,
+          };
+          return summary;
+        } catch {
+          // Missing or corrupt meta.json / state.json — skip silently.
+          // A corrupt worktree must not break `list` for healthy ones.
+          return null;
+        }
+      }),
+    );
+
+    return results.filter((s): s is SessionSummary => s !== null);
   }
 
   // Reads state.json from disk and updates the in-memory copy. Silent no-op

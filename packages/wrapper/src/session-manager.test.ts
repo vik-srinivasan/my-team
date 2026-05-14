@@ -204,6 +204,7 @@ describe('healedPhaseFor', () => {
 
 describe('refreshStateFromDisk auto-heal integration', () => {
   let tempRepo: string;
+  let sessionsRootDir: string;
   let sessionManager: SessionManager;
   let captainPromptPath: string;
   let clearMustAskHookPath: string;
@@ -226,11 +227,19 @@ describe('refreshStateFromDisk auto-heal integration', () => {
     execSync(`echo "#!/usr/bin/env bash" > "${stopHookPath}"`, { cwd: tempRepo });
     askQuestionHookPath = join(tempRepo, 'mark-must-ask-on-question.sh');
     execSync(`echo "#!/usr/bin/env bash" > "${askQuestionHookPath}"`, { cwd: tempRepo });
+
+    // Isolate sessions root so we don't pollute / collide with the user's
+    // real ~/team/sessions/. Must be set before SessionManager.createSession
+    // runs (worktree paths are resolved from this env var).
+    sessionsRootDir = await mkdtemp(join(tmpdir(), 'sm-heal-sessions-'));
+    process.env['MY_TEAM_SESSIONS_DIR'] = sessionsRootDir;
   });
 
   afterAll(async () => {
     await sessionManager.shutdownAll();
     await rm(tempRepo, { recursive: true, force: true });
+    await rm(sessionsRootDir, { recursive: true, force: true });
+    delete process.env['MY_TEAM_SESSIONS_DIR'];
   });
 
   it('auto-heals stale awaiting_approval+engineer on listSessions, persists to disk, and logs warn', async () => {
