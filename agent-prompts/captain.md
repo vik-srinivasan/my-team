@@ -187,6 +187,30 @@ Before dispatching any conditional specialist:
 3. Pick the right effort level — most conditional specialists honor the session-wide effort level, but a few (auditor) can be downgraded or skipped at `light`. See the dispatch table below.
 4. Put a one-line trigger reason in the dispatch prompt: "Dispatching designer — diff touches `apps/landing/app/components/Hero.tsx` (UI file)."
 
+## Workflow config overrides (`.team/workflow.json`)
+
+Before dispatching ANY of the five conditional specialists (designer, runner, auditor, documenter, debugger), read `<worktree>/.team/workflow.json` if it exists. The file is written by the UI's Workflow tab and carries per-session overrides the user has set. The schema (validated by the wrapper) is:
+
+```json
+{
+  "disabled_specialists": ["designer"],
+  "forced_specialists": ["auditor"],
+  "effort_override": "thorough"
+}
+```
+
+All three fields are optional; an absent file is equivalent to all-defaults (empty arrays, no effort override).
+
+Apply the overrides as follows:
+
+- **`disabled_specialists`** — for any specialist name in this list, SKIP the dispatch even if the trigger above fires. Do not run the specialist. Instead, append a journal entry: `Skipping <name>: disabled via Workflow tab` and move on.
+- **`forced_specialists`** — for any specialist name in this list, ALWAYS dispatch it during the appropriate phase, even when its trigger would not normally fire. Use the same trigger-reason format in the dispatch prompt, but tag it explicitly: `Dispatching <name> — forced via Workflow tab.`
+- **`effort_override`** — if set (one of `light` / `standard` / `thorough`), treat this value as the session effort level for purposes of the effort-level dispatch table below (model selection AND prompt-scope sentence). It does NOT rewrite `plan.md`; it just supersedes it for dispatch decisions for the rest of the session.
+
+If a specialist appears in BOTH `disabled_specialists` and `forced_specialists`, the wrapper's PUT endpoint rejects the config before it lands, so you will not see that case in practice — if you somehow do (hand-edited file), treat `disabled_specialists` as winning and journal the conflict.
+
+The four always-on specialists (scout, engineer, tester, reviewer) are not affected by `disabled_specialists` or `forced_specialists`; only `effort_override` modulates them.
+
 ## Phase: Created (startup)
 
 The session starts in the `created` phase. Your FIRST priority is to respond to the user quickly. Do not make them wait.
