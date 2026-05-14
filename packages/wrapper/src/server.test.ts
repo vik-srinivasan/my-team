@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach, vi } from 'vitest';
 import request from 'supertest';
-import { mkdtemp, rm, readdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdtemp, rm, readdir, readFile, writeFile, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir, homedir } from 'node:os';
 import { execSync } from 'node:child_process';
@@ -617,6 +617,151 @@ describe('HTTP API integration', () => {
     const detailAfterDelete = await request(app).get(`/api/sessions/${sessionId}`);
     expect(detailAfterDelete.status).toBe(404);
     expect(detailAfterDelete.body.code).toBe('SESSION_NOT_FOUND');
+  });
+
+  // ---------------------------------------------------------------------------
+  // POST /api/sessions/:id/resume integration tests
+  // ---------------------------------------------------------------------------
+
+  describe('POST /api/sessions/:id/resume', () => {
+    // Track every orphan directory created in this block so we can clean up
+    // after each test. Without cleanup the orphan directories persist in
+    // sessionsRootDir and pollute the disk-scan for tests that run later
+    // (e.g. the "full lifecycle" test that expects list.length === 1).
+    const createdOrphans: string[] = [];
+
+    afterEach(async () => {
+      // Remove all orphan directories written by this block's tests.
+      await Promise.all(
+        createdOrphans.splice(0).map((p) => rm(p, { recursive: true, force: true })),
+      );
+    });
+
+    /**
+     * Writes a minimal orphan session directly into the temp sessions root so
+     * the resume endpoint has something to act on without needing a real git
+     * worktree. The helper mirrors the writeOrphan pattern used in
+     * session-manager.test.ts.
+     */
+    async function writeOrphanSession(
+      id: string,
+      opts: { phase?: string; includeMetaJson?: boolean } = {},
+    ): Promise<string> {
+      const worktreePath = join(sessionsRootDir, id);
+      createdOrphans.push(worktreePath);
+      const teamDir = join(worktreePath, '.team');
+      await mkdir(teamDir, { recursive: true });
+
+      if (opts.includeMetaJson !== false) {
+        await writeFile(
+          join(teamDir, 'meta.json'),
+          JSON.stringify(
+            {
+              id,
+              title: `Orphan ${id}`,
+              source_repo: tempRepo,
+              source_branch: 'main',
+              session_branch: `my-team/${id}`,
+              created_at: '2026-05-12T10:00:00.000Z',
+            },
+            null,
+            2,
+          ),
+        );
+      }
+
+      await writeFile(
+        join(teamDir, 'state.json'),
+        JSON.stringify(
+          {
+            phase: opts.phase ?? 'executing',
+            active_specialist: null,
+            review_iterations: 0,
+            max_review_iterations: 8,
+            last_checkpoint: '2026-05-12T10:30:00.000Z',
+            blockers: [],
+            must_ask_pending: [],
+          },
+          null,
+          2,
+        ),
+      );
+
+      await writeFile(join(teamDir, 'journal.md'), '');
+      return worktreePath;
+    }
+
+    it('happy path: disk-only orphan session gets resumed and returns 200 + SessionSummary shape', async () => {
+      const sessionId = 'orphan-http-resume-1';
+      await writeOrphanSession(sessionId, { phase: 'reviewing' });
+
+      const res = await request(app).post(`/api/sessions/${sessionId}/resume`);
+
+      expect(res.status).toBe(200);
+      // Verify the full SessionSummary shape is present.
+      expect(res.body.id).toBe(sessionId);
+      expect(res.body.title).toBe(`Orphan ${sessionId}`);
+      expect(res.body.source_repo).toBe(tempRepo);
+      expect(res.body.phase).toBe('reviewing');
+      expect(typeof res.body.created_at).toBe('string');
+      expect(typeof res.body.last_checkpoint).toBe('string');
+      expect(typeof res.body.must_ask_count).toBe('number');
+      // active_specialist field is present (may be null).
+      expect('active_specialist' in res.body).toBe(true);
+
+      // The session must now appear in GET /api/sessions.
+      const listRes = await request(app).get('/api/sessions');
+      const row = listRes.body.find((s: { id: string }) => s.id === sessionId);
+      expect(row).toBeTruthy();
+      expect(row.phase).toBe('reviewing');
+
+      // Clean up — kill the mock captain so shutdownAll is clean.
+      await sessionManager.killSession(sessionId);
+    });
+
+    it('already-running: resuming a session with a live captain returns 409 SESSION_ACTIVE', async () => {
+      // Create a live session via POST /api/sessions — the mocked spawnCaptain
+      // returns a captain with running=true so the session is "active".
+      const createRes = await request(app)
+        .post('/api/sessions')
+        .send({ source_repo: tempRepo, title: 'Active Session Resume Test' });
+      expect(createRes.status).toBe(201);
+      const sessionId = createRes.body.id;
+      const worktreePath = createRes.body.worktree_path;
+
+      // Attempt to resume the still-running session.
+      const resumeRes = await request(app).post(`/api/sessions/${sessionId}/resume`);
+
+      expect(resumeRes.status).toBe(409);
+      expect(resumeRes.body.code).toBe('SESSION_ACTIVE');
+
+      // Clean up.
+      await sessionManager.killSession(sessionId);
+      try {
+        execSync(`git worktree remove "${worktreePath}" --force`, { cwd: tempRepo });
+        execSync(`git branch -D my-team/${sessionId}`, { cwd: tempRepo });
+      } catch {
+        // Best effort
+      }
+    });
+
+    it('missing session: returns 404 SESSION_NOT_FOUND for an unknown id', async () => {
+      const res = await request(app).post('/api/sessions/unknown-id-that-does-not-exist/resume');
+
+      expect(res.status).toBe(404);
+      expect(res.body.code).toBe('SESSION_NOT_FOUND');
+    });
+
+    it('corrupt worktree: directory exists but meta.json is missing returns 422 SESSION_CORRUPT', async () => {
+      const sessionId = 'corrupt-no-meta-http-2';
+      // Write a worktree with state.json but no meta.json.
+      await writeOrphanSession(sessionId, { includeMetaJson: false });
+
+      const res = await request(app).post(`/api/sessions/${sessionId}/resume`);
+
+      expect(res.status).toBe(422);
+      expect(res.body.code).toBe('SESSION_CORRUPT');
+    });
   });
 
   it('full lifecycle: create → list → status → kill', async () => {
