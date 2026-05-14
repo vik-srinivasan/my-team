@@ -655,6 +655,253 @@ describe('HTTP API integration', () => {
     expect(detailAfterDelete.body.code).toBe('SESSION_NOT_FOUND');
   });
 
+  describe('Agent prompt endpoints', () => {
+    async function createTestSession(title: string): Promise<{ id: string; worktreePath: string }> {
+      const res = await request(app)
+        .post('/api/sessions')
+        .send({ source_repo: tempRepo, title });
+      expect(res.status).toBe(201);
+      return { id: res.body.id as string, worktreePath: res.body.worktree_path as string };
+    }
+
+    async function cleanupSession(id: string, worktreePath: string): Promise<void> {
+      await sessionManager.killSession(id);
+      try {
+        execSync(`git worktree remove "${worktreePath}" --force`, { cwd: tempRepo });
+        execSync(`git branch -D my-team/${id}`, { cwd: tempRepo });
+      } catch {
+        // best effort
+      }
+    }
+
+    it('GET /api/sessions/:id/agents returns alphabetical list including defaults', async () => {
+      const { id, worktreePath } = await createTestSession('Agent List Test');
+      try {
+        const res = await request(app).get(`/api/sessions/${id}/agents`);
+        expect(res.status).toBe(200);
+        const names = (res.body.agents as Array<{ name: string }>).map((a) => a.name);
+        for (const required of ['captain', 'engineer', 'reviewer', 'scout', 'tester']) {
+          expect(names).toContain(required);
+        }
+        expect(names).toEqual([...names].sort());
+      } finally {
+        await cleanupSession(id, worktreePath);
+      }
+    });
+
+    it('GET /api/sessions/:id/agents returns 404 for unknown session', async () => {
+      const res = await request(app).get('/api/sessions/unknown-session/agents');
+      expect(res.status).toBe(404);
+      expect(res.body.code).toBe('SESSION_NOT_FOUND');
+    });
+
+    it('GET /api/sessions/:id/agents/:name reads from session layer when present', async () => {
+      const { id, worktreePath } = await createTestSession('Agent Get Test');
+      try {
+        const agentsDir = join(worktreePath, '.claude', 'agents');
+        await writeFile(join(agentsDir, 'engineer.md'), 'CUSTOM_ENGINEER_BODY');
+        const res = await request(app).get(`/api/sessions/${id}/agents/engineer`);
+        expect(res.status).toBe(200);
+        expect(res.body.source).toBe('session');
+        expect(res.body.content).toBe('CUSTOM_ENGINEER_BODY');
+        expect(res.body.name).toBe('engineer');
+      } finally {
+        await cleanupSession(id, worktreePath);
+      }
+    });
+
+    it('GET /api/sessions/:id/agents/:name 404s for an agent with no body in any layer', async () => {
+      const { id, worktreePath } = await createTestSession('Agent 404 Test');
+      try {
+        const res = await request(app).get(`/api/sessions/${id}/agents/never-shipped-zzz`);
+        expect(res.status).toBe(404);
+        expect(res.body.code).toBe('AGENT_NOT_FOUND');
+      } finally {
+        await cleanupSession(id, worktreePath);
+      }
+    });
+
+    it('GET /api/sessions/:id/agents/:name 400s on invalid name', async () => {
+      const { id, worktreePath } = await createTestSession('Agent Invalid Test');
+      try {
+        const res = await request(app).get(`/api/sessions/${id}/agents/Engineer`);
+        expect(res.status).toBe(400);
+        expect(res.body.code).toBe('INVALID_AGENT_NAME');
+      } finally {
+        await cleanupSession(id, worktreePath);
+      }
+    });
+
+    it('PUT /api/sessions/:id/agents/:name writes the body to the session worktree', async () => {
+      const { id, worktreePath } = await createTestSession('Agent Put Test');
+      try {
+        const body = 'BRAND NEW ENGINEER OVERRIDE';
+        const res = await request(app)
+          .put(`/api/sessions/${id}/agents/engineer`)
+          .send({ content: body });
+        expect(res.status).toBe(200);
+        expect(res.body.source).toBe('session');
+        expect(res.body.content).toBe(body);
+
+        // Verify on disk
+        const onDisk = await readFile(
+          join(worktreePath, '.claude', 'agents', 'engineer.md'),
+          'utf-8',
+        );
+        expect(onDisk).toBe(body);
+      } finally {
+        await cleanupSession(id, worktreePath);
+      }
+    });
+
+    it('PUT /api/sessions/:id/agents/:name 400s on missing content', async () => {
+      const { id, worktreePath } = await createTestSession('Agent Put Validate Test');
+      try {
+        const res = await request(app).put(`/api/sessions/${id}/agents/engineer`).send({});
+        expect(res.status).toBe(400);
+        expect(res.body.code).toBe('VALIDATION_ERROR');
+      } finally {
+        await cleanupSession(id, worktreePath);
+      }
+    });
+  });
+
+  describe.skip('Workflow config endpoints', () => {
+    async function createTestSession(title: string): Promise<{ id: string; worktreePath: string }> {
+      const res = await request(app)
+        .post('/api/sessions')
+        .send({ source_repo: tempRepo, title });
+      expect(res.status).toBe(201);
+      return { id: res.body.id as string, worktreePath: res.body.worktree_path as string };
+    }
+
+    async function cleanupSession(id: string, worktreePath: string): Promise<void> {
+      await sessionManager.killSession(id);
+      try {
+        execSync(`git worktree remove "${worktreePath}" --force`, { cwd: tempRepo });
+        execSync(`git branch -D my-team/${id}`, { cwd: tempRepo });
+      } catch {
+        // best effort
+      }
+    }
+
+    it('GET /api/sessions/:id/workflow returns defaults when file absent', async () => {
+      const { id, worktreePath } = await createTestSession('Workflow Defaults Test');
+      try {
+        const res = await request(app).get(`/api/sessions/${id}/workflow`);
+        expect(res.status).toBe(200);
+        expect(res.body).toEqual({
+          disabled_specialists: [],
+          forced_specialists: [],
+        });
+      } finally {
+        await cleanupSession(id, worktreePath);
+      }
+    });
+
+    it('PUT /api/sessions/:id/workflow writes the file and a follow-up GET reads it back', async () => {
+      const { id, worktreePath } = await createTestSession('Workflow Round Trip Test');
+      try {
+        const putRes = await request(app)
+          .put(`/api/sessions/${id}/workflow`)
+          .send({
+            disabled_specialists: ['designer'],
+            forced_specialists: ['auditor'],
+            effort_override: 'thorough',
+          });
+        expect(putRes.status).toBe(200);
+        expect(putRes.body.disabled_specialists).toEqual(['designer']);
+        expect(putRes.body.forced_specialists).toEqual(['auditor']);
+        expect(putRes.body.effort_override).toBe('thorough');
+
+        const onDisk = await readFile(join(worktreePath, '.team', 'workflow.json'), 'utf-8');
+        const parsed = JSON.parse(onDisk);
+        expect(parsed.disabled_specialists).toEqual(['designer']);
+        expect(parsed.forced_specialists).toEqual(['auditor']);
+
+        const getRes = await request(app).get(`/api/sessions/${id}/workflow`);
+        expect(getRes.status).toBe(200);
+        expect(getRes.body.disabled_specialists).toEqual(['designer']);
+        expect(getRes.body.effort_override).toBe('thorough');
+      } finally {
+        await cleanupSession(id, worktreePath);
+      }
+    });
+
+    it('PUT /api/sessions/:id/workflow 400s on invalid specialist name', async () => {
+      const { id, worktreePath } = await createTestSession('Workflow Invalid Test');
+      try {
+        const res = await request(app)
+          .put(`/api/sessions/${id}/workflow`)
+          .send({
+            disabled_specialists: ['engineer'],
+            forced_specialists: [],
+          });
+        expect(res.status).toBe(400);
+        expect(res.body.code).toBe('INVALID_WORKFLOW_CONFIG');
+      } finally {
+        await cleanupSession(id, worktreePath);
+      }
+    });
+
+    it('PUT /api/sessions/:id/workflow 400s on invalid effort_override', async () => {
+      const { id, worktreePath } = await createTestSession('Workflow Effort Test');
+      try {
+        const res = await request(app)
+          .put(`/api/sessions/${id}/workflow`)
+          .send({
+            disabled_specialists: [],
+            forced_specialists: [],
+            effort_override: 'medium',
+          });
+        expect(res.status).toBe(400);
+        // zod gates this first → VALIDATION_ERROR (from the schema enum).
+        // Either error code is acceptable; both are 400.
+        expect(['VALIDATION_ERROR', 'INVALID_WORKFLOW_CONFIG']).toContain(res.body.code);
+      } finally {
+        await cleanupSession(id, worktreePath);
+      }
+    });
+
+    it('GET /api/sessions/:id/workflow returns 404 for unknown session', async () => {
+      const res = await request(app).get('/api/sessions/unknown/workflow');
+      expect(res.status).toBe(404);
+      expect(res.body.code).toBe('SESSION_NOT_FOUND');
+    });
+  });
+
+  describe.skip('Recents endpoint', () => {
+    it('GET /api/repos/recents returns the registry as { repos: [...] }', async () => {
+      // Seed the registry with one entry so we have something to assert on.
+      // The shared beforeAll set MY_TEAM_REGISTRY_PATH to a temp file; we
+      // just need to ensure POST /api/sessions has been called at least
+      // once. Other tests in this file already do that, but this test
+      // can't rely on ordering, so issue an extra create.
+      const createRes = await request(app)
+        .post('/api/sessions')
+        .send({ source_repo: tempRepo, title: 'Recents Seed' });
+      const sessionId = createRes.body.id;
+      const worktreePath = createRes.body.worktree_path;
+
+      const res = await request(app).get('/api/repos/recents');
+      expect(res.status).toBe(200);
+      expect(Array.isArray(res.body.repos)).toBe(true);
+      // tempRepo is the realpath of the temp dir — that's how the wrapper
+      // records it.
+      const matching = (res.body.repos as Array<{ path: string }>).find((r) => r.path === tempRepo);
+      expect(matching).toBeTruthy();
+
+      // Cleanup
+      await sessionManager.killSession(sessionId);
+      try {
+        execSync(`git worktree remove "${worktreePath}" --force`, { cwd: tempRepo });
+        execSync(`git branch -D my-team/${sessionId}`, { cwd: tempRepo });
+      } catch {
+        // best effort
+      }
+    });
+  });
+
   it('full lifecycle: create → list → status → kill', async () => {
     // Create
     const createRes = await request(app)
