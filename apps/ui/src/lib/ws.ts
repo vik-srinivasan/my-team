@@ -87,6 +87,13 @@ export function connectSessionSocket(
 
   function setStatus(next: SessionSocketStatus): void {
     status = next;
+    // Once `close()` was called by the caller, the React subscriber may
+    // have already unmounted. Mock servers (and real ones) can still
+    // dispatch a delayed `close` event after that point, which would
+    // try to dispatch into a torn-down reducer and surface as a
+    // `ReferenceError: window is not defined` from React's scheduler.
+    // Suppress every callback once the caller has signalled tear-down.
+    if (closedByCaller) return;
     handlers.onStatus?.(next);
   }
 
@@ -102,6 +109,7 @@ export function connectSessionSocket(
   }
 
   function dispatch(event: WsServerEvent): void {
+    if (closedByCaller) return;
     switch (event.type) {
       case 'output':
         handlers.onOutput?.(event.text);
@@ -131,6 +139,7 @@ export function connectSessionSocket(
     socket = ws;
 
     ws.addEventListener('open', () => {
+      if (closedByCaller) return;
       reconnectAttempts = 0;
       setStatus('open');
       // Flush anything that was queued before connect.
@@ -141,6 +150,7 @@ export function connectSessionSocket(
     });
 
     ws.addEventListener('message', (evt: MessageEvent) => {
+      if (closedByCaller) return;
       let parsed: WsServerEvent;
       try {
         parsed = JSON.parse(String(evt.data)) as WsServerEvent;
@@ -154,16 +164,17 @@ export function connectSessionSocket(
     });
 
     ws.addEventListener('error', () => {
+      if (closedByCaller) return;
       handlers.onError?.(new Error(`WebSocket error for session ${id}`));
     });
 
     ws.addEventListener('close', () => {
-      setStatus('closed');
       socket = null;
       if (closedByCaller) {
-        handlers.onClose?.();
+        // Caller already tore down; suppress further callbacks.
         return;
       }
+      setStatus('closed');
       scheduleReconnect();
     });
   }
@@ -180,6 +191,12 @@ export function connectSessionSocket(
       }
     },
     close(): void {
+      // Fire the `closed` callback FIRST, before flipping the
+      // `closedByCaller` guard. After the guard flips, every subsequent
+      // handler (including the asynchronous `close` event the underlying
+      // WebSocket will dispatch) is suppressed so we never dispatch into
+      // a torn-down subscriber.
+      setStatus('closed');
       closedByCaller = true;
       if (reconnectTimer !== null) {
         clearTimeout(reconnectTimer);
@@ -189,7 +206,6 @@ export function connectSessionSocket(
         socket.close();
         socket = null;
       }
-      setStatus('closed');
     },
     get status() {
       return status;

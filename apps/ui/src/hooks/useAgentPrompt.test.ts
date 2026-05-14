@@ -49,7 +49,7 @@ describe('useAgentPrompt', () => {
     expect(result.current.data?.content).toBe('# Engineer\n');
   });
 
-  it('is disabled when sessionId is null', () => {
+  it('is disabled when sessionId is null', async () => {
     const spy = vi.spyOn(api, 'getAgent').mockResolvedValue({
       name: 'engineer',
       content: '',
@@ -58,10 +58,13 @@ describe('useAgentPrompt', () => {
     const { wrapper } = makeWrapper();
 
     renderHook(() => useAgentPrompt(null, 'engineer'), { wrapper });
+    // Let microtasks flush so any unwanted fetch would have fired.
+    await Promise.resolve();
+    await Promise.resolve();
     expect(spy).not.toHaveBeenCalled();
   });
 
-  it('is disabled when name is null', () => {
+  it('is disabled when name is null', async () => {
     const spy = vi.spyOn(api, 'getAgent').mockResolvedValue({
       name: 'engineer',
       content: '',
@@ -70,6 +73,8 @@ describe('useAgentPrompt', () => {
     const { wrapper } = makeWrapper();
 
     renderHook(() => useAgentPrompt('s1', null), { wrapper });
+    await Promise.resolve();
+    await Promise.resolve();
     expect(spy).not.toHaveBeenCalled();
   });
 
@@ -105,11 +110,17 @@ describe('useAgentPromptMutation', () => {
 
     expect(putSpy).toHaveBeenCalledWith('s1', 'engineer', '# Edited\n');
 
-    const cached = client.getQueryData<AgentPromptResponse>(
-      agentPromptQueryKey('s1', 'engineer'),
-    );
-    expect(cached?.content).toBe('# Edited\n');
-    expect(cached?.source).toBe('session');
+    // The mutation's `onSuccess` runs after `mutateAsync` resolves but
+    // its cache writes can be queued on a microtask via TanStack Query.
+    // `waitFor` polls until the cache is populated, which is stable across
+    // React 19's scheduling.
+    await waitFor(() => {
+      const cached = client.getQueryData<AgentPromptResponse>(
+        agentPromptQueryKey('s1', 'engineer'),
+      );
+      expect(cached?.content).toBe('# Edited\n');
+      expect(cached?.source).toBe('session');
+    });
   });
 
   it('surfaces a failure via isError without seeding the cache', async () => {

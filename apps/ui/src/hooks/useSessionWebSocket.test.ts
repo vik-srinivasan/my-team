@@ -161,38 +161,58 @@ describe('useSessionWebSocket', () => {
   });
 
   it('reconnects after an unexpected close', async () => {
-    const server = makeServer('s-reconnect');
+    // The first server accepts the initial connection and then drops it.
+    // After it stops, we spin up a second server on the same URL so the
+    // reconnect attempt has somewhere to land — this gives the test a
+    // deterministic terminal state (`status === 'open'` with two
+    // connections counted) instead of racing against a transient
+    // `connecting` flash that mock-socket can fire and clear in
+    // microseconds.
+    let server = makeServer('s-reconnect');
     let openCount = 0;
     server.on('connection', () => {
       openCount += 1;
     });
 
+    let unmount: () => void = () => {};
     try {
-      const { result } = renderHook(() =>
-        useSessionWebSocket('s-reconnect'),
-      );
+      const hook = renderHook(() => useSessionWebSocket('s-reconnect'));
+      unmount = hook.unmount;
+      const { result } = hook;
+
       await waitFor(() => expect(result.current.status).toBe('open'));
       expect(openCount).toBe(1);
 
-      // Simulate a server-side drop. The helper should reconnect on the
-      // next backoff tick (250ms initial delay).
+      // Drop the connection from the server side. The helper schedules
+      // a reconnect after 250ms.
       act(() => {
         server.close({ code: 1006, reason: 'lost', wasClean: false });
       });
-
+      server.stop();
       await waitFor(() => expect(result.current.status).toBe('closed'));
 
-      // The mock server is now stopped (close()), so the next attempt
-      // will keep failing — but the helper should have at least scheduled
-      // another attempt. We verify the snapshot reset to 'connecting' on
-      // the next attempt.
+      // Bring a fresh server up on the same URL so the next reconnect
+      // attempt succeeds.
+      server = makeServer('s-reconnect');
+      server.on('connection', () => {
+        openCount += 1;
+      });
+
+      // Now the reconnect should land and the snapshot should flip back
+      // to `open` — that's the deterministic terminal state.
       await waitFor(
         () => {
-          expect(['connecting', 'open']).toContain(result.current.status);
+          expect(result.current.status).toBe('open');
         },
-        { timeout: 2000 },
+        { timeout: 3000 },
       );
+      expect(openCount).toBeGreaterThanOrEqual(2);
     } finally {
+      // Tear the hook down BEFORE stopping the server so the reconnect
+      // bookkeeping (and any scheduled setTimeout) is cleared cleanly;
+      // otherwise a delayed reconnect attempt can dispatch into a
+      // torn-down React tree on subsequent test runs.
+      unmount();
       server.stop();
     }
   });
