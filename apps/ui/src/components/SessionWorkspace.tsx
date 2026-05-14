@@ -5,6 +5,7 @@ import { useSessionWebSocket } from '../hooks/useSessionWebSocket.js';
 import { TAB_NAMES, useUiStore, type TabName } from '../store.js';
 import { SessionHeader } from './SessionHeader.js';
 import { SessionSocketProvider } from './SessionContext.js';
+import { ErrorBoundary } from './ErrorBoundary.js';
 import { JournalTab } from './tabs/JournalTab.js';
 import { TasksTab } from './tabs/TasksTab.js';
 import { PlanTab } from './tabs/PlanTab.js';
@@ -14,7 +15,7 @@ import { DiffTab } from './tabs/DiffTab.js';
 import { TerminalTab } from './tabs/TerminalTab.js';
 import { WorkflowTab } from './tabs/WorkflowTab.js';
 
-const TAB_LABELS: Record<TabName, string> = {
+export const TAB_LABELS: Record<TabName, string> = {
   journal: 'Journal',
   tasks: 'Tasks',
   plan: 'Plan',
@@ -131,7 +132,15 @@ export function SessionWorkspace(): ReactElement {
           aria-labelledby={`tab-${activeTab}`}
           className="flex-1 overflow-auto bg-neutral-950"
         >
-          {renderTab(activeTab)}
+          {/* `key` re-mounts the boundary (and the underlying tab) when
+              switching tabs so a crash on one tab doesn't leak its fallback
+              into the next. */}
+          <ErrorBoundary
+            key={activeTab}
+            label={`${TAB_LABELS[activeTab]} tab`}
+          >
+            {renderTab(activeTab)}
+          </ErrorBoundary>
         </div>
       </section>
     </SessionSocketProvider>
