@@ -8,7 +8,7 @@ import type { UseSessionWebSocketResult } from '../../hooks/useSessionWebSocket.
 import { useUiStore } from '../../store.js';
 
 // ── Mock `sendInput` so we can observe the wrapper call without HTTP. ──
-const sendInputMock = vi.fn(async () => ({ ok: true }));
+const sendInputMock = vi.fn((..._args: unknown[]) => Promise.resolve({ ok: true }));
 vi.mock('../../lib/api.js', () => ({
   sendInput: (...args: unknown[]) => sendInputMock(...args),
 }));

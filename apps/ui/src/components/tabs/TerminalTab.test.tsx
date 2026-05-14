@@ -57,6 +57,7 @@ function makeSnapshot(
   return {
     state: null,
     output: null,
+    recentOutput: [],
     teamFiles: {} as Partial<Record<TeamFileName, string>>,
     lastDiff: null,
     lastSpecialistEvent: null as WsSpecialistEvent | null,
