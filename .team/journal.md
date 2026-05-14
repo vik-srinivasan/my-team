@@ -248,3 +248,61 @@ Preview / how to view the result:
 - With the wrapper daemon running (`team start`) and a real session selected in the sidebar, the Terminal tab attaches to the captain PTY and renders its output; the Workflow tab loads the 10-specialist roster (captain, scout, engineer, tester, reviewer, designer, runner, auditor, documenter, debugger) and lets the user edit any of their prompts.
 - Workflow-tab end-to-end check: pick `engineer` from the list, append a marker line in the editor, click Save, then on disk: `cat <worktree>/.claude/agents/engineer.md` shows the edited body. Toggle a specialist; `cat <worktree>/.team/workflow.json` shows `{disabled_specialists, forced_specialists, ...}`.
 - Tauri preview: not exercised — Rust toolchain wasn't installed at Phase 1 (see Engineer 2's blocker in tasks.md line 16). Runner will exercise tauri:dev + tauri:build with rustup installed.
+
+## 2026-05-14T07:50:00Z — captain
+Action: Phase 2 Wave 2 complete. Engineers B + C landed in parallel. 
+Engineer B commits: ef6cd9c, 1f8f52f, 4631ca8, ebff4df, 19179eb (read-only tabs + diff viewer).
+Engineer C commits: be242d2, bf6f1e9, 5831116, ca14156, 8e11d0f, edd5e49 (terminal + workflow + agent/workflow hooks).
+Known issues to fold into Phase 3 / Tester:
+- 2 flaky tests: `useAgentPrompt`, `useSessionWebSocket > reconnects` — Phase 3 engineer should stabilize.
+- Wrapper has no DELETE /api/sessions/:id/agents/:name — "Reset to default" hidden in Workflow tab. Deferred to v2 follow-up.
+- Plan/SRD/Review code fences are not syntax-highlighted (bundle weight tradeoff in decisions.md).
+- Wrapper team-file route doesn't expose pr.url — PR-link button omitted from SessionHeader. Also deferred.
+Dispatching Phase 3 (polish) solo, then specialist verification.
+
+## 2026-05-14T01:05:00Z — engineer
+Completed: Phase 3 polish — empty states, loading skeletons, error boundaries, keyboard shortcuts, and Tauri build scripts; plus stabilized the two flaky tests Engineer A + Engineer C flagged.
+
+Created:
+- apps/ui/src/components/Skeleton.tsx + .test.tsx (5 tests)
+- apps/ui/src/components/ErrorBoundary.tsx + .test.tsx (5 tests)
+- apps/ui/src/components/ShortcutHelp.tsx
+- apps/ui/src/hooks/useKeyboardShortcuts.ts + .test.ts (12 tests)
+
+Modified:
+- apps/ui/src/App.tsx — wire shortcuts, help overlay, two top-level ErrorBoundaries (Sidebar / SessionWorkspace)
+- apps/ui/src/components/SessionWorkspace.tsx — per-tab ErrorBoundary keyed by activeTab; exported TAB_LABELS for the overlay
+- apps/ui/src/components/Sidebar.tsx — SkeletonList while sessions are fetching + react to requestNewSession nonce from the store
+- apps/ui/src/components/tabs/{Journal,Tasks,Plan,Srd,Review,Diff}Tab.tsx — MarkdownSkeleton while WS is connecting, friendlier empty-state copy with a hint about when the content appears
+- apps/ui/src/components/tabs/WorkflowTab.tsx — SkeletonList for the specialist column + content skeleton in the editor pane
+- apps/ui/src/lib/markdown.tsx — new MarkdownSkeleton helper
+- apps/ui/src/lib/ws.ts — gate all callbacks behind closedByCaller so a delayed mock-socket close after teardown doesn't dispatch into a torn-down React reducer
+- apps/ui/src/hooks/useSessionWebSocket.test.ts — restart server post-close to get a deterministic `status === 'open'` terminal state; explicit unmount before server.stop()
+- apps/ui/src/hooks/useAgentPrompt.test.ts — flush microtasks on "is disabled" assertions; waitFor() wrap on the cache-read assertion
+- apps/ui/src/store.ts — added requestNewSession nonce
+- apps/ui/src/components/tabs/{Journal,Tasks,Plan,Review}Tab.test.tsx — drop literal `.` from empty-state regex to match new em-dash copy
+- apps/ui/package.json — added tauri:build:universal / :aarch64 / :x64 scripts
+
+Commits:
+- 08e85f3 feat(ui): add Skeleton + ErrorBoundary primitives for Phase 3 polish
+- 6a726d9 feat(ui): add empty-state hints + loading skeletons to every surface
+- f52c212 feat(ui): wire keyboard shortcuts, help overlay + error boundaries on App
+- cbb4f40 fix(ui): stabilize known flaky WS reconnect + agent-prompt tests
+- 6be3d57 chore(ui): add universal/aarch64/x64 tauri build scripts
+
+Verification:
+- `pnpm --filter @my-team/ui test` — 16 files / 104 tests passing
+- `pnpm test` (repo root) — 32 files / 396 tests passing, 8 consecutive clean runs
+- Flaky tests run 10x consecutively without errors; the underlying race in lib/ws.ts is fixed (mock-socket's delayed close after teardown no longer leaks into the reducer)
+- `pnpm --filter @my-team/ui build` — clean Vite production build (476 modules, 1.5MB main bundle gzipped to 476kB)
+- `pnpm --filter @my-team/ui tauri info` — config parses cleanly with all expected sections
+
+Tauri build status:
+- Rust toolchain is NOT installed on this machine (same blocker Engineer 2 flagged in Phase 1). `pnpm --filter @my-team/ui tauri build` not exercised. Three convenience scripts are now in place so a machine with rustup can run `tauri:build:universal` to produce a fat .app/.dmg. Runner is on the hook for the actual build verification once rustup is in place.
+
+Preview:
+- Web mode: from repo root, `pnpm --filter @my-team/ui dev` boots Vite at http://localhost:5173. With the wrapper daemon running (`team start`) on the same host, the sidebar populates with current sessions.
+- Tauri mode: `pnpm --filter @my-team/ui tauri dev` (requires rustup). Once Rust is installed, this opens a native window pointing at the same Vite dev server with HMR.
+- Production-style preview: `pnpm --filter @my-team/ui build && pnpm --filter @my-team/ui preview` serves the built dist on http://localhost:4173.
+
+Decisions logged in .team/decisions.md below.

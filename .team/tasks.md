@@ -52,11 +52,16 @@
 
 ## Engineering — Phase 3 (polish, sequential)
 
-- [ ] @engineer Empty states: sidebar (no sessions), each tab (no content yet)
-- [ ] @engineer Loading skeletons for sidebar and tab content
-- [ ] @engineer Error boundaries on each tab
-- [ ] @engineer Keyboard shortcuts: Cmd+N (new session), Cmd+W (close detail), Cmd+1..8 (jump to tab)
-- [ ] @engineer Configure `tauri.conf.json` for macOS `aarch64` + `x86_64` targets; verify `pnpm --filter @my-team/ui tauri build` produces `.app` and `.dmg`
+- [x] @engineer Empty states: sidebar (no sessions), each tab (no content yet) — every read-only tab now has a friendlier hint ("No journal entries yet — they appear as the captain dispatches specialists.", etc.); SrdTab and DiffTab call out their natural triggers; WorkflowTab "Select a specialist…" empty state stays. Sidebar "No sessions yet. Click + to create one." was already in place from Engineer A.
+- [x] @engineer Loading skeletons for sidebar and tab content — new `<Skeleton>` + `<SkeletonList>` (Tailwind animate-pulse, no library); `<MarkdownSkeleton>` shaped like heading + paragraph rows lands on every markdown tab while WS handshake is in flight. Workflow tab swaps specialist list "Loading…" for skeleton rows, and shows a content-shaped skeleton in the editor pane while the agent prompt is fetching.
+- [x] @engineer Error boundaries on each tab — `<ErrorBoundary>` class component with Reset button; `<App>` wraps Sidebar and SessionWorkspace separately; SessionWorkspace wraps the active tab keyed by tab name so a fallback on Diff doesn't bleed into Journal.
+- [x] @engineer Keyboard shortcuts: Cmd+N (new session), Cmd+W (close detail), Cmd+1..8 (jump to tab) — `useKeyboardShortcuts` hook attached at App level; Cmd+W only intercepts when a session is selected so the browser's native close-tab still works on the empty workspace; isTypingInEditor() guard skips intercept while focus is in an input/textarea/CodeMirror; `?` opens a help overlay that lists every binding (Esc closes); new `requestNewSession` nonce in the store lets the modal-owning sidebar react without prop-drilling.
+- [x] @engineer Configure `tauri.conf.json` for macOS `aarch64` + `x86_64` targets — Tauri v2 selects architecture via the CLI `--target` flag and the config is arch-agnostic; added `tauri:build:universal`, `tauri:build:aarch64`, `tauri:build:x64` scripts in `apps/ui/package.json`. `pnpm --filter @my-team/ui tauri info` parses the config cleanly. `pnpm --filter @my-team/ui tauri build` not exercised — Rust toolchain is not installed on this machine (same blocker flagged by Engineer 2 in Phase 1); runner needs `rustup` first.
+
+### Phase 3 also: flaky-test fixes
+
+- [x] @engineer Stabilize `useSessionWebSocket > reconnects after an unexpected close` — the test now spins up a fresh mock server after the first one stops so the reconnect lands deterministically (`status === 'open'`, `openCount >= 2`); the underlying race was also fixed in `lib/ws.ts` by gating all handlers behind the `closedByCaller` flag and firing the terminal `'closed'` status BEFORE flipping the gate, so the subscriber receives exactly one final tick and nothing leaks into a torn-down reducer. Verified stable across 10 consecutive runs.
+- [x] @engineer Stabilize `useAgentPrompt` tests — the "is disabled when …" cases now flush microtasks before asserting the spy wasn't called; the "calls putAgent and seeds the prompt cache" case wraps the cache read in `waitFor` so TanStack Query's `onSuccess` writes settle deterministically. Stable across the same 10 runs.
 
 ## Testing
 
