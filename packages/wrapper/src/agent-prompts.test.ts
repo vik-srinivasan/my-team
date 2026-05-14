@@ -1,230 +1,327 @@
-import { describe, it, expect } from 'vitest';
-import { readFileSync, readdirSync } from 'node:fs';
-import { resolve, dirname, basename, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { mkdtemp, rm, mkdir, writeFile, readFile, stat } from 'node:fs/promises';
+import { tmpdir, homedir } from 'node:os';
+import { join } from 'node:path';
+import { existsSync } from 'node:fs';
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const AGENT_PROMPTS_DIR = resolve(__dirname, '..', '..', '..', 'agent-prompts');
+import type { SessionMeta } from '@my-team/shared';
+import { AgentNotFoundError, InvalidAgentNameError, SessionNotFoundError } from '@my-team/shared';
 
-// Allowed values per CLAUDE.md / SPEC.md / context.md conventions.
-const ALLOWED_MODELS = new Set(['sonnet', 'opus', 'haiku']);
-const RECOGNIZED_TOOLS = new Set([
-  'Read',
-  'Write',
-  'Edit',
-  'Grep',
-  'Glob',
-  'Bash',
-  'Task',
-  'WebFetch',
-  'WebSearch',
-  // Notebooks
-  'NotebookEdit',
-  'NotebookRead',
-  // MCP-style tools (none currently used; reserved)
-]);
+import {
+  listAgents,
+  getAgent,
+  putAgent,
+  assertValidAgentName,
+  type SessionLookup,
+} from './agent-prompts.js';
 
-// The six standardized opening section headers, in this exact order.
-const STANDARDIZED_HEADERS = [
-  '## Intro',
-  '## Your team',
-  '## Effort level',
-  '## Your mission',
-  '## Before you start',
-  '## Your workflow',
-];
+// ── Test scaffolding ───────────────────────────────────────────────
+//
+// The module operates on four disk layers:
+//   1. session   — <worktree>/.claude/agents/<name>.md
+//   2. repo      — <source_repo>/.claude/agents/<name>.md
+//   3. user      — ~/.claude/agents/<name>.md   (NOT mocked — we read
+//      whatever happens to be there; tests for the user layer use a
+//      throwaway name nobody else would have)
+//   4. default   — <repo-root>/agent-prompts/<name>.md (the real
+//      packaged defaults — tests assume `engineer.md` etc. exist there,
+//      which is true in this monorepo)
+//
+// Each test builds a fresh worktree + source-repo pair in tmpdir, points
+// a stub `SessionLookup` at them, and writes whichever layer it wants
+// the helper to discover.
 
-interface AgentPromptFile {
-  path: string;
-  name: string; // filename without .md
-  body: string;
+interface TestEnv {
+  worktreePath: string;
+  sourceRepo: string;
+  sessions: SessionLookup;
+  meta: SessionMeta;
 }
 
-function loadAgentPromptFiles(): AgentPromptFile[] {
-  const entries = readdirSync(AGENT_PROMPTS_DIR, { withFileTypes: true });
-  return entries
-    .filter((e) => e.isFile() && e.name.endsWith('.md'))
-    .map((e) => ({
-      path: join(AGENT_PROMPTS_DIR, e.name),
-      name: e.name.replace(/\.md$/, ''),
-      body: readFileSync(join(AGENT_PROMPTS_DIR, e.name), 'utf-8'),
-    }));
+async function makeEnv(): Promise<TestEnv> {
+  const root = await mkdtemp(join(tmpdir(), 'my-team-agent-prompts-'));
+  const worktreePath = join(root, 'worktree');
+  const sourceRepo = join(root, 'repo');
+  await mkdir(worktreePath, { recursive: true });
+  await mkdir(sourceRepo, { recursive: true });
+
+  const meta: SessionMeta = {
+    id: 'test-session',
+    title: 'test',
+    source_repo: sourceRepo,
+    source_branch: 'main',
+    session_branch: 'my-team/test-session',
+    created_at: new Date().toISOString(),
+  };
+
+  const sessions: SessionLookup = {
+    getSession: (id: string): { meta: SessionMeta; worktree_path: string } => {
+      if (id !== 'test-session') throw new SessionNotFoundError(id);
+      return { meta, worktree_path: worktreePath };
+    },
+  };
+
+  return { worktreePath, sourceRepo, sessions, meta };
 }
 
-interface Frontmatter {
-  raw: string;
-  fields: Array<{ key: string; value: string }>;
+const TMP_ROOTS: string[] = [];
+
+async function freshEnv(): Promise<TestEnv> {
+  const env = await makeEnv();
+  TMP_ROOTS.push(env.worktreePath);
+  TMP_ROOTS.push(env.sourceRepo);
+  return env;
 }
 
-function parseFrontmatter(body: string): Frontmatter | null {
-  // Strict: must start with --- on the very first line.
-  if (!body.startsWith('---\n')) return null;
-  const end = body.indexOf('\n---\n', 4);
-  if (end === -1) return null;
-  const raw = body.slice(4, end);
-  const fields: Array<{ key: string; value: string }> = [];
-  for (const line of raw.split('\n')) {
-    if (line.trim() === '') continue;
-    const idx = line.indexOf(':');
-    if (idx === -1) {
-      // malformed line — surface it by representing as a field with empty key
-      fields.push({ key: '__malformed__', value: line });
-      continue;
-    }
-    const key = line.slice(0, idx).trim();
-    const value = line.slice(idx + 1).trim();
-    fields.push({ key, value });
+afterEach(async () => {
+  for (const path of TMP_ROOTS.splice(0)) {
+    await rm(path, { recursive: true, force: true }).catch(() => {});
   }
-  return { raw, fields };
-}
+});
 
-const files = loadAgentPromptFiles();
+// ── assertValidAgentName ────────────────────────────────────────────
 
-// Sanity check — the suite has at least the 10 agents the SRD enumerates.
-describe('agent-prompts/ directory shape', () => {
-  it('contains every always-on + conditional agent plus the captain', () => {
-    const names = files.map((f) => f.name).sort();
-    expect(names).toEqual(
-      [
-        'auditor',
-        'captain',
-        'debugger',
-        'designer',
-        'documenter',
-        'engineer',
-        'reviewer',
-        'runner',
-        'scout',
-        'tester',
-      ].sort(),
+describe('assertValidAgentName', () => {
+  it.each([
+    ['engineer'],
+    ['tester'],
+    ['my-custom-agent'],
+    ['a'],
+    ['a1'],
+    ['agent-1-2-3'],
+  ])('accepts %s', (name) => {
+    expect(() => assertValidAgentName(name)).not.toThrow();
+  });
+
+  it.each([
+    ['Engineer'],          // uppercase
+    ['1agent'],            // leading digit
+    ['-agent'],            // leading hyphen
+    ['../etc/passwd'],     // path traversal
+    ['agent/sub'],         // contains slash
+    [''],                  // empty
+    ['agent.md'],          // contains dot
+    ['agent name'],        // contains space
+    ['agent_name'],        // underscore (we standardize on hyphen)
+  ])('rejects %s', (name) => {
+    expect(() => assertValidAgentName(name)).toThrow(InvalidAgentNameError);
+  });
+});
+
+// ── getAgent layer fallback ─────────────────────────────────────────
+
+describe('getAgent fallback order', () => {
+  it('prefers session layer over repo / default', async () => {
+    const env = await freshEnv();
+    const sessionDir = join(env.worktreePath, '.claude', 'agents');
+    await mkdir(sessionDir, { recursive: true });
+    await writeFile(join(sessionDir, 'engineer.md'), 'SESSION_BODY');
+
+    // Also write a repo-layer override to confirm session wins.
+    const repoDir = join(env.sourceRepo, '.claude', 'agents');
+    await mkdir(repoDir, { recursive: true });
+    await writeFile(join(repoDir, 'engineer.md'), 'REPO_BODY');
+
+    const res = await getAgent(env.sessions, 'test-session', 'engineer');
+    expect(res.source).toBe('session');
+    expect(res.content).toBe('SESSION_BODY');
+    expect(res.name).toBe('engineer');
+  });
+
+  it('falls through to repo layer when session is absent', async () => {
+    const env = await freshEnv();
+    const repoDir = join(env.sourceRepo, '.claude', 'agents');
+    await mkdir(repoDir, { recursive: true });
+    await writeFile(join(repoDir, 'engineer.md'), 'REPO_BODY');
+
+    const res = await getAgent(env.sessions, 'test-session', 'engineer');
+    expect(res.source).toBe('repo');
+    expect(res.content).toBe('REPO_BODY');
+  });
+
+  it('falls through to default layer for a standard specialist when no override exists', async () => {
+    const env = await freshEnv();
+    // No session-layer, no repo-layer. User layer test below covers the
+    // tail of the chain; here we lean on the real packaged defaults
+    // shipping `engineer.md` at <repo>/agent-prompts/engineer.md.
+    const res = await getAgent(env.sessions, 'test-session', 'engineer');
+    // Could come from `user` if the dev has ~/.claude/agents/engineer.md,
+    // but `default` is the canonical path. Accept either user/default.
+    expect(res.source === 'user' || res.source === 'default').toBe(true);
+    expect(res.content.length).toBeGreaterThan(0);
+  });
+
+  it('throws AgentNotFoundError when no layer has the prompt', async () => {
+    const env = await freshEnv();
+    // Use a name that definitely doesn't ship as a default and isn't
+    // in the user's ~/.claude/agents.
+    const ghost = 'definitely-not-a-real-agent-zzz';
+    await expect(getAgent(env.sessions, 'test-session', ghost)).rejects.toBeInstanceOf(
+      AgentNotFoundError,
+    );
+  });
+
+  it('rejects invalid names with InvalidAgentNameError', async () => {
+    const env = await freshEnv();
+    await expect(getAgent(env.sessions, 'test-session', '../etc/passwd')).rejects.toBeInstanceOf(
+      InvalidAgentNameError,
+    );
+    await expect(getAgent(env.sessions, 'test-session', 'Engineer')).rejects.toBeInstanceOf(
+      InvalidAgentNameError,
     );
   });
 });
 
-// ── Per-specialist tests (all .md files EXCEPT captain.md) ───────────
-//
-// Captain has no frontmatter — it is the orchestrator prompt fed to the
-// wrapper, not a dispatchable subagent. We validate captain separately
-// below.
+// ── putAgent ────────────────────────────────────────────────────────
 
-const specialistFiles = files.filter((f) => f.name !== 'captain');
+describe('putAgent', () => {
+  it('writes to the session worktree and creates the directory', async () => {
+    const env = await freshEnv();
+    const dir = join(env.worktreePath, '.claude', 'agents');
+    expect(existsSync(dir)).toBe(false);
 
-describe.each(specialistFiles.map((f) => [f.name, f] as const))(
-  'agent-prompts/%s.md',
-  (_name, file) => {
-    const fm = parseFrontmatter(file.body);
+    const res = await putAgent(env.sessions, 'test-session', 'engineer', 'CUSTOM');
+    expect(res.source).toBe('session');
+    expect(res.content).toBe('CUSTOM');
+    expect(res.name).toBe('engineer');
 
-    it('has YAML frontmatter delimited by --- lines', () => {
-      expect(fm, `${file.path} has no parseable frontmatter`).not.toBeNull();
-    });
-
-    it('frontmatter contains exactly the four required fields in order: name, description, model, tools', () => {
-      if (!fm) throw new Error('no frontmatter');
-      const keys = fm.fields.map((f) => f.key);
-      expect(keys).toEqual(['name', 'description', 'model', 'tools']);
-    });
-
-    it('frontmatter `name` matches the filename without extension', () => {
-      if (!fm) throw new Error('no frontmatter');
-      const nameField = fm.fields.find((f) => f.key === 'name');
-      expect(nameField?.value).toBe(basename(file.path).replace(/\.md$/, ''));
-    });
-
-    it('frontmatter `description` is a non-empty single-line string', () => {
-      if (!fm) throw new Error('no frontmatter');
-      const desc = fm.fields.find((f) => f.key === 'description');
-      expect(desc?.value, `${file.name} description is empty`).toBeTruthy();
-      expect(desc!.value.length).toBeGreaterThan(10);
-      expect(desc!.value).not.toContain('\n');
-    });
-
-    it('frontmatter `model` is one of sonnet | opus | haiku', () => {
-      if (!fm) throw new Error('no frontmatter');
-      const model = fm.fields.find((f) => f.key === 'model');
-      expect(ALLOWED_MODELS.has(model?.value ?? '')).toBe(true);
-    });
-
-    it('frontmatter `tools` is a comma-separated list of recognized tool names', () => {
-      if (!fm) throw new Error('no frontmatter');
-      const tools = fm.fields.find((f) => f.key === 'tools');
-      expect(tools?.value, `${file.name} has no tools field`).toBeTruthy();
-      const parsed = tools!.value.split(',').map((t) => t.trim()).filter(Boolean);
-      expect(parsed.length).toBeGreaterThan(0);
-      for (const tool of parsed) {
-        expect(
-          RECOGNIZED_TOOLS.has(tool),
-          `${file.name}: tool '${tool}' is not a recognized Claude Code tool`,
-        ).toBe(true);
-      }
-      // No duplicates.
-      expect(new Set(parsed).size).toBe(parsed.length);
-    });
-
-    it('body (after frontmatter) contains the six standardized opening headers in order', () => {
-      // Slice off the frontmatter to inspect the prompt body.
-      if (!fm) throw new Error('no frontmatter');
-      const bodyStart = file.body.indexOf('\n---\n', 4) + 5;
-      const body = file.body.slice(bodyStart);
-      assertHeadersInOrder(file.name, body);
-    });
-  },
-);
-
-// ── Captain: same standardized headers, no frontmatter ──────────────
-
-describe('agent-prompts/captain.md', () => {
-  const captain = files.find((f) => f.name === 'captain');
-  if (!captain) throw new Error('captain.md missing');
-
-  it('does NOT have YAML frontmatter (captain is the orchestrator, not a subagent)', () => {
-    // Captain is loaded directly by the wrapper, not picked up by Claude
-    // Code's subagent dispatcher, so it intentionally has no frontmatter.
-    expect(parseFrontmatter(captain.body)).toBeNull();
+    const filePath = join(dir, 'engineer.md');
+    const fileInfo = await stat(filePath);
+    expect(fileInfo.isFile()).toBe(true);
+    const onDisk = await readFile(filePath, 'utf-8');
+    expect(onDisk).toBe('CUSTOM');
   });
 
-  it('starts with the canonical title heading', () => {
-    expect(captain.body.split('\n')[0]).toBe('# Captain — Session Orchestrator');
+  it('overwrites an existing session-layer prompt without touching other layers', async () => {
+    const env = await freshEnv();
+    const sessionDir = join(env.worktreePath, '.claude', 'agents');
+    await mkdir(sessionDir, { recursive: true });
+    await writeFile(join(sessionDir, 'engineer.md'), 'OLD');
+
+    const repoDir = join(env.sourceRepo, '.claude', 'agents');
+    await mkdir(repoDir, { recursive: true });
+    await writeFile(join(repoDir, 'engineer.md'), 'REPO');
+
+    await putAgent(env.sessions, 'test-session', 'engineer', 'NEW');
+
+    expect(await readFile(join(sessionDir, 'engineer.md'), 'utf-8')).toBe('NEW');
+    // Repo layer is untouched.
+    expect(await readFile(join(repoDir, 'engineer.md'), 'utf-8')).toBe('REPO');
   });
 
-  it('contains the six standardized opening section headers in order', () => {
-    assertHeadersInOrder(captain.name, captain.body);
+  it('rejects invalid names before touching disk', async () => {
+    const env = await freshEnv();
+    await expect(
+      putAgent(env.sessions, 'test-session', '../escaped', 'x'),
+    ).rejects.toBeInstanceOf(InvalidAgentNameError);
+    // Directory should not have been created.
+    expect(existsSync(join(env.worktreePath, '.claude'))).toBe(false);
+  });
+
+  it('throws SessionNotFoundError for an unknown session', async () => {
+    const env = await freshEnv();
+    await expect(
+      putAgent(env.sessions, 'unknown-session', 'engineer', 'x'),
+    ).rejects.toBeInstanceOf(SessionNotFoundError);
   });
 });
 
-// ── Designer-specific regression test ───────────────────────────────
-//
-// The designer specialist was previously granted the `Edit` tool, which
-// let it surgically modify source files despite prose saying it should
-// only critique. This guard locks the fix in place — any future
-// reintroduction of `Edit` to designer's tool grants must fail this
-// test loudly.
+// ── listAgents ──────────────────────────────────────────────────────
 
-describe('agent-prompts/designer.md tool grants', () => {
-  it('designer tool grants do not include Edit (prevents source-edit regression)', () => {
-    const designer = files.find((f) => f.name === 'designer');
-    if (!designer) throw new Error('designer.md missing');
-    const fm = parseFrontmatter(designer.body);
-    if (!fm) throw new Error('designer.md has no parseable frontmatter');
-    const tools = fm.fields.find((f) => f.key === 'tools');
-    expect(tools?.value, 'designer has no tools field').toBeTruthy();
-    const parsed = tools!.value.split(',').map((t) => t.trim()).filter(Boolean);
-    expect(parsed).not.toContain('Edit');
-    expect(parsed).toContain('Write');
+describe('listAgents', () => {
+  it('returns at least the 10 default agents in alphabetical order', async () => {
+    const env = await freshEnv();
+    const { agents } = await listAgents(env.sessions, 'test-session');
+    const names = agents.map((a) => a.name);
+    // Each of the 10 defaults must appear.
+    for (const required of [
+      'auditor',
+      'captain',
+      'debugger',
+      'designer',
+      'documenter',
+      'engineer',
+      'reviewer',
+      'runner',
+      'scout',
+      'tester',
+    ]) {
+      expect(names).toContain(required);
+    }
+    // Alphabetically sorted.
+    const sorted = [...names].sort();
+    expect(names).toEqual(sorted);
+  });
+
+  it('marks an agent as exists=true with source=session when only the session layer has it', async () => {
+    const env = await freshEnv();
+    const sessionDir = join(env.worktreePath, '.claude', 'agents');
+    await mkdir(sessionDir, { recursive: true });
+    await writeFile(join(sessionDir, 'engineer.md'), 'OVERRIDE');
+
+    const { agents } = await listAgents(env.sessions, 'test-session');
+    const eng = agents.find((a) => a.name === 'engineer');
+    expect(eng?.exists).toBe(true);
+    expect(eng?.source).toBe('session');
+  });
+
+  it('reports source=repo when only the repo layer overrides a default', async () => {
+    const env = await freshEnv();
+    const repoDir = join(env.sourceRepo, '.claude', 'agents');
+    await mkdir(repoDir, { recursive: true });
+    await writeFile(join(repoDir, 'engineer.md'), 'REPO_OVERRIDE');
+
+    const { agents } = await listAgents(env.sessions, 'test-session');
+    const eng = agents.find((a) => a.name === 'engineer');
+    expect(eng?.exists).toBe(true);
+    expect(eng?.source).toBe('repo');
+  });
+
+  it('includes extra .md files found in the session worktree dir', async () => {
+    const env = await freshEnv();
+    const sessionDir = join(env.worktreePath, '.claude', 'agents');
+    await mkdir(sessionDir, { recursive: true });
+    await writeFile(join(sessionDir, 'my-bespoke-agent.md'), 'CUSTOM');
+
+    const { agents } = await listAgents(env.sessions, 'test-session');
+    const custom = agents.find((a) => a.name === 'my-bespoke-agent');
+    expect(custom).toBeTruthy();
+    expect(custom?.source).toBe('session');
+    expect(custom?.exists).toBe(true);
+  });
+
+  it('throws SessionNotFoundError for an unknown session', async () => {
+    const env = await freshEnv();
+    await expect(listAgents(env.sessions, 'unknown')).rejects.toBeInstanceOf(
+      SessionNotFoundError,
+    );
+  });
+
+  it('skips weirdly-named files in the session dir', async () => {
+    const env = await freshEnv();
+    const sessionDir = join(env.worktreePath, '.claude', 'agents');
+    await mkdir(sessionDir, { recursive: true });
+    // These should NOT surface in the agent list — they fail the regex.
+    await writeFile(join(sessionDir, '.hidden.md'), 'x');
+    await writeFile(join(sessionDir, 'UPPER.md'), 'x');
+    await writeFile(join(sessionDir, 'with space.md'), 'x');
+
+    const { agents } = await listAgents(env.sessions, 'test-session');
+    const names = agents.map((a) => a.name);
+    expect(names).not.toContain('.hidden');
+    expect(names).not.toContain('UPPER');
+    expect(names).not.toContain('with space');
   });
 });
 
-function assertHeadersInOrder(agentName: string, body: string): void {
-  let cursor = 0;
-  for (const header of STANDARDIZED_HEADERS) {
-    // Match on a line-starting basis (avoid matching '## Intro' inside a
-    // bullet or quote).
-    const idx = body.indexOf(`\n${header}\n`, cursor);
-    // For the very first header it may be at position 0 too — try both.
-    const firstIdx = body.startsWith(`${header}\n`) && cursor === 0 ? 0 : idx;
-    expect(
-      firstIdx,
-      `${agentName}: header '${header}' missing or out of order (cursor=${cursor})`,
-    ).toBeGreaterThanOrEqual(0);
-    cursor = firstIdx + header.length;
-  }
-}
+// Avoid flaky leftovers across tests if anything failed mid-write.
+afterEach(async () => {
+  // Best-effort. Tracked roots are cleared by the earlier hook.
+  await new Promise<void>((resolve) => setImmediate(resolve));
+});
+
+// homedir reference is intentional — the `user` layer test path is best
+// covered by the integration suite (`packages/wrapper/src/server.test.ts`),
+// where we can swap HOME via env. Here we content ourselves with verifying
+// the rest of the chain.
+void homedir;

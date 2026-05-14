@@ -11,6 +11,13 @@ import type {
 import { MyTeamError } from '@my-team/shared';
 
 import type { SessionManager } from '../session-manager.js';
+import {
+  adaptSessionLookup,
+  listAgents,
+  getAgent,
+  putAgent,
+} from '../agent-prompts.js';
+import { getWorkflowConfig, putWorkflowConfig } from '../workflow-config.js';
 
 const CreateSessionSchema = z.object({
   source_repo: z.string().min(1),
@@ -21,6 +28,10 @@ const CreateSessionSchema = z.object({
 
 const SendInputSchema = z.object({
   text: z.string(),
+});
+
+const PutAgentSchema = z.object({
+  content: z.string(),
 });
 
 const SessionIdParamSchema = z.object({
@@ -44,6 +55,9 @@ function handleError(res: Response, err: unknown, log: Logger): void {
 
   if (err instanceof MyTeamError) {
     const statusCode = err.code === 'SESSION_NOT_FOUND' ? 404
+      : err.code === 'AGENT_NOT_FOUND' ? 404
+      : err.code === 'INVALID_AGENT_NAME' ? 400
+      : err.code === 'INVALID_WORKFLOW_CONFIG' ? 400
       : err.code === 'SESSION_ACTIVE' ? 409
       : err.code === 'SESSION_PROCESS_DEAD' ? 409
       : err.code === 'SESSION_CORRUPT' ? 422
@@ -217,6 +231,77 @@ export function createSessionsRouter(
       } else {
         res.status(404).json({ error: `Team file not found: ${filename}`, code: 'NOT_FOUND' });
       }
+    } catch (err) {
+      handleError(res, err, log);
+    }
+  });
+
+  // ── Agent prompt CRUD (Workflow tab) ──────────────────────────────
+  //
+  // The captain's prompt + each specialist's `.md` lives on disk in four
+  // layers: session → repo → user → packaged default. The UI lets the
+  // user edit the session layer; the rest is read-only fallback.
+
+  const sessionLookup = adaptSessionLookup(sessionManager);
+
+  // GET /api/sessions/:id/agents
+  router.get('/:id/agents', async (req: Request, res: Response) => {
+    try {
+      const data = await listAgents(sessionLookup, param(req, 'id'));
+      res.json(data);
+    } catch (err) {
+      handleError(res, err, log);
+    }
+  });
+
+  // GET /api/sessions/:id/agents/:name
+  router.get('/:id/agents/:name', async (req: Request, res: Response) => {
+    try {
+      const data = await getAgent(sessionLookup, param(req, 'id'), param(req, 'name'));
+      res.json(data);
+    } catch (err) {
+      handleError(res, err, log);
+    }
+  });
+
+  // PUT /api/sessions/:id/agents/:name
+  router.put('/:id/agents/:name', async (req: Request, res: Response) => {
+    try {
+      const body = PutAgentSchema.parse(req.body);
+      const data = await putAgent(
+        sessionLookup,
+        param(req, 'id'),
+        param(req, 'name'),
+        body.content,
+      );
+      res.json(data);
+    } catch (err) {
+      handleError(res, err, log);
+    }
+  });
+
+  // ── Workflow config (Workflow tab) ────────────────────────────────
+  //
+  // Per-session overrides for conditional-specialist dispatch + effort
+  // level. Stored at `<worktree>/.team/workflow.json`. The captain reads
+  // this file before dispatching designer / runner / auditor /
+  // documenter / debugger (see `agent-prompts/captain.md`).
+
+  // GET /api/sessions/:id/workflow
+  router.get('/:id/workflow', async (req: Request, res: Response) => {
+    try {
+      const config = await getWorkflowConfig(sessionLookup, param(req, 'id'));
+      res.json(config);
+    } catch (err) {
+      handleError(res, err, log);
+    }
+  });
+
+  // PUT /api/sessions/:id/workflow
+  router.put('/:id/workflow', async (req: Request, res: Response) => {
+    try {
+      const saved = await putWorkflowConfig(sessionLookup, param(req, 'id'), req.body);
+      res.json(saved);
     } catch (err) {
       handleError(res, err, log);
     }

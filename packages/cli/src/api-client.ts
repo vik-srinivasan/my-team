@@ -1,4 +1,10 @@
-import type { SessionSummary } from '@my-team/shared';
+import type {
+  SessionSummary,
+  AgentListResponse,
+  AgentPromptResponse,
+  RecentReposResponse,
+  WorkflowConfig,
+} from '@my-team/shared';
 
 const BASE_URL = 'http://127.0.0.1:3001';
 
@@ -98,4 +104,27 @@ export const api = {
 
   dismissNotification: (id: string) =>
     request<{ ok: boolean }>('DELETE', `/api/notifications/${id}`),
+
+  // ── Agent prompts (Workflow tab) ──────────────────────────────────
+
+  listAgents: (id: string) =>
+    request<AgentListResponse>('GET', `/api/sessions/${id}/agents`),
+
+  getAgent: (id: string, name: string) =>
+    request<AgentPromptResponse>('GET', `/api/sessions/${id}/agents/${name}`),
+
+  putAgent: (id: string, name: string, content: string) =>
+    request<AgentPromptResponse>('PUT', `/api/sessions/${id}/agents/${name}`, { content }),
+
+  // ── Workflow config (Workflow tab) ────────────────────────────────
+
+  getWorkflow: (id: string) =>
+    request<WorkflowConfig>('GET', `/api/sessions/${id}/workflow`),
+
+  putWorkflow: (id: string, config: WorkflowConfig) =>
+    request<WorkflowConfig>('PUT', `/api/sessions/${id}/workflow`, config),
+
+  // ── Recents (New Session modal) ───────────────────────────────────
+
+  getRecents: () => request<RecentReposResponse>('GET', '/api/repos/recents'),
 };

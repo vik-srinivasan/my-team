@@ -61,11 +61,45 @@ A captain plus a roster of nine specialists share a session. The captain drives;
 - **Auditor** — Narrow security pass on auth, payments, PII, and migrations. Walks OWASP top-10 categories against sensitive files in the diff and appends findings under a Security audit section in `review.md`.
 - **Documenter** — Keeps README, CHANGELOG, AGENTS, and `docs/` in sync after the engineer commits. Reads the diff for public-surface changes, updates affected docs, commits separately.
 
+## UI (web + Mac app)
+
+my-team now ships a UI in addition to the CLI. The UI offers a visual dashboard for session control, real-time monitoring of journal/tasks/diff, an interactive terminal, and a **Workflow tab** for in-session customization of specialist prompts and effort level.
+
+Run **`team ui`** to start the web app at `localhost:3737` in your default browser. Alternatively, build and launch the native macOS app with `pnpm --filter @my-team/ui tauri:build`, then run the `.app` from `/Applications`. Both targets run the same React + Tailwind frontend, so the experience is identical.
+
+### Quick start: web + desktop
+
+To boot the web fallback:
+```bash
+team start                    # Start the wrapper daemon (required)
+team ui                       # Open localhost:3737 in your browser
+```
+
+To boot the macOS desktop app (requires Rust toolchain):
+```bash
+pnpm --filter @my-team/ui tauri:dev        # Dev shell with HMR at localhost:5173
+# or
+pnpm --filter @my-team/ui tauri:build      # Unsigned .app + .dmg under src-tauri/target/release/
+```
+
+For full development and build instructions, see [`apps/ui/README.md`](./apps/ui/README.md).
+
+### Customization: specialist prompts and effort override
+
+The **Workflow tab** in the UI lets you customize the session in real-time. From any session's sidebar, open the Workflow tab to:
+
+- **Edit specialist prompts** — Click a specialist name (captain, engineer, scout, etc.) to open their prompt in a Markdown editor. Changes are saved to `.team/.claude/agents/<name>.md` in the session worktree and take effect on the next dispatch.
+- **Toggle specialists** — Mark optional specialists (designer, runner, auditor, documenter, debugger) as disabled or forced. Disabled specialists are skipped even if their trigger fires; forced specialists always run. Changes are persisted in `.team/workflow.json`.
+- **Override effort level** — Set a per-session effort override (`light`, `standard`, or `thorough`) that the captain will honor for all dispatch decisions, bypassing the value in `plan.md`.
+
+All changes are immediately visible in the `.team/` folder and reflected in the captain's behavior on the next dispatch.
+
 ## Commands
 
 | Command | Description |
 |---|---|
 | `team start` | Start the wrapper daemon |
+| `team ui` | Start the web UI on localhost:3737 |
 | `team new "<title>"` | Create a session in the current repo |
 | `team new <shortcut> "<title>"` | Create a session against a known repo basename (no `cd` needed) |
 | `team new <name> --new` | Bootstrap a new project (`mkdir` + `git init` + initial commit) and start a session |

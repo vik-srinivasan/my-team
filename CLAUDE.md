@@ -68,6 +68,35 @@ Do NOT:
 - Add a repo-root `vercel.json` for the landing page — the `docs` project uses default Next.js settings from `apps/landing` and does not need one.
 - Reference the old `landing-eosin-mu.vercel.app` URL anywhere; it is no longer maintained.
 
+## UI conventions (apps/ui/)
+
+The UI package (`apps/ui/`) is a Tauri v2 macOS app + Vite web frontend built with React 19 and Tailwind 4. It shares the following conventions beyond the project defaults:
+
+**Stack:**
+- React 19 + TypeScript strict
+- Tailwind 4 CSS (`@import "tailwindcss"` in `src/index.css`)
+- Vite for bundling (both dev and production)
+- Tauri v2 for the native macOS shell
+- TanStack Query for server state (cache + mutations)
+- Zustand for ephemeral UI state (selected session, active tab)
+- xterm.js for the terminal tab; @codemirror/6 for the prompt editor
+
+**Component structure:**
+- Components: `PascalCase.tsx`, one component per file
+- Tabs: under `src/components/tabs/`
+- Hooks: under `src/hooks/`
+- Utilities: under `src/lib/` (api.ts, ws.ts, markdown.tsx, diff.ts)
+- Tests colocated: `*.test.tsx` / `*.test.ts` alongside source
+
+**Testing:**
+- `vitest` + `@testing-library/react` in jsdom
+- Tests in `apps/ui/vitest.config.ts` (shared setup in `src/test-setup.ts`)
+- Mock WebSocket using `mock-socket` library; mock xterm/ResizeObserver in component tests
+
+**Workflow customization:**
+- The Workflow tab reads/writes `.team/.claude/agents/<name>.md` (session-scoped prompts) and `.team/workflow.json` (disabled/forced specialists, effort override) via wrapper API endpoints.
+- These files are read by the captain on dispatch, allowing per-session customization without touching repo-level defaults.
+
 ## Environment
 
 - **Node**: v22 (required by pnpm 11)

@@ -1,8 +1,7 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import { basename } from 'node:path';
-import type { SessionSummary } from '@my-team/shared';
-import { api, ApiError } from '../api-client.js';
+import type { SessionSummary, AttentionInfo } from '@my-team/shared';
 import {
   padEndVisible,
   truncate,
@@ -13,8 +12,8 @@ import {
   colorAttnGlyph,
   compareByAttention,
   LIST_COL_WIDTHS,
-  type AttentionInfo,
-} from '../format.js';
+} from '@my-team/shared';
+import { api, ApiError } from '../api-client.js';
 
 interface ListOptions {
   json?: boolean;

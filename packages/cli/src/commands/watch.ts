@@ -2,7 +2,6 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import { basename } from 'node:path';
 import type { SessionSummary } from '@my-team/shared';
-import { api, ApiError } from '../api-client.js';
 import {
   padEndVisible,
   truncate,
@@ -13,7 +12,8 @@ import {
   colorAttnGlyph,
   compareByAttention,
   LIST_COL_WIDTHS,
-} from '../format.js';
+} from '@my-team/shared';
+import { api, ApiError } from '../api-client.js';
 
 interface WatchOptions {
   interval?: string;

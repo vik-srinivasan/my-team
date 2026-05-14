@@ -82,3 +82,27 @@ export class EmptyProjectInitError extends MyTeamError {
     this.name = 'EmptyProjectInitError';
   }
 }
+
+export class AgentNotFoundError extends MyTeamError {
+  constructor(name: string) {
+    super(`Agent prompt not found: ${name}`, 'AGENT_NOT_FOUND');
+    this.name = 'AgentNotFoundError';
+  }
+}
+
+export class InvalidAgentNameError extends MyTeamError {
+  constructor(name: string) {
+    super(
+      `Invalid agent name: '${name}'. Must match /^[a-z][a-z0-9-]*$/.`,
+      'INVALID_AGENT_NAME',
+    );
+    this.name = 'InvalidAgentNameError';
+  }
+}
+
+export class InvalidWorkflowConfigError extends MyTeamError {
+  constructor(message: string) {
+    super(message, 'INVALID_WORKFLOW_CONFIG');
+    this.name = 'InvalidWorkflowConfigError';
+  }
+}

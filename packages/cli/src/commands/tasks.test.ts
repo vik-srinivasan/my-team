@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { stripAnsi } from '../format.js';
+import { stripAnsi } from '@my-team/shared';
 import { __test__ } from './tasks.js';
 
 const { renderTasks } = __test__;
