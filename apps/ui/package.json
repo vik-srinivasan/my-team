@@ -10,7 +10,10 @@
     "test": "vitest run",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
-    "tauri:build": "tauri build"
+    "tauri:build": "tauri build",
+    "tauri:build:universal": "tauri build --target universal-apple-darwin",
+    "tauri:build:aarch64": "tauri build --target aarch64-apple-darwin",
+    "tauri:build:x64": "tauri build --target x86_64-apple-darwin"
   },
   "dependencies": {
     "@codemirror/lang-markdown": "^6.5.0",
