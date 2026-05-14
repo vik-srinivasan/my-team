@@ -105,6 +105,51 @@ describe('HTTP API integration', () => {
     expect(res.body.status).toBe('ok');
   });
 
+  describe('CORS', () => {
+    it('allows cross-origin GET from http://localhost:3737 (web fallback)', async () => {
+      const res = await request(app)
+        .get('/api/health')
+        .set('Origin', 'http://localhost:3737');
+      expect(res.status).toBe(200);
+      expect(res.headers['access-control-allow-origin']).toBe('http://localhost:3737');
+    });
+
+    it('allows cross-origin GET from tauri://localhost (desktop shell)', async () => {
+      const res = await request(app)
+        .get('/api/health')
+        .set('Origin', 'tauri://localhost');
+      expect(res.status).toBe(200);
+      expect(res.headers['access-control-allow-origin']).toBe('tauri://localhost');
+    });
+
+    it('does NOT set CORS allow header for disallowed origin', async () => {
+      const res = await request(app)
+        .get('/api/health')
+        .set('Origin', 'http://evil.example.com');
+      // Request still completes (no preflight blocked it), but the
+      // allow-origin header is absent — browsers will reject the response.
+      expect(res.status).toBe(200);
+      expect(res.headers['access-control-allow-origin']).toBeUndefined();
+    });
+
+    it('omits CORS headers when no Origin header is present (same-origin / curl)', async () => {
+      const res = await request(app).get('/api/health');
+      expect(res.status).toBe(200);
+      // No Origin header sent, no allow-origin header echoed back.
+      expect(res.headers['access-control-allow-origin']).toBeUndefined();
+    });
+
+    it('responds to OPTIONS preflight for an allowed origin with the matching allow header', async () => {
+      const res = await request(app)
+        .options('/api/sessions')
+        .set('Origin', 'http://localhost:3737')
+        .set('Access-Control-Request-Method', 'POST')
+        .set('Access-Control-Request-Headers', 'content-type');
+      expect(res.status).toBe(204);
+      expect(res.headers['access-control-allow-origin']).toBe('http://localhost:3737');
+    });
+  });
+
   it('GET /api/sessions returns empty list initially', async () => {
     const res = await request(app).get('/api/sessions');
     expect(res.status).toBe(200);

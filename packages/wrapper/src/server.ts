@@ -1,6 +1,7 @@
 import type { Server } from 'node:http';
 
 import express from 'express';
+import cors from 'cors';
 import type { Logger } from 'pino';
 
 import type { SessionManager } from './session-manager.js';
@@ -14,6 +15,24 @@ export interface ServerOptions {
   port?: number;
 }
 
+/**
+ * Origins the wrapper's HTTP API accepts for cross-origin requests.
+ *
+ * - `http://localhost:3737` — the web fallback (`team ui` static server).
+ * - `tauri://localhost` — the Tauri v2 WebView in the macOS .app build.
+ *
+ * Everything else (including `http://localhost:5173` for `vite dev`) is
+ * rejected at the CORS layer. The WebSocket upgrade path does NOT use this
+ * middleware: the `ws` library accepts any Origin by default, so the
+ * upgrade endpoint is currently origin-unchecked. Acceptable while the
+ * wrapper is bound to 127.0.0.1; harden in a follow-up if we ever expose
+ * the daemon over a non-loopback interface.
+ */
+export const ALLOWED_ORIGINS = [
+  'http://localhost:3737',
+  'tauri://localhost',
+] as const;
+
 export function createServer(options: ServerOptions): {
   app: express.Express;
   start: () => Promise<Server>;
@@ -21,6 +40,24 @@ export function createServer(options: ServerOptions): {
   const { sessionManager, log, host = '127.0.0.1', port = 3001 } = options;
 
   const app = express();
+  app.use(
+    cors({
+      origin: (origin, callback) => {
+        // Same-origin requests (no Origin header — e.g., curl, server-side
+        // fetches) are allowed unconditionally. Cross-origin browsers send
+        // an Origin header and must match the allowlist.
+        if (!origin) {
+          callback(null, true);
+          return;
+        }
+        if ((ALLOWED_ORIGINS as readonly string[]).includes(origin)) {
+          callback(null, true);
+          return;
+        }
+        callback(null, false);
+      },
+    }),
+  );
   app.use(express.json());
 
   // Request logging
