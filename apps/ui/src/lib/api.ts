@@ -15,8 +15,14 @@ import type {
 /**
  * Wrapper daemon base URL. The wrapper hard-codes port 3001 and binds to
  * `127.0.0.1` only; both Tauri and the web fallback hit the same host.
+ *
+ * Override at build time with `VITE_API_BASE` (e.g. when running against a
+ * non-default session wrapper on a different port — see
+ * `apps/ui/README.md` § "Building against a non-default wrapper"). The
+ * default targets the system daemon so existing builds keep working.
  */
-export const API_BASE = 'http://127.0.0.1:3001';
+export const API_BASE: string =
+  import.meta.env.VITE_API_BASE ?? 'http://127.0.0.1:3001';
 
 /**
  * Thrown by every `apps/ui/src/lib/api.ts` function on a non-2xx response.

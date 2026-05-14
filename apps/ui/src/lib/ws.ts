@@ -4,8 +4,13 @@ import type { WsClientEvent, WsServerEvent } from '@my-team/shared/types';
  * Base WebSocket URL for the wrapper daemon. Sibling to `API_BASE` in
  * `./api.ts` — the wrapper exposes `ws://127.0.0.1:3001/ws/sessions/:id`
  * for both Tauri and the web fallback.
+ *
+ * Override at build time with `VITE_WS_BASE` (typically paired with
+ * `VITE_API_BASE`; see `apps/ui/README.md` § "Building against a
+ * non-default wrapper").
  */
-export const WS_BASE = 'ws://127.0.0.1:3001';
+export const WS_BASE: string =
+  import.meta.env.VITE_WS_BASE ?? 'ws://127.0.0.1:3001';
 
 /**
  * Typed callbacks for every variant of `WsServerEvent`. All are optional so

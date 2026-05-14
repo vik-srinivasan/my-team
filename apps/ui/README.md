@@ -53,6 +53,24 @@ pnpm --filter @my-team/ui tauri:build:aarch64      # arm64 only
 pnpm --filter @my-team/ui tauri:build:x64          # x86_64 only
 ```
 
+## Building against a non-default wrapper
+
+By default the UI bundle targets the system wrapper daemon at `http://127.0.0.1:3001` and the matching WebSocket at `ws://127.0.0.1:3001`. Two Vite-time environment variables override those URLs, which is useful when you want to drive a session-local wrapper (running on a different port) without disturbing the system daemon — e.g. during the designer screenshot pass, or when running two wrappers side-by-side for development.
+
+```bash
+# Point dev mode at a session wrapper running on port 3004.
+VITE_API_BASE=http://127.0.0.1:3004 \
+VITE_WS_BASE=ws://127.0.0.1:3004 \
+pnpm --filter @my-team/ui dev
+
+# Or bake the override into a build:
+VITE_API_BASE=http://127.0.0.1:3004 \
+VITE_WS_BASE=ws://127.0.0.1:3004 \
+pnpm --filter @my-team/ui build
+```
+
+Both variables are optional; either may be set independently. If unset, the corresponding default applies. The values are inlined into the bundle at build time (standard Vite `import.meta.env` substitution) so changing them requires a rebuild.
+
 ## Prerequisites
 
 **All targets:**
