@@ -179,6 +179,11 @@ const CLI_GROUPS: readonly CliGroup[] = [
     heading: 'Daemon',
     commands: [
       { name: 'team start', description: 'Start the wrapper daemon in the foreground.' },
+      {
+        name: 'team ui',
+        flags: '--port <port> --no-open',
+        description: 'Serve the my-team web UI on localhost:3737 and open it in the browser.',
+      },
     ],
   },
   {
