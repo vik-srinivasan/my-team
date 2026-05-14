@@ -84,6 +84,13 @@ export const api = {
   cleanSession: (id: string) =>
     request<{ ok: boolean }>('DELETE', `/api/sessions/${id}`),
 
+  purgeOrphans: (exclude: string[]) =>
+    request<{ purged: string[]; skipped: Array<{ id: string; reason: string }> }>(
+      'POST',
+      '/api/sessions/purge-orphans',
+      { exclude },
+    ),
+
   archiveSession: (id: string) =>
     request<{ ok: boolean; archive_path: string }>('POST', `/api/sessions/${id}/archive`),
 

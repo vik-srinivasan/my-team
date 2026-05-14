@@ -108,14 +108,15 @@ All changes are immediately visible in the `.team/` folder and reflected in the 
 | `team status <id>` | Detailed status for one session |
 | `team attach <id>` | Re-attach to a session's chat |
 | `team jump <id>` | Print a session's worktree path (use with `cd "$(team jump <id>)"`) |
-| `team kill <id>` | Terminate a session |
+| `team kill <id>` | Stop a running session (preserves worktree) |
 | `team logs <id>` | Print recent journal entries |
 | `team srd <id>` | Pretty-print `.team/srd.md` (captain's session requirements doc) |
 | `team open <id>` | Open a session worktree in VS Code |
 | `team resume <id>` | Re-spawn a captain on an orphan session (after daemon crash or restart) |
 | `team archive <id>` | Archive `.team/` files |
-| `team clean <id>` | Remove session worktree |
+| `team clean <id>` | Remove session worktree entirely |
 | `team purge <id>` | Kill and clean a session in one step |
+| `team purge --orphans` | Purge every disk-only session (skips live captains and current session) |
 | `team notifications` | Show blocked session alerts |
 | `team notifications --clear` | Clear all notifications |
 | `team help` | Show this help summary |

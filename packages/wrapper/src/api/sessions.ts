@@ -38,6 +38,10 @@ const SessionIdParamSchema = z.object({
   id: z.string().min(1, 'session id is required'),
 });
 
+const PurgeOrphansSchema = z.object({
+  exclude: z.array(z.string()).optional(),
+});
+
 function param(req: Request, name: string): string {
   const value = req.params[name];
   if (Array.isArray(value)) return value[0];
@@ -106,6 +110,22 @@ export function createSessionsRouter(
     try {
       const sessions: SessionSummary[] = await sessionManager.listSessions();
       res.json(sessions);
+    } catch (err) {
+      handleError(res, err, log);
+    }
+  });
+
+  // POST /api/sessions/purge-orphans
+  //
+  // Registered ABOVE the `/:id` routes so Express doesn't treat
+  // `purge-orphans` as a session id. Body accepts `{ exclude?: string[] }`
+  // — the CLI passes the current session id in `exclude` so the bulk
+  // purge doesn't delete the worktree it's running inside.
+  router.post('/purge-orphans', async (req: Request, res: Response) => {
+    try {
+      const body = PurgeOrphansSchema.parse(req.body ?? {});
+      const summary = await sessionManager.purgeOrphans({ exclude: body.exclude });
+      res.json(summary);
     } catch (err) {
       handleError(res, err, log);
     }

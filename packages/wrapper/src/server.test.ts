@@ -1418,4 +1418,144 @@ describe('HTTP API integration', () => {
       // Best effort
     }
   });
+
+  // ── purge-orphans + disk-only kill/clean regression coverage ────────────
+  //
+  // These tests cover the HTTP-route layer for the features added in
+  // commits 63e793a (kill/clean on disk-only sessions) and 6b445b3
+  // (purge-orphans endpoint). They write sessions directly to disk (no
+  // real git worktree) and verify the routes return 200/202 where they
+  // previously returned 404.
+
+  /**
+   * Creates a disk-only fake session (no real git worktree) directly in the
+   * sessionsRootDir. Returns the orphan session id.
+   * When `deletedSourceRepo` is true, the source_repo path referenced in
+   * meta.json is a temp git repo that is immediately deleted so that
+   * cleanSession uses the NotAGitRepoError → fs.rm fallback path.
+   */
+  async function writeFakeOrphan(id: string, opts: { deletedSourceRepo?: boolean } = {}): Promise<void> {
+    let sourceRepo = tempRepo;
+    if (opts.deletedSourceRepo) {
+      const throwaway = await realpath(await mkdtemp(join(tmpdir(), 'srv-throwaway-')));
+      execSync('git init', { cwd: throwaway });
+      execSync('git checkout -b main', { cwd: throwaway });
+      execSync('echo "x" > x.txt', { cwd: throwaway });
+      execSync('git add .', { cwd: throwaway });
+      execSync('git commit -m "init"', { cwd: throwaway });
+      sourceRepo = throwaway;
+      await rm(throwaway, { recursive: true, force: true });
+    }
+
+    const worktreePath = join(sessionsRootDir, id);
+    const teamDir = join(worktreePath, '.team');
+    await mkdir(teamDir, { recursive: true });
+    await writeFile(
+      join(teamDir, 'meta.json'),
+      JSON.stringify({
+        id,
+        title: `Fake Orphan ${id}`,
+        source_repo: sourceRepo,
+        source_branch: 'main',
+        session_branch: `my-team/${id}`,
+        created_at: '2026-05-12T10:00:00.000Z',
+      }, null, 2),
+    );
+    await writeFile(
+      join(teamDir, 'state.json'),
+      JSON.stringify({
+        phase: 'killed',
+        active_specialist: null,
+        review_iterations: 0,
+        max_review_iterations: 8,
+        last_checkpoint: '2026-05-12T10:30:00.000Z',
+        blockers: [],
+        must_ask_pending: [],
+      }, null, 2),
+    );
+    await writeFile(join(teamDir, 'journal.md'), '');
+  }
+
+  describe('POST /api/sessions/purge-orphans', () => {
+    it('returns 200 with { purged: string[], skipped: [...] } summary', async () => {
+      // No orphans on disk → empty purge (no error).
+      const res = await request(app)
+        .post('/api/sessions/purge-orphans')
+        .send({});
+      expect(res.status).toBe(200);
+      expect(Array.isArray(res.body.purged)).toBe(true);
+      expect(Array.isArray(res.body.skipped)).toBe(true);
+    });
+
+    it('returns 200 with purged ids after clearing disk-only orphans', async () => {
+      // Write two disk-only orphans with deleted source repos so cleanSession
+      // can proceed via the NotAGitRepoError → fs.rm fallback.
+      await writeFakeOrphan('purge-route-orphan-1', { deletedSourceRepo: true });
+      await writeFakeOrphan('purge-route-orphan-2', { deletedSourceRepo: true });
+
+      const res = await request(app)
+        .post('/api/sessions/purge-orphans')
+        .send({ exclude: [] });
+      expect(res.status).toBe(200);
+      expect(res.body.purged).toContain('purge-route-orphan-1');
+      expect(res.body.purged).toContain('purge-route-orphan-2');
+    });
+
+    it('respects the exclude list — does not purge the excluded id', async () => {
+      await writeFakeOrphan('purge-route-exclude-1', { deletedSourceRepo: true });
+      await writeFakeOrphan('purge-route-exclude-2', { deletedSourceRepo: true });
+
+      const res = await request(app)
+        .post('/api/sessions/purge-orphans')
+        .send({ exclude: ['purge-route-exclude-1'] });
+      expect(res.status).toBe(200);
+      expect(res.body.purged).toContain('purge-route-exclude-2');
+      expect(res.body.purged).not.toContain('purge-route-exclude-1');
+      expect(res.body.skipped.some((s: { id: string; reason: string }) => s.id === 'purge-route-exclude-1' && s.reason === 'current session')).toBe(true);
+    });
+
+    it('returns 400 on invalid body (exclude must be array of strings)', async () => {
+      const res = await request(app)
+        .post('/api/sessions/purge-orphans')
+        .send({ exclude: 'not-an-array' });
+      expect(res.status).toBe(400);
+      expect(res.body.code).toBe('VALIDATION_ERROR');
+    });
+  });
+
+  describe('POST /api/sessions/:id/kill on disk-only orphan (regression)', () => {
+    it('returns 202 instead of 404 for a disk-only session (regression coverage)', async () => {
+      // Previously killSession threw SessionNotFoundError for disk-only sessions,
+      // which the route mapped to HTTP 404.
+      const id = 'disk-only-kill-route-1';
+      await writeFakeOrphan(id);
+
+      const res = await request(app).post(`/api/sessions/${id}/kill`);
+      expect(res.status).toBe(202);
+      expect(res.body.ok).toBe(true);
+
+      // state.json on disk must now show phase='killed'.
+      const state = JSON.parse(
+        await readFile(join(sessionsRootDir, id, '.team', 'state.json'), 'utf-8'),
+      ) as { phase: string };
+      expect(state.phase).toBe('killed');
+    });
+  });
+
+  describe('DELETE /api/sessions/:id on disk-only orphan (regression)', () => {
+    it('returns 200 instead of 404 for a disk-only session (regression coverage)', async () => {
+      // Previously cleanSession threw SessionNotFoundError for disk-only sessions,
+      // which the route mapped to HTTP 404.
+      const id = 'disk-only-clean-route-2';
+      await writeFakeOrphan(id, { deletedSourceRepo: true });
+      const worktreePath = join(sessionsRootDir, id);
+
+      const res = await request(app).delete(`/api/sessions/${id}`);
+      expect(res.status).toBe(200);
+      expect(res.body.ok).toBe(true);
+
+      // Worktree dir must be gone.
+      expect(existsSync(worktreePath)).toBe(false);
+    });
+  });
 });

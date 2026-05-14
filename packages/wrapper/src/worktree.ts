@@ -19,14 +19,23 @@ export function sessionsDir(): string {
   return process.env['MY_TEAM_SESSIONS_DIR'] ?? join(homedir(), 'team', 'sessions');
 }
 
-const ARCHIVES_DIR = join(homedir(), 'team', 'archives');
+/**
+ * Root directory containing archived `.team/` directories from cleaned
+ * sessions. Resolved lazily so tests can override it via
+ * `MY_TEAM_ARCHIVES_DIR` (set before the call) without clearing an ESM
+ * module cache. Mirrors {@link sessionsDir}.
+ */
+export function archivesDir(): string {
+  return process.env['MY_TEAM_ARCHIVES_DIR'] ?? join(homedir(), 'team', 'archives');
+}
+
 const GLOBAL_AGENTS_DIR = join(homedir(), '.claude', 'agents');
 const MY_TEAM_AGENTS_DIR = resolve(__dirname, '..', '..', '..', 'agent-prompts');
 
 export async function resolveRepoRoot(path: string): Promise<string> {
-  const resolved = await realpath(path);
-  const git = simpleGit(resolved);
   try {
+    const resolved = await realpath(path);
+    const git = simpleGit(resolved);
     const root = await git.revparse(['--show-toplevel']);
     return (await realpath(root.trim()));
   } catch {
@@ -179,7 +188,7 @@ export async function removeWorktree(
 export async function archiveSession(sessionId: string): Promise<string> {
   const worktreePath = getWorktreePath(sessionId);
   const teamDir = join(worktreePath, '.team');
-  const archiveDir = join(ARCHIVES_DIR, sessionId);
+  const archiveDir = join(archivesDir(), sessionId);
 
   if (!existsSync(teamDir)) {
     throw new WorktreeError(`No .team/ directory found at ${teamDir}`);
