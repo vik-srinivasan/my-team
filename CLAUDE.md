@@ -80,6 +80,7 @@ The UI package (`apps/ui/`) is a Tauri v2 macOS app + Vite web frontend built wi
 - TanStack Query for server state (cache + mutations)
 - Zustand for ephemeral UI state (selected session, active tab)
 - xterm.js for the terminal tab; @codemirror/6 for the prompt editor
+  - **xterm.js options** live in `apps/ui/src/components/Terminal.tsx`; `convertEol` must remain `false` because the PTY (`xterm-256color`) emits CRLF already. Setting it to `true` causes spinner lines to stack instead of overwrite.
 
 **Component structure:**
 - Components: `PascalCase.tsx`, one component per file
@@ -96,6 +97,9 @@ The UI package (`apps/ui/`) is a Tauri v2 macOS app + Vite web frontend built wi
 **Workflow customization:**
 - The Workflow tab reads/writes `.team/.claude/agents/<name>.md` (session-scoped prompts) and `.team/workflow.json` (disabled/forced specialists, effort override) via wrapper API endpoints.
 - These files are read by the captain on dispatch, allowing per-session customization without touching repo-level defaults.
+
+**WebSocket protocol:**
+- Web and CLI WebSocket clients identify themselves via `{type:'hello',role:'web'|'cli'}` on connect. When any CLI client is attached, the wrapper drops `resize` messages from `web` clients so the CLI remains the authoritative dimension source. The wrapper is backwards-tolerant of legacy clients that don't send a hello (treated as `web`).
 
 ## Environment
 

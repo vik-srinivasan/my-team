@@ -159,3 +159,91 @@ Verification:
 - `pnpm -r exec tsc --noEmit` → clean across all packages
 - `pnpm test` from worktree root → 440 / 440 passing across 35 files
 - `pnpm --filter @my-team/ui test` → 128 / 128 passing across 18 files
+
+## 2026-05-14T12:00:00Z — reviewer
+Completed: Review pass 2
+Blockers: 0
+Suggestions: 5 (carried from pass 1, none resolved — deferred per orchestrator)
+Verdict: Approved
+
+## 2026-05-14T12:05:00Z — designer
+Iteration: 2
+Status: Approved
+Screenshots:
+- .team/artifacts/screenshots/chat-empty-2.png (empty state, full view)
+- .team/artifacts/screenshots/chat-first-row-2.png (three-turn transcript, full view)
+- .team/artifacts/screenshots/chat-labels-2.png (cropped transcript showing label contrast + border behavior)
+
+All three fixes from pass 1 confirmed applied correctly in commit 4d84f12:
+1. Empty state: vertically centered, font-sans. Confirmed.
+2. First message border: suppressed via isFirst prop. No orphaned rule at position 0. Confirmed.
+3. Role label contrast: YOU (text-neutral-400) visibly brighter than CAPTAIN (text-neutral-500). Confirmed.
+No new issues introduced. Chat tab is approved.
+
+## 2026-05-14T10:43:00Z — runner
+Targets exercised:
+
+Track A — Terminal tab rendering:
+- `convertEol: false` confirmed in Terminal.tsx:116. Correct.
+- Synchronous initial `fit.fit()` confirmed before first `requestAnimationFrame` in mount effect. Correct.
+- Resize debounce (16ms trailing setTimeout): simulated 10 rapid resizes → 1 WS send, final dimensions win. PASS.
+
+Track B — Chat tab:
+- WS connection to `vast-fern-76`: received 17 events (4 team_file + 13 output). Live output contains ANSI codes; `strip-ansi@7.2.0` strips all tested variants (color, erase-line, bold, cursor-hide) correctly. PASS.
+- `activeTab: 'chat'` default and `TAB_NAMES[0] === 'chat'` confirmed in store.ts. Chat is leftmost and default. PASS.
+- `POST /api/sessions/vast-fern-76/input` returned `HTTP 202 {"ok":true}`. Send endpoint works. PASS.
+- `canSend` guard: false when `socket.status !== 'open'`; textarea `disabled` prop mirrors status. PASS.
+- `isFirst` prop suppresses `border-t` on first message (ChatTab.tsx line 310-312). PASS.
+- Empty state: `flex h-full items-center justify-center` + `font-sans` (ChatTab.tsx line 198-199). PASS.
+- Role label contrast: user `text-neutral-400`, captain `text-neutral-500`. PASS.
+- `recentOutput` ring buffer: `RECENT_OUTPUT_CAP=50`, oldest dropped first. Confirmed in source and via live WS stream. PASS.
+
+Track C — CLI-priority resize authority (live dual-client test):
+- CLI client connected, sent `{type:'hello',role:'cli'}`.
+- CLI resize 80x24 → forwarded.
+- Web client connected, sent `{type:'hello',role:'web'}`.
+- Web resize 999x50 while CLI attached → dropped silently (wrapper returned no error, PTY not resized to 999x50). PASS.
+- CLI disconnected; web resize 120x40 → accepted. PASS.
+- `attach.ts`: cli hello sent before initial resize, idempotent cleanup, `ws.on('close')` calls `cleanup('server')`. PASS.
+
+Error paths:
+- `POST /api/sessions/fake-session-99/input` → `HTTP 404`. PASS.
+- `ws://127.0.0.1:3001/ws/sessions/fake-session-99` → "socket hang up", code 1006. PASS.
+- Chat send while disconnected: `canSend=false` when `socket.status !== 'open'`; textarea and Send button disabled. Source-verified. PASS.
+
+Send-to-captain removed:
+- `SessionActions.tsx` has zero `sendInput`/`onSendInput`/draft/form traces beyond a removal comment. Approve/Kill/Purge/VS Code buttons intact. PASS.
+
+Mismatches: none.
+
+Verdict: Approved — all happy paths and error paths verified. Ready to ship.
+
+## 2026-05-14T12:10:00Z — documenter
+Completed: Doc sync for ui fixes (Terminal tab rendering, Chat tab, CLI-priority resize).
+
+Modified:
+- CLAUDE.md: added note to Stack section about xterm.js `convertEol: false` requirement and CRLF/spinner stacking explanation; added WebSocket protocol section under Workflow customization documenting hello frame and CLI-priority resize authority.
+
+Deferred / flagged:
+- CHANGELOG.md does not exist at repo root. Cannot create new doc files with Edit tool. Content for captain to create:
+
+```markdown
+## Unreleased
+
+### Fixed
+- Terminal tab no longer garbles spinner / status output in the UI.
+
+### Added
+- Chat tab — first-class captain conversation surface, replaces the inline "Send to captain..." input. Chat is now the leftmost / default tab.
+
+### Changed
+- `team attach` is now the authoritative source for PTY size when connected; web UI defers to the CLI's dimensions.
+
+### Internal
+- WS protocol: clients now send `{type:'hello', role:'web'|'cli'}` on connect. Wrapper is tolerant of legacy clients (no hello = treated as `web`).
+- Keyboard: `⌘9` now activates the Workflow tab.
+```
+
+README.md: spot-check found no existing references to tab order or "Send to captain..." input, so no updates needed.
+
+Suggested commit: docs(ui): sync CLAUDE.md with Chat tab, CLI-priority resize, xterm options

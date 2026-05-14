@@ -51,6 +51,7 @@
 ## Review
 
 - [x] @reviewer Code review pass; produce `.team/review.md` with severity-bucketed findings.
+- [x] @reviewer Review pass 2; verify blocker fixes + sanity-check designer-revision commit. Verdict: Approved. (pass 2)
 
 ## Review revisions (from reviewer pass 1 — blocking)
 
@@ -60,7 +61,7 @@
 
 ## Docs
 
-- [ ] @documenter Update `CLAUDE.md` UI conventions section if xterm option changes need a note. Update `CHANGELOG.md` with: Terminal tab rendering fix, new Chat tab, `team attach` no longer forwards resize.
+- [x] @documenter Update `CLAUDE.md` UI conventions section if xterm option changes need a note. Update `CHANGELOG.md` with: Terminal tab rendering fix, new Chat tab, `team attach` no longer forwards resize.
 
 ## Git
 
