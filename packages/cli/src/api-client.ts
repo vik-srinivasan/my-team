@@ -43,6 +43,9 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
       message = `Session is still active. Kill it first with: team kill <id>`;
     } else if (response.status === 409 && errorBody.code === 'SESSION_PROCESS_DEAD') {
       message = `Session exists but its captain process is not running.`;
+    } else if (response.status === 422 && errorBody.code === 'SESSION_CORRUPT') {
+      // Keep the daemon-side message — it includes the suggested purge command.
+      message = errorBody.error;
     }
 
     throw new ApiError(response.status, message, errorBody.code);
@@ -68,6 +71,9 @@ export const api = {
 
   killSession: (id: string) =>
     request<{ ok: boolean }>('POST', `/api/sessions/${id}/kill`),
+
+  resumeSession: (id: string) =>
+    request<SessionSummary>('POST', `/api/sessions/${id}/resume`),
 
   cleanSession: (id: string) =>
     request<{ ok: boolean }>('DELETE', `/api/sessions/${id}`),

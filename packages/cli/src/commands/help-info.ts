@@ -37,6 +37,7 @@ export function helpInfoCommand(): Command {
 
   \x1b[33mSession management:\x1b[0m
     team kill <id>            Stop a running session (preserves worktree)
+    team resume <id>          Re-spawn a captain on an orphan session (after daemon crash)
     team archive <id>         Archive .team/ files to ~/team/archives/
     team clean <id>           Remove worktree entirely (archives first)
     team purge <id>           Kill and clean a session in one step

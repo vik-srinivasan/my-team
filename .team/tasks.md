@@ -1,27 +1,37 @@
-# Tasks — landing page update
+# Tasks — team resume command
 
 ## Engineering
-- [x] @engineer Add `core: boolean` to `Agent` interface and each entry in `apps/landing/app/agents.ts`. Scout/engineer/tester/reviewer = `true`; debugger/designer/runner/auditor/documenter = `false`. Captain entry stays as-is. — done in 91700bd; made `core` required and set captain to `false` so the typing catches future omissions.
-- [x] @engineer Rework `AgentFlow.tsx`: re-center captain horizontally, expand viewBox if needed, split specialists into two concentric arcs (4 core inner at full size + solid stroke; 5 optional outer at smaller size + dashed/dimmed stroke). Update reduced-motion fallback to mention both groups. No overlap, no clipping. — done in bfb847b; viewBox 760×520, captain at (380, 260), inner r=140 (4 cardinal), outer r=225 (5 nodes at 72° spacing offset 36° from inner). All nodes verified in-bounds.
-- [x] @engineer Update `FlowNarrative.tsx`: visually group/badge core vs optional agents (subhead between sections, small badge on each card). — done in f66794f; three sections (captain alone, core, optional) with eyebrow group headings + blurbs and solid/dashed badge pills.
-- [x] @engineer Reframe `Hero.tsx` stat counter from "6 agents" to the "4 core + 5 optional" framing. — done in f66794f; grid expanded to 4 cols with `core: 4` + `optional: 5` tiles alongside setup/output.
-- [x] @engineer Refactor `Architecture.tsx` to consume the shared `core` flag from `agents.ts` (replacing local `conditional`). Visual output must stay identical. — done in b803419; iterates `SPECIALISTS`, derives `conditional: !agent.core`, per-agent `produces`/`stack` metadata moved to a small `ARCH_META` map.
-- [x] @engineer Add/update unit tests covering the geometry change, the `core` flag pass-through, and the FlowNarrative grouping. — done across the feature commits + b6719b7; new files `agents.test.ts` and `FlowNarrative.test.ts`, updated Hero/Architecture/agent-flow-state tests. 45/45 landing tests pass.
-- [x] @engineer Commit after each meaningful chunk. Run `pnpm lint` and `pnpm build` from `apps/landing/` before signing off. — five commits total; lint + build both pass.
+
+- [x] @engineer Extend `SessionManager.listSessions()` in `packages/wrapper/src/session-manager.ts` to merge in-memory sessions with on-disk sessions found in `~/team/sessions/`. In-memory entries win when both exist. Skip silently on missing/corrupt `.team/meta.json` or `.team/state.json`. — commit 255cc86
+- [x] @engineer Add `SessionManager.resumeSession(id)` method that validates the worktree, refuses double-spawn (throws `SessionActiveError`), pre-trusts the directory, rewrites captain hooks, appends a "Session resumed" journal entry, spawns the captain, wires the watcher, updates the `sessions` Map, calls `recordSessionStart(id)`, and returns a `SessionSummary`. — commit 0f23065
+- [x] @engineer Decide on error shape: either reuse `SessionNotFoundError` with a clear message for missing `meta.json`, or add a `SessionCorruptError` to `packages/shared/src/errors.ts`. Pick one and stay consistent. — added `SessionCorruptError` (code `SESSION_CORRUPT`, HTTP 422). Decision logged in `.team/decisions.md`. Commit 0f23065.
+- [x] @engineer Add `POST /api/sessions/:id/resume` endpoint to `packages/wrapper/src/api/sessions.ts`. Validate the path param with zod. Delegate to `SessionManager.resumeSession`. Map errors to the standard HTTP status codes the existing routes use. — commit 2249bae
+- [x] @engineer Add `api.resumeSession(id)` to `packages/cli/src/api-client.ts`. — commit 311d5f6
+- [x] @engineer Create `packages/cli/src/commands/resume.ts` implementing `resumeCommand(id)`. Pattern after `kill.ts`. On success print `chalk.green('Resumed <id>')` plus a hint about `team open <id>`. On `SESSION_ACTIVE` print a clear "already running" message. On `SESSION_NOT_FOUND` print the standard not-found error. Always exit 1 on error. — commit 311d5f6
+- [x] @engineer Register `resume <id>` in `packages/cli/src/index.ts` alphabetically. — commit 311d5f6
+- [x] @engineer Add unit tests in `packages/wrapper/src/session-manager.test.ts`: (a) `listSessions` disk-merge, (b) `resumeSession` happy path, (c) `resumeSession` throws on already-running, (d) `resumeSession` throws on missing worktree, (e) `resumeSession` errors clearly on missing `meta.json`. — commit 9b569e2 (12 new tests, all 331 in the suite pass)
+- [x] @engineer Commit after each meaningful working piece — Conventional Commits (`feat(wrapper): hydrate listSessions from disk`, `feat(cli): add team resume command`, etc.). — 5 commits landed: 255cc86, 0f23065, 2249bae, 311d5f6, 9b569e2
 
 ## Testing
-- [x] @tester Run `pnpm lint`, `pnpm build`, `pnpm vitest run` in `apps/landing/`. Verify all green.
-- [x] @tester Add integration coverage for the new geometry and the agent grouping where it adds real value (don't pad).
-- [x] @tester File any bugs in `.team/review.md` under a "Tester findings" section.
+
+- [x] @tester Add integration tests for `POST /api/sessions/:id/resume` in `packages/wrapper/src/server.test.ts` covering happy path, 404 on missing session, and the already-running case. Follow the existing `supertest` + mocked-`spawnCaptain` pattern.
+- [x] @tester Add a CLI-level smoke test for `resume` in `packages/cli/src/commands/resume.test.ts` (parse + dispatch to `api.resumeSession`).
+- [x] @tester Run `pnpm test` end-to-end; full suite green.
+
+## End-to-end
+
+- [ ] @runner Manually exercise the flow against a real wrapper: create a session, kill the wrapper daemon mid-flight, restart the daemon, verify `team list` shows the orphan with `pid: null` and correct `phase`, run `team resume <id>`, verify the session is live again, verify `team open <id>` attaches cleanly. Report mismatches.
+
+## Docs
+
+- [x] @documenter Update `README.md` (root) to mention `team resume <id>` and note that `team list` now surfaces orphan sessions. — Updated command table, added `team resume` entry, updated `team list` description to mention orphan sessions, added "Session recovery" subsection.
+- [x] @documenter Update `SPEC.md` if it documents the CLI surface — add the resume command and the disk-merge behavior. — Updated §7 CLI commands table with `team resume` entry and updated `team list` description; added new `POST /api/sessions/:id/resume` endpoint to §8.1 HTTP endpoints section.
+- [x] @documenter Check `apps/landing/` and CLI help text (`packages/cli/src/help-info.ts` or equivalent) for command lists that need the addition. — Landing page already has `team resume` in "Cleanup & Remote" section (engineer added it). Updated `packages/cli/src/commands/help-info.ts` to add `team resume` to "Session management" group in help output.
 
 ## Review
-- [ ] @reviewer Standard pass on the diff. Produce `.team/review.md` with Blocking / Suggestion / Approved buckets.
 
-## Visual
-- [ ] @designer Boot `pnpm dev` in `apps/landing/` (port 3100), screenshot the hero animation + FlowNarrative, critique visual hierarchy of the core/optional split. Iterate with engineer if needed.
-
-## Deploy
-- [ ] @captain Run `vercel` from `apps/landing/` to produce a preview URL. Capture the URL.
+- [ ] @reviewer Full code review pass over the engineer's changes. Produce `.team/review.md` with severity-bucketed findings.
 
 ## Git
-- [ ] @captain Push branch and open PR — include the Vercel preview URL in the PR body.
+
+- [ ] @captain Push session branch `my-team/soft-crow-65` and open a PR against `main` once review approves.
