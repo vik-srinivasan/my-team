@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { Server } from 'mock-socket';
 
-import { useSessionWebSocket } from './useSessionWebSocket.js';
+import { RECENT_OUTPUT_CAP, useSessionWebSocket } from './useSessionWebSocket.js';
 import { WS_BASE } from '../lib/ws.js';
 
 /**
@@ -106,6 +106,59 @@ describe('useSessionWebSocket', () => {
         expect(result.current.teamFiles.journal).toBe('# J');
         expect(result.current.teamFiles.plan).toBe('# P');
       });
+    } finally {
+      server.stop();
+    }
+  });
+
+  it('accumulates output chunks in recentOutput and caps the buffer', async () => {
+    const server = makeServer('s-ring');
+    let socket: { send: (data: string) => void } | null = null;
+    server.on('connection', (s) => {
+      socket = s as unknown as { send: (data: string) => void };
+    });
+
+    try {
+      const { result } = renderHook(() => useSessionWebSocket('s-ring'));
+      await waitFor(() => expect(result.current.status).toBe('open'));
+      expect(socket).not.toBeNull();
+
+      // Push three chunks: every one lands in the ring buffer and the
+      // latest still shows up in `output`.
+      act(() => {
+        socket?.send(JSON.stringify({ type: 'output', text: 'a' }));
+        socket?.send(JSON.stringify({ type: 'output', text: 'b' }));
+        socket?.send(JSON.stringify({ type: 'output', text: 'c' }));
+      });
+
+      await waitFor(() => {
+        expect(result.current.recentOutput).toEqual(['a', 'b', 'c']);
+      });
+      expect(result.current.output).toBe('c');
+
+      // Push enough additional chunks to push past the cap. The buffer
+      // should hold the most recent RECENT_OUTPUT_CAP entries; oldest
+      // entries are dropped first.
+      act(() => {
+        for (let i = 0; i < RECENT_OUTPUT_CAP + 5; i += 1) {
+          socket?.send(JSON.stringify({ type: 'output', text: `x${i}` }));
+        }
+      });
+
+      await waitFor(() => {
+        expect(result.current.recentOutput.length).toBe(RECENT_OUTPUT_CAP);
+      });
+      // Last entry is the freshest chunk.
+      expect(result.current.recentOutput[result.current.recentOutput.length - 1]).toBe(
+        `x${RECENT_OUTPUT_CAP + 4}`,
+      );
+      // Earliest entry in the capped buffer must be more recent than
+      // anything from before the cap kicked in (so 'a','b','c' and the
+      // very first 'x' entries have been dropped).
+      expect(result.current.recentOutput).not.toContain('a');
+      expect(result.current.recentOutput).not.toContain('b');
+      expect(result.current.recentOutput).not.toContain('c');
+      expect(result.current.recentOutput).not.toContain('x0');
     } finally {
       server.stop();
     }
