@@ -32,6 +32,15 @@ export function attachToSession(id: string): Promise<void> {
       }
       process.stdin.resume();
 
+      // Identify ourselves to the wrapper before any other frame. This
+      // is what gives the CLI priority over the web UI for resize
+      // authority: while a `cli` client is attached, the wrapper drops
+      // `resize` messages from `web` clients (see plan.md Track C and
+      // packages/wrapper/src/api/websocket.ts). Sending this first
+      // guarantees we're counted as a CLI client before our initial
+      // resize is processed.
+      ws.send(JSON.stringify({ type: 'hello', role: 'cli' }));
+
       // Send initial terminal size
       if (process.stdout.isTTY) {
         ws.send(JSON.stringify({
