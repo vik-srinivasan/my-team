@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 import type { RecentReposResponse } from '@my-team/shared/types';
@@ -118,4 +119,57 @@ describe('NewSessionModal', () => {
     });
   });
 
+  describe('chrome', () => {
+    beforeEach(() => {
+      vi.spyOn(api, 'getRecents').mockResolvedValue(recents([]));
+    });
+
+    it('Create button is the filled primary; Cancel is ghost/outline', async () => {
+      render(
+        <Providers>
+          <NewSessionModal onClose={vi.fn()} onCreated={vi.fn()} />
+        </Providers>,
+      );
+
+      const cancel = await screen.findByRole('button', { name: /^Cancel$/i });
+      const create = await screen.findByRole('button', { name: /^Create$/i });
+
+      // Create gets the filled visual treatment (white-on-dark).
+      expect(create.className).toMatch(/bg-neutral-100/);
+      expect(create.className).toMatch(/text-neutral-900/);
+      // Cancel gets the outlined/ghost visual treatment (border + transparent).
+      expect(cancel.className).toMatch(/border-neutral-7/);
+      expect(cancel.className).toMatch(/bg-transparent/);
+      expect(cancel.className).not.toMatch(/bg-neutral-100/);
+    });
+
+    it('renders a top-right × close button that fires onClose', async () => {
+      const onClose = vi.fn();
+
+      render(
+        <Providers>
+          <NewSessionModal onClose={onClose} onCreated={vi.fn()} />
+        </Providers>,
+      );
+
+      const close = await screen.findByRole('button', { name: /Close/i });
+      await userEvent.click(close);
+      expect(onClose).toHaveBeenCalledTimes(1);
+    });
+
+    it('backdrop click still triggers onClose (regression on the close-affordance work)', async () => {
+      const onClose = vi.fn();
+
+      render(
+        <Providers>
+          <NewSessionModal onClose={onClose} onCreated={vi.fn()} />
+        </Providers>,
+      );
+
+      // The outer dialog div is the backdrop layer.
+      const backdrop = await screen.findByRole('dialog');
+      await userEvent.click(backdrop);
+      expect(onClose).toHaveBeenCalledTimes(1);
+    });
+  });
 });

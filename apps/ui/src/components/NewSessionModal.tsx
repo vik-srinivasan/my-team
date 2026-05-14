@@ -103,8 +103,19 @@ export function NewSessionModal({ onClose, onCreated }: NewSessionModalProps): R
     >
       <form
         onSubmit={handleSubmit}
-        className="w-full max-w-md rounded-md bg-neutral-900 border border-neutral-800 p-5 text-neutral-100 shadow-xl"
+        className="relative w-full max-w-md rounded-md bg-neutral-900 border border-neutral-700 p-5 text-neutral-100 shadow-xl"
       >
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close"
+          title="Close"
+          className="absolute top-3 right-3 inline-flex size-7 items-center justify-center rounded-sm text-neutral-500 hover:bg-neutral-800 hover:text-neutral-200 focus:outline-none focus:ring-1 focus:ring-neutral-600"
+        >
+          <span aria-hidden className="text-lg leading-none">
+            ×
+          </span>
+        </button>
         <h2 className="text-lg font-semibold mb-4">New session</h2>
 
         <label className="block text-sm">
@@ -233,14 +244,14 @@ export function NewSessionModal({ onClose, onCreated }: NewSessionModalProps): R
           <button
             type="button"
             onClick={onClose}
-            className="rounded-sm border border-neutral-800 px-3 py-1.5 text-sm text-neutral-300 hover:bg-neutral-800"
+            className="rounded-sm border border-neutral-700 bg-transparent px-3 py-1.5 text-sm text-neutral-300 hover:bg-neutral-800 hover:text-neutral-100 focus:outline-none focus:ring-1 focus:ring-neutral-600"
           >
             Cancel
           </button>
           <button
             type="submit"
             disabled={!canSubmit || repoError !== null}
-            className="rounded-sm bg-neutral-100 text-neutral-900 px-3 py-1.5 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-white"
+            className="rounded-sm bg-neutral-100 text-neutral-900 px-3 py-1.5 text-sm font-semibold shadow-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-white focus:outline-none focus:ring-2 focus:ring-neutral-300"
           >
             {mutation.isPending ? 'Creating…' : 'Create'}
           </button>
