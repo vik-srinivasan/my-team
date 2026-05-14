@@ -1,4 +1,4 @@
-import { useState, type FormEvent, type ReactElement } from 'react';
+import { useState, type ReactElement } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { SessionDetail } from '@my-team/shared/types';
 
@@ -6,7 +6,6 @@ import {
   approveSession,
   cleanSession,
   killSession,
-  sendInput,
 } from '../lib/api.js';
 import { SESSIONS_QUERY_KEY } from '../hooks/useSessions.js';
 import { sessionDetailQueryKey } from '../hooks/useSessionDetail.js';
@@ -31,17 +30,15 @@ export interface SessionActionsProps {
  *              and Tauri WebView via OS protocol handler); decisions.md
  *              records the rationale.
  *
- * Send input: a tiny inline form posting `{text: <body>\n}` to
- *              `/input`. Enter submits, Shift+Enter inserts a newline
- *              into the textarea before send (consistent with the CLI's
- *              `team send` UX).
+ * Talking to the captain happens in the Chat tab — the inline
+ * "Send to captain…" input that used to live here was removed when the
+ * Chat tab became the first-class conversational surface.
  */
 export function SessionActions({ session }: SessionActionsProps): ReactElement {
   const queryClient = useQueryClient();
   const setSelectedSessionId = useUiStore((s) => s.setSelectedSessionId);
   const id = session.meta.id;
 
-  const [text, setText] = useState('');
   const [pendingPurge, setPendingPurge] = useState(false);
 
   function invalidate(): void {
@@ -80,21 +77,6 @@ export function SessionActions({ session }: SessionActionsProps): ReactElement {
       setSelectedSessionId(null);
     },
   });
-
-  const send = useMutation({
-    mutationFn: (body: string) =>
-      sendInput(id, body.endsWith('\n') ? body : `${body}\n`),
-    onSuccess: () => {
-      setText('');
-    },
-  });
-
-  function handleSend(e: FormEvent): void {
-    e.preventDefault();
-    const trimmed = text.trim();
-    if (trimmed.length === 0) return;
-    send.mutate(trimmed);
-  }
 
   function openInVsCode(): void {
     // `vscode://file/<absolute-path>` is the documented deep link. The
@@ -146,34 +128,12 @@ export function SessionActions({ session }: SessionActionsProps): ReactElement {
         </button>
       </div>
 
-      <form
-        onSubmit={handleSend}
-        className="flex items-center gap-2"
-        aria-label="Send input to captain"
-      >
-        <input
-          type="text"
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder="Send to captain…"
-          className="w-56 rounded-sm bg-neutral-900 border border-neutral-800 px-2 py-1 text-xs text-neutral-100 placeholder:text-neutral-600 focus:outline-none focus:border-neutral-600"
-        />
-        <button
-          type="submit"
-          disabled={send.isPending || text.trim().length === 0}
-          className="rounded-sm bg-neutral-100 text-neutral-900 px-2.5 py-1 text-xs font-medium disabled:opacity-50 hover:bg-white"
-        >
-          {send.isPending ? 'Sending…' : 'Send'}
-        </button>
-      </form>
-
-      {approve.isError || kill.isError || purge.isError || send.isError ? (
+      {approve.isError || kill.isError || purge.isError ? (
         <p className="text-[10px] text-red-400" role="alert">
           {(
             (approve.error as Error | null) ??
             (kill.error as Error | null) ??
-            (purge.error as Error | null) ??
-            (send.error as Error | null)
+            (purge.error as Error | null)
           )?.message ?? 'Action failed.'}
         </p>
       ) : null}
