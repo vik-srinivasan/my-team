@@ -59,7 +59,7 @@ export function Sidebar(): ReactElement {
           onClick={() => setShowNewModal(true)}
           aria-label="New session"
           title="New session"
-          className="shrink-0 rounded-sm bg-neutral-100 text-neutral-900 px-2 py-1 text-sm font-medium hover:bg-white"
+          className="shrink-0 rounded-sm bg-neutral-900 text-neutral-300 px-2 py-1 text-sm font-medium hover:bg-neutral-800 hover:text-neutral-100 focus:outline-none focus:ring-1 focus:ring-neutral-600"
         >
           +
         </button>
