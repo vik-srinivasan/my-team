@@ -1,6 +1,6 @@
 import { EventEmitter } from 'node:events';
 import { resolve, join } from 'node:path';
-import { mkdir, writeFile, readFile, appendFile, readdir, stat } from 'node:fs/promises';
+import { mkdir, writeFile, readFile, appendFile, readdir, stat, rm } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import type { Logger } from 'pino';
 
@@ -21,6 +21,7 @@ import {
   SessionActiveError,
   SessionCorruptError,
   SessionProcessDeadError,
+  NotAGitRepoError,
 } from '@my-team/shared';
 
 import { existsSync } from 'node:fs';
@@ -701,21 +702,75 @@ export class SessionManager extends EventEmitter<SessionManagerEventMap> {
     this.sendInput(id, 'approved\n');
   }
 
-  async killSession(id: string): Promise<void> {
-    const managed = this.sessions.get(id);
-    if (!managed) {
-      throw new SessionNotFoundError(id);
+  /**
+   * Builds a synthetic `ManagedSession` for a disk-only session — one
+   * whose worktree directory survived on disk but is not tracked in the
+   * in-memory `this.sessions` Map (e.g. after a daemon restart). Reads
+   * `meta.json` + `state.json` via the existing helpers and fills the
+   * non-disk fields with safe nulls so the existing kill/clean flow can
+   * operate on the entry without poking a real captain or watcher.
+   *
+   * Returns `null` if `meta.json` or `state.json` is missing or corrupt —
+   * callers should throw `SessionNotFoundError` for that case so the
+   * error semantics for a truly absent session don't change.
+   *
+   * The returned entry is intentionally NOT inserted into `this.sessions`.
+   * Callers should use it as a one-shot record for the operation in flight.
+   */
+  private async hydrateFromDisk(id: string): Promise<ManagedSession | null> {
+    const worktreePath = getWorktreePath(id);
+    if (!existsSync(worktreePath)) return null;
+
+    let meta: SessionMeta;
+    let state: SessionState;
+    try {
+      [meta, state] = await Promise.all([
+        readTeamMeta(worktreePath),
+        readTeamState(worktreePath),
+      ]);
+    } catch {
+      return null;
     }
 
-    this.log.info({ id }, 'Killing session');
+    const session: Session = {
+      meta,
+      state,
+      worktree_path: worktreePath,
+      pid: null,
+      started_at: meta.created_at,
+      remote_url: null,
+    };
 
-    // Kill captain process
+    return {
+      session,
+      captain: null,
+      watcher: null,
+      lastDiff: '',
+      diffTimer: null,
+    };
+  }
+
+  async killSession(id: string): Promise<void> {
+    let managed = this.sessions.get(id);
+    let synthetic = false;
+    if (!managed) {
+      const hydrated = await this.hydrateFromDisk(id);
+      if (!hydrated) {
+        throw new SessionNotFoundError(id);
+      }
+      managed = hydrated;
+      synthetic = true;
+    }
+
+    this.log.info({ id, synthetic }, 'Killing session');
+
+    // Kill captain process (no-op on synthetic — captain is null)
     if (managed.captain) {
       managed.captain.kill();
       managed.captain = null;
     }
 
-    // Stop watcher
+    // Stop watcher (no-op on synthetic — watcher is null)
     if (managed.watcher) {
       await managed.watcher.close();
       managed.watcher = null;
@@ -743,28 +798,65 @@ export class SessionManager extends EventEmitter<SessionManagerEventMap> {
   }
 
   async cleanSession(id: string): Promise<void> {
-    const managed = this.sessions.get(id);
+    let managed = this.sessions.get(id);
+    let synthetic = false;
     if (!managed) {
-      throw new SessionNotFoundError(id);
+      const hydrated = await this.hydrateFromDisk(id);
+      if (!hydrated) {
+        throw new SessionNotFoundError(id);
+      }
+      managed = hydrated;
+      synthetic = true;
     }
 
     if (managed.captain?.running) {
       throw new SessionActiveError(id);
     }
 
-    // Archive first
-    await this.archiveSession(id);
+    const worktreePath = managed.session.worktree_path;
+    const teamDirPath = join(worktreePath, '.team');
 
-    // Remove worktree
-    await removeWorktree(managed.session.meta.source_repo, id);
-
-    // Remove from registry
-    if (managed.watcher) {
-      await managed.watcher.close();
+    // Archive first — but only if `.team/` is still on disk. On a corrupt
+    // orphan with no `.team/`, archive would throw; skip with a warn so
+    // the worktree-removal step below still runs.
+    if (existsSync(teamDirPath)) {
+      if (synthetic) {
+        await archiveWorktree(id);
+      } else {
+        await this.archiveSession(id);
+      }
+    } else {
+      this.log.warn({ id, teamDirPath }, 'Skipping archive: .team/ missing');
     }
-    this.sessions.delete(id);
 
-    this.log.info({ id }, 'Session cleaned');
+    // Remove worktree. If the source_repo no longer exists on disk
+    // (deleted out from under us), `removeWorktree` throws
+    // `NotAGitRepoError`. Fall back to a plain recursive rm of the
+    // worktree dir — the git worktree metadata in the (missing) source
+    // repo is already orphaned, so there's nothing else to clean.
+    try {
+      await removeWorktree(managed.session.meta.source_repo, id);
+    } catch (err) {
+      if (err instanceof NotAGitRepoError) {
+        this.log.warn(
+          { id, sourceRepo: managed.session.meta.source_repo },
+          'Source repo missing; falling back to recursive rm of worktree',
+        );
+        await rm(worktreePath, { recursive: true, force: true });
+      } else {
+        throw err;
+      }
+    }
+
+    // Remove from registry (skip on synthetic — nothing to remove)
+    if (!synthetic) {
+      if (managed.watcher) {
+        await managed.watcher.close();
+      }
+      this.sessions.delete(id);
+    }
+
+    this.log.info({ id, synthetic }, 'Session cleaned');
   }
 
   async archiveSession(id: string): Promise<string> {
