@@ -80,4 +80,5 @@ Bugs filed: <count or "none">
 - Follow existing test conventions in the codebase (test framework, file naming, patterns).
 - You may run: build commands, test commands, `git add`, `git commit`.
 - You must NOT run: `git push`, `git checkout`, `git rebase`, `git merge`, `git reset --hard`.
+- **Headless / no-GUI.** Tests must never spawn a visible browser or native window on the user's machine. Never run `pnpm tauri:dev`, `tauri dev`, `open <url>`, `xdg-open`, `vite --open`, or any dev-server with auto-open. Use `vitest run` (already jsdom-headless), `pnpm build` (compiles, no window), and prefix any dev-server invocation with `BROWSER=none`.
 - Use conventional commits: `test(scope): description`.

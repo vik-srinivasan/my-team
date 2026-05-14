@@ -15,7 +15,7 @@ import { describe, it, expect, beforeAll, afterAll, afterEach, vi } from 'vitest
 import { createServer as createHttpServer } from 'node:http';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { tmpdir } from 'node:os';
+import { homedir, tmpdir } from 'node:os';
 import { execSync } from 'node:child_process';
 import { realpath } from 'node:fs/promises';
 import { WebSocket } from 'ws';
@@ -25,6 +25,7 @@ import type { WsServerEvent } from '@my-team/shared';
 import { SessionManager } from './session-manager.js';
 import { createServer } from './server.js';
 import { setupWebSocket } from './api/websocket.js';
+import { sessionsDir } from './worktree.js';
 
 // Mock claude-process so tests don't spawn a real process.
 // The factory is async + dynamic-imports `node:events` because `vi.mock` is
@@ -60,8 +61,23 @@ let clearMustAskHookPath: string;
 let stopHookPath: string;
 let askQuestionHookPath: string;
 let registryDir: string;
+let sessionsRootDir: string;
+let archivesRootDir: string;
 
 beforeAll(async () => {
+  // Isolate sessions + archives roots BEFORE any SessionManager spins up,
+  // so `sessionsDir()` and `archivesDir()` resolve to temp paths and the
+  // test never touches `~/team/sessions/` or `~/team/archives/`.
+  sessionsRootDir = await realpath(await mkdtemp(join(tmpdir(), 'my-team-ws-sessions-')));
+  archivesRootDir = await realpath(await mkdtemp(join(tmpdir(), 'my-team-ws-archives-')));
+  process.env['MY_TEAM_SESSIONS_DIR'] = sessionsRootDir;
+  process.env['MY_TEAM_ARCHIVES_DIR'] = archivesRootDir;
+
+  // Guard: if some future refactor caches sessionsDir() at module load,
+  // this assertion will trip and prevent the test from polluting the
+  // user's real home directory.
+  expect(sessionsDir()).not.toBe(join(homedir(), 'team', 'sessions'));
+
   tempRepo = await realpath(await mkdtemp(join(tmpdir(), 'my-team-ws-e2e-')));
   execSync('git init', { cwd: tempRepo });
   execSync('git checkout -b main', { cwd: tempRepo });
@@ -86,7 +102,14 @@ beforeAll(async () => {
 afterAll(async () => {
   await rm(tempRepo, { recursive: true, force: true });
   await rm(registryDir, { recursive: true, force: true });
+  // The worktrees inside sessionsRootDir go away with the recursive rm —
+  // no per-session `git worktree remove` needed because we're nuking the
+  // whole temp tree.
+  await rm(sessionsRootDir, { recursive: true, force: true });
+  await rm(archivesRootDir, { recursive: true, force: true });
   delete process.env['MY_TEAM_REGISTRY_PATH'];
+  delete process.env['MY_TEAM_SESSIONS_DIR'];
+  delete process.env['MY_TEAM_ARCHIVES_DIR'];
 });
 
 // ---------------------------------------------------------------------------

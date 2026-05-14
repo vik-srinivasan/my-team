@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { execSync } from 'node:child_process';
 import { realpath } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
 import pino from 'pino';
 import {
   SessionActiveError,
@@ -673,5 +674,301 @@ describe('SessionManager — listSessions disk-merge + resumeSession', () => {
       expect(resumed.meta.id).toBe(id);
       expect(resumed.pid).not.toBeNull();
     });
+  });
+});
+
+// ── Disk-only orphan session operations ─────────────────────────────────────
+//
+// Tests for killSession / cleanSession / purgeOrphans on sessions that exist
+// only on disk (no in-memory Map entry). These exercises the hydrateFromDisk
+// fallback path added in commit 63e793a.
+
+describe('SessionManager — disk-only orphan kill/clean/purgeOrphans', () => {
+  let tempRepo: string;
+  let sessionsRootDir: string;
+  let archivesRootDir: string;
+  let registryDir: string;
+  let captainPromptPath: string;
+  let clearMustAskHookPath: string;
+  let stopHookPath: string;
+  let askQuestionHookPath: string;
+  let manager: SessionManager;
+
+  beforeAll(async () => {
+    tempRepo = await realpath(await mkdtemp(join(tmpdir(), 'sm-orphan-test-')));
+    execSync('git init', { cwd: tempRepo });
+    execSync('git checkout -b main', { cwd: tempRepo });
+    execSync('echo "hello" > test.txt', { cwd: tempRepo });
+    execSync('git add .', { cwd: tempRepo });
+    execSync('git commit -m "init"', { cwd: tempRepo });
+
+    captainPromptPath = join(tempRepo, 'captain.md');
+    execSync(`echo "# Captain" > "${captainPromptPath}"`, { cwd: tempRepo });
+    clearMustAskHookPath = join(tempRepo, 'clear-must-ask.sh');
+    execSync(`echo "#!/usr/bin/env bash" > "${clearMustAskHookPath}"`, { cwd: tempRepo });
+    stopHookPath = join(tempRepo, 'mark-must-ask.sh');
+    execSync(`echo "#!/usr/bin/env bash" > "${stopHookPath}"`, { cwd: tempRepo });
+    askQuestionHookPath = join(tempRepo, 'mark-must-ask-on-question.sh');
+    execSync(`echo "#!/usr/bin/env bash" > "${askQuestionHookPath}"`, { cwd: tempRepo });
+
+    registryDir = await mkdtemp(join(tmpdir(), 'sm-orphan-registry-'));
+    process.env['MY_TEAM_REGISTRY_PATH'] = join(registryDir, 'recents.json');
+  });
+
+  beforeEach(async () => {
+    // Fresh temp sessions + archives root per test.
+    sessionsRootDir = await mkdtemp(join(tmpdir(), 'sm-orphan-sessions-'));
+    archivesRootDir = await mkdtemp(join(tmpdir(), 'sm-orphan-archives-'));
+    process.env['MY_TEAM_SESSIONS_DIR'] = sessionsRootDir;
+    process.env['MY_TEAM_ARCHIVES_DIR'] = archivesRootDir;
+
+    const log = pino({ level: 'silent' });
+    manager = new SessionManager(
+      log,
+      captainPromptPath,
+      clearMustAskHookPath,
+      stopHookPath,
+      askQuestionHookPath,
+    );
+  });
+
+  afterEach(async () => {
+    await manager.shutdownAll();
+    await rm(sessionsRootDir, { recursive: true, force: true });
+    await rm(archivesRootDir, { recursive: true, force: true });
+    delete process.env['MY_TEAM_SESSIONS_DIR'];
+    delete process.env['MY_TEAM_ARCHIVES_DIR'];
+  });
+
+  afterAll(async () => {
+    await rm(tempRepo, { recursive: true, force: true });
+    await rm(registryDir, { recursive: true, force: true });
+    delete process.env['MY_TEAM_REGISTRY_PATH'];
+  });
+
+  /**
+   * Writes a minimal disk-only orphan session (no real git worktree) into the
+   * temp sessions root. Returns the worktree path.
+   *
+   * When `deletedSourceRepo` is true, a temporary git repo is created and then
+   * immediately deleted so that cleanSession exercises the NotAGitRepoError
+   * fallback path (fs.rm). When false (the default), tempRepo is used as the
+   * source_repo, but note that `cleanSession` will throw WorktreeError on such
+   * orphans until the WorktreeError fallback bug is fixed — use
+   * `deletedSourceRepo: true` for any test that calls cleanSession.
+   */
+  async function writeDiskOrphan(
+    id: string,
+    opts: { phase?: string; sourceRepo?: string; deletedSourceRepo?: boolean } = {},
+  ): Promise<string> {
+    let sourceRepo = opts.sourceRepo ?? tempRepo;
+
+    if (opts.deletedSourceRepo) {
+      // Create a throwaway git repo and immediately delete it so
+      // resolveRepoRoot will throw NotAGitRepoError for this orphan.
+      const throwaway = await realpath(await mkdtemp(join(tmpdir(), 'sm-throwaway-')));
+      execSync('git init', { cwd: throwaway });
+      execSync('git checkout -b main', { cwd: throwaway });
+      execSync('echo "x" > x.txt', { cwd: throwaway });
+      execSync('git add .', { cwd: throwaway });
+      execSync('git commit -m "init"', { cwd: throwaway });
+      sourceRepo = throwaway;
+      // Delete it so the source_repo reference in meta.json is dead.
+      await rm(throwaway, { recursive: true, force: true });
+    }
+
+    const worktreePath = join(sessionsRootDir, id);
+    const teamDir = join(worktreePath, '.team');
+    await mkdir(teamDir, { recursive: true });
+    await writeFile(
+      join(teamDir, 'meta.json'),
+      JSON.stringify({
+        id,
+        title: `Disk Orphan ${id}`,
+        source_repo: sourceRepo,
+        source_branch: 'main',
+        session_branch: `my-team/${id}`,
+        created_at: '2026-05-12T10:00:00.000Z',
+      }, null, 2),
+    );
+    await writeFile(
+      join(teamDir, 'state.json'),
+      JSON.stringify({
+        phase: opts.phase ?? 'executing',
+        active_specialist: null,
+        review_iterations: 0,
+        max_review_iterations: 8,
+        last_checkpoint: '2026-05-12T10:30:00.000Z',
+        blockers: [],
+        must_ask_pending: [],
+      }, null, 2),
+    );
+    await writeFile(join(teamDir, 'journal.md'), '');
+    return worktreePath;
+  }
+
+  // ── killSession on disk-only ─────────────────────────────────────────────
+
+  it('killSession on a disk-only session does NOT throw and writes phase=killed to state.json', async () => {
+    const id = 'disk-kill-1';
+    // killSession only reads state.json/meta.json and writes to .team/ — it
+    // does NOT call removeWorktree so using tempRepo as source_repo is fine.
+    const worktreePath = await writeDiskOrphan(id, { phase: 'executing' });
+
+    // No in-memory entry — purely disk-only.
+    await expect(manager.killSession(id)).resolves.toBeUndefined();
+
+    // state.json on disk must now show phase='killed'.
+    const state = JSON.parse(
+      await readFile(join(worktreePath, '.team', 'state.json'), 'utf-8'),
+    ) as { phase: string };
+    expect(state.phase).toBe('killed');
+  });
+
+  it('killSession on a disk-only session appends a journal entry', async () => {
+    const id = 'disk-kill-journal-2';
+    // Same: killSession never calls removeWorktree, so tempRepo is fine.
+    const worktreePath = await writeDiskOrphan(id);
+
+    await manager.killSession(id);
+
+    const journal = await readFile(join(worktreePath, '.team', 'journal.md'), 'utf-8');
+    expect(journal).toContain('— wrapper');
+    expect(journal).toContain('killed');
+  });
+
+  it('killSession throws SessionNotFoundError when worktree directory does not exist', async () => {
+    await expect(manager.killSession('no-such-orphan-3')).rejects.toBeInstanceOf(
+      SessionNotFoundError,
+    );
+  });
+
+  // ── cleanSession on disk-only ────────────────────────────────────────────
+
+  it('cleanSession on a disk-only session archives .team/ then removes the worktree dir', async () => {
+    // Use `deletedSourceRepo: true` so resolveRepoRoot throws NotAGitRepoError,
+    // triggering the fs.rm fallback path in cleanSession.
+    // (Sessions where source_repo exists but the path is not a registered git
+    // worktree currently throw WorktreeError — see review.md for the bug.)
+    const id = 'disk-clean-4';
+    const worktreePath = await writeDiskOrphan(id, { deletedSourceRepo: true });
+
+    await expect(manager.cleanSession(id)).resolves.toBeUndefined();
+
+    // Worktree directory must be gone via the fs.rm fallback.
+    expect(existsSync(worktreePath)).toBe(false);
+
+    // Archive must have been created (the .team/ dir existed, so archiveWorktree ran first).
+    const archiveDir = join(archivesRootDir, id);
+    expect(existsSync(archiveDir)).toBe(true);
+    expect(existsSync(join(archiveDir, 'meta.json'))).toBe(true);
+    expect(existsSync(join(archiveDir, 'state.json'))).toBe(true);
+  });
+
+  it('cleanSession throws SessionNotFoundError when worktree directory does not exist', async () => {
+    await expect(manager.cleanSession('ghost-session-5')).rejects.toBeInstanceOf(
+      SessionNotFoundError,
+    );
+  });
+
+  // ── cleanSession fallback when source_repo is deleted ───────────────────
+
+  it('cleanSession falls back to fs.rm when source_repo directory has been deleted', async () => {
+    // Create a fake source repo dir that we will delete before calling clean.
+    const fakeSourceRepo = await realpath(await mkdtemp(join(tmpdir(), 'sm-orphan-src-')));
+    execSync('git init', { cwd: fakeSourceRepo });
+    execSync('git checkout -b main', { cwd: fakeSourceRepo });
+    execSync('echo "x" > x.txt', { cwd: fakeSourceRepo });
+    execSync('git add .', { cwd: fakeSourceRepo });
+    execSync('git commit -m "init"', { cwd: fakeSourceRepo });
+
+    const id = 'disk-clean-fallback-6';
+    const worktreePath = await writeDiskOrphan(id, { sourceRepo: fakeSourceRepo });
+
+    // Delete the source repo so resolveRepoRoot will throw NotAGitRepoError.
+    await rm(fakeSourceRepo, { recursive: true, force: true });
+
+    // cleanSession must NOT throw — it must fall back to fs.rm.
+    await expect(manager.cleanSession(id)).resolves.toBeUndefined();
+
+    // Worktree dir must be removed by the fallback path.
+    expect(existsSync(worktreePath)).toBe(false);
+  });
+
+  // ── purgeOrphans ─────────────────────────────────────────────────────────
+
+  it('purgeOrphans skips ids in exclude and skips sessions with a live captain', async () => {
+    // Three disk-only orphans with deleted source_repos so cleanSession uses
+    // the NotAGitRepoError fallback path (the source_repo-exists-but-not-a-
+    // registered-worktree path is a known bug filed in review.md).
+    await writeDiskOrphan('orphan-1', { deletedSourceRepo: true });
+    await writeDiskOrphan('orphan-2', { deletedSourceRepo: true });
+    await writeDiskOrphan('orphan-3', { deletedSourceRepo: true });
+
+    // One live in-memory session (captain.running = true via the mock).
+    const live = await manager.createSession(tempRepo, 'Live Session');
+    const liveId = live.meta.id;
+
+    const result = await manager.purgeOrphans({ exclude: ['orphan-1'] });
+
+    // orphan-1 must be skipped (excluded).
+    expect(result.skipped.some((s) => s.id === 'orphan-1' && s.reason === 'current session')).toBe(
+      true,
+    );
+
+    // liveId must be skipped (live captain).
+    expect(result.skipped.some((s) => s.id === liveId && s.reason === 'live captain')).toBe(true);
+
+    // orphan-2 and orphan-3 must be purged.
+    expect(result.purged).toContain('orphan-2');
+    expect(result.purged).toContain('orphan-3');
+
+    // orphan-1 and liveId must NOT be in purged.
+    expect(result.purged).not.toContain('orphan-1');
+    expect(result.purged).not.toContain(liveId);
+  });
+
+  it('purgeOrphans records per-session errors in skipped instead of aborting', async () => {
+    // Two good orphans (with deleted source repos so cleanSession succeeds).
+    await writeDiskOrphan('good-orphan-a', { deletedSourceRepo: true });
+    await writeDiskOrphan('good-orphan-b', { deletedSourceRepo: true });
+
+    // One orphan that was never registered as a real git worktree but whose
+    // source_repo is still on disk. Post-fix, the WorktreeError → fs.rm
+    // fallback in cleanSession drains this orphan correctly, so it lands in
+    // `purged` (it used to abort to `skipped`; see review.md / journal).
+    await writeDiskOrphan('unregistered-orphan', { sourceRepo: tempRepo });
+
+    // To exercise the "per-session error in skipped, batch keeps going" path
+    // we need a session that scanDiskSessions CAN enumerate but that fails
+    // unrecoverably during kill/clean. Pre-creating the archive destination
+    // as a regular FILE (where archiveSession expects a directory) makes
+    // `cp(teamDir, archiveDir, { recursive: true })` throw with EEXIST /
+    // ENOTDIR. The error is NOT a NotAGitRepoError or WorktreeError, so the
+    // new cleanSession fallback intentionally re-throws it and purgeOrphans
+    // records it in `skipped`.
+    const errorId = 'archive-collision-orphan';
+    await writeDiskOrphan(errorId, { deletedSourceRepo: true });
+    const archiveCollisionPath = join(archivesRootDir, errorId);
+    await writeFile(archiveCollisionPath, 'pre-existing file, not a directory');
+
+    const result = await manager.purgeOrphans();
+
+    // The two known-good orphans plus the now-fixed unregistered orphan
+    // should all be purged. The batch must NOT abort on the error orphan.
+    expect(result.purged).toContain('good-orphan-a');
+    expect(result.purged).toContain('good-orphan-b');
+    expect(result.purged).toContain('unregistered-orphan');
+
+    // The archive-collision orphan should appear in skipped with an error
+    // reason and the batch must have continued past it.
+    const errorEntry = result.skipped.find((s) => s.id === errorId);
+    expect(errorEntry).toBeDefined();
+    expect(errorEntry?.reason).toMatch(/^error: /);
+
+    // No good orphan may appear in skipped.
+    expect(result.skipped.some((s) => s.id === 'good-orphan-a')).toBe(false);
+    expect(result.skipped.some((s) => s.id === 'good-orphan-b')).toBe(false);
+    expect(result.skipped.some((s) => s.id === 'unregistered-orphan')).toBe(false);
   });
 });
