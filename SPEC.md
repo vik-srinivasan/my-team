@@ -396,10 +396,11 @@ The CLI binary is `team`. All commands talk to the wrapper over HTTP at `http://
 |---|---|
 | `team start` | Start the wrapper daemon in the foreground. Prints logs to stdout. Ctrl-C to stop. (v1.5: `team start --daemon` for background.) |
 | `team new "<title>"` | Create a new session for the current working directory's repo. Drops the user into the captain chat by default (`--no-attach` to skip). |
-| `team list` | List all sessions: id, title, source repo, phase, age. |
+| `team list` | List all sessions: active (with live captain in this daemon) and orphan (surviving on disk with no running captain). Includes id, title, source repo, phase, age. |
 | `team status <id>` | Detailed status for one session: phase, active specialist, last journal entry, current blockers. |
 | `team attach <id>` | Re-attach to a session's chat in the terminal. (v1: streams the captain's output and lets user send input. Implemented via WebSocket from CLI to wrapper.) |
 | `team kill <id>` | Terminate a session. Worktree preserved. |
+| `team resume <id>` | Re-spawn a captain on an orphan session whose worktree survived (e.g., after wrapper crash or daemon restart). Reads the session's `.team/` files to resume from where the captain left off. |
 | `team clean <id>` | Remove a session's worktree. Refuses if session is active (must `kill` first). Archives `.team/` first. |
 | `team archive <id>` | Copy `.team/` to `~/team/archives/<id>/` without removing the worktree. |
 | `team logs <id>` | Print recent journal entries. |
@@ -414,11 +415,12 @@ The wrapper serves both. The CLI uses HTTP for everything except `team attach`, 
 
 ```
 POST   /api/sessions             { source_repo, title } -> { id, ... }
-GET    /api/sessions             -> [ { id, title, phase, ... } ]
+GET    /api/sessions             -> [ { id, title, phase, ... } ] (includes orphan sessions from disk)
 GET    /api/sessions/:id         -> { full session state including .team/ summary }
 POST   /api/sessions/:id/input   { text } -> 202 (forwards to captain stdin)
 POST   /api/sessions/:id/approve -> 202 (sets state from awaiting_approval to executing)
 POST   /api/sessions/:id/kill    -> 202
+POST   /api/sessions/:id/resume  -> 200 { session summary } (re-spawns captain on orphan worktree)
 DELETE /api/sessions/:id         -> 200 (clean)
 POST   /api/sessions/:id/archive -> 200
 
