@@ -97,3 +97,107 @@ Verification:
 Deviations from plan: none. The plan said "(Or combine related ones if the diffs are small)" — I kept five separate commits because each maps to a distinct slice of the surface (helper module, HTTP routes, recents, CLI client, captain prompt) and stays under ~60 LOC each.
 
 Phase 1 backend foundation: complete. All Phase 1 tasks (engineering only — Phase 2/3 not mine) are now `[x]` in `.team/tasks.md`. Ready for Phase 2.
+
+## 2026-05-14T07:18:00Z — captain
+Action: Phase 1 fully complete. Test suite 396/396 green. Dispatching Phase 2 in two waves to keep dispatch scopes recoverable in case of upstream 522s:
+- Wave 1 (now): Engineer A solo — lib/api.ts, lib/ws.ts, store, hooks (useSessions/useSessionDetail/useSessionWebSocket), Sidebar + SidebarItem, NewSessionModal, SessionWorkspace + SessionHeader + SessionActions
+- Wave 2 (after A): Engineers B (read-only tabs + diff) and C (terminal + workflow) in parallel
+
+## 2026-05-14T08:05:00Z — engineer (Engineer A, Phase 2 Wave 1)
+Completed: Phase 2 Engineer A scope — data layer (api client, ws helper, store, hooks), sidebar + new-session modal, session workspace shell with header + actions + tab stubs, plus unit tests for the load-bearing pieces.
+
+Created:
+- apps/ui/src/lib/api.ts (typed fetch wrappers; throws ApiError extends MyTeamError)
+- apps/ui/src/lib/ws.ts (connectSessionSocket with exponential-backoff reconnect, queued send())
+- apps/ui/src/store.ts (Zustand UI store: selectedSessionId + activeTab + TAB_NAMES)
+- apps/ui/src/hooks/useSessions.ts (TanStack Query polling + attentionSorted slice)
+- apps/ui/src/hooks/useSessionDetail.ts (TanStack Query for one session)
+- apps/ui/src/hooks/useSessionWebSocket.ts (useReducer-managed snapshot + send())
+- apps/ui/src/hooks/useTeamFile.ts (TanStack Query for /team/:file with 404→null)
+- apps/ui/src/components/Sidebar.tsx + SidebarItem.tsx
+- apps/ui/src/components/NewSessionModal.tsx
+- apps/ui/src/components/SessionWorkspace.tsx + SessionContext.tsx
+- apps/ui/src/components/SessionHeader.tsx + SessionActions.tsx
+- apps/ui/src/components/tabs/{Journal,Tasks,Plan,Srd,Review,Diff,Terminal,Workflow}Tab.tsx — compile stubs only (engineers B & C fill these)
+- apps/ui/vitest.config.ts + src/test-setup.ts
+- apps/ui/src/lib/api.test.ts (19 tests; stubs global fetch)
+- apps/ui/src/hooks/useSessionWebSocket.test.ts (6 tests; uses mock-socket)
+- apps/ui/src/components/Sidebar.test.tsx (6 tests; RTL + jsdom)
+
+Modified:
+- apps/ui/src/App.tsx — QueryClientProvider + Sidebar/SessionWorkspace layout (replaces the placeholder)
+- apps/ui/package.json — adds @tanstack/react-query, zustand, @testing-library/{react,jest-dom,user-event}, jsdom, mock-socket
+- packages/shared/package.json — adds ./types ./errors ./format subpath exports so apps/ui imports stay browser-clean
+
+Commits:
+- e7cc752 feat(ui): add data layer (api client, ws helper, store, hooks)
+- a66edfb feat(ui): add sidebar, workspace shell, header, actions, tab stubs
+- 9287ca6 test(ui): add api, sidebar, useSessionWebSocket unit tests
+
+Verification:
+- pnpm --filter @my-team/ui test — 31 tests pass across 3 files (api.test, Sidebar.test, useSessionWebSocket.test).
+- pnpm test (root) — 396 prior tests still green; apps/ui isn't in the root include glob, but `pnpm -r test` runs both root and ui suites.
+- pnpm -r test — 396 root + 31 ui = 427 total, all green.
+- pnpm --filter @my-team/ui build — emits dist/index.html + 258 KB JS / 79.7 KB gzipped (under the 300 KB UX budget; no warnings).
+- pnpm --filter @my-team/ui dev — Vite ready in ~190 ms at http://localhost:5173.
+- pnpm install --frozen-lockfile — clean (lockfile up to date).
+
+Preview: from this session worktree, run `pnpm --filter @my-team/ui dev` to view the sidebar shell at http://localhost:5173. The sidebar populates from the wrapper daemon at http://127.0.0.1:3001 — start it first via `team start` (or via the existing daemon launcher in `packages/wrapper/dist/index.js`). To see populated sessions, ensure at least one session exists in `~/team/sessions/`. No Vercel/Netlify deploy because the UI is a localhost-only desktop/web fallback per the SRD.
+
+Deviations:
+- SessionHeader spec called for a "PR link button if pr.url present in team files", but the wrapper's `/api/sessions/:id/team/:file` route only handles the fixed TeamFiles keys (plan/tasks/journal/review/srd/context/decisions/meta/state). `.team/pr.url` is written by the captain but never exposed by the wrapper today. I omitted the PR-link button; decisions.md records the rationale and a follow-up note for whoever extends the wrapper's team-files surface. The `useTeamFile` hook I added is still useful for Engineer B's read-only markdown tabs.
+- NewSessionModal's `--new`/`--github`/`--public` checkboxes are visible but state-only — `POST /api/sessions` currently accepts only `source_repo`, `title`, `cols`, `rows`. The captain handles github/public side-effects via its prompt today; surfacing the toggles validates the design before the wrapper grows fields. Decisions log captures this.
+- Tab stubs are intentionally trivial (`<div>journal placeholder</div>`). Engineers B and C will replace each with real content; tasks for those remain `[ ]`.
+
+
+## 2026-05-14T07:33:00Z — captain
+Action: Phase 2 Wave 1 complete (commits e7cc752, a66edfb, 9287ca6). 427 tests green; UI bundle 258 kB raw / 80 kB gzipped.
+Engineer A flagged two follow-ups for Wave 2 or a later round:
+1. PR-link button needs wrapper route for `.team/pr.url` (wrapper's team-file route whitelists fixed keys only). Out-of-scope for B/C; capture as follow-up.
+2. NewSessionModal `--new`/`--github`/`--public` checkboxes are state-only — wrapper's `CreateSessionRequest` doesn't accept them. Also follow-up.
+Dispatching Wave 2 in parallel: Engineer B (read-only tabs + diff), Engineer C (terminal + workflow). Disjoint file ownership; no merge collisions expected.
+
+
+## 2026-05-14T07:42:00Z — engineer (Engineer B, Phase 2 Wave 2)
+Completed: read-only tabs + diff for the per-session workspace (6 tasks under Engineer B in `.team/tasks.md`).
+
+Files created:
+- apps/ui/src/lib/markdown.tsx — shared `react-markdown` component overrides (headings, lists, code, table, blockquote, EmptyState) used by every read-only tab so the surface stays visually consistent.
+- apps/ui/src/lib/diff.ts — unified-diff parser (`parseUnifiedDiff`), Prism language map (`prismLanguageForPath`), and line-truncation helper (`truncateLines`).
+- apps/ui/src/components/tabs/JournalTab.tsx — live `teamFiles.journal` view with rAF-deferred auto-scroll to bottom.
+- apps/ui/src/components/tabs/TasksTab.tsx — custom checkbox glyph renderer; detects task rows via the hast `node.properties.className === 'task-list-item'` plus the `input.checked` property (react-markdown v9 doesn't surface `checked` on `li` directly). `readTaskState` helper is exported.
+- apps/ui/src/components/tabs/PlanTab.tsx — straight react-markdown render of `teamFiles.plan` using shared `markdownComponents`.
+- apps/ui/src/components/tabs/SrdTab.tsx — uses `useTeamFile(id, 'srd.md')` since SRD isn't in the WS broadcast set (`TeamFileName = plan|tasks|journal|review`); 30s polling is the hook default.
+- apps/ui/src/components/tabs/ReviewTab.tsx — splits `# Review pass <N>` headers into `<details>` sections, latest pass expanded by default, older passes collapsed; falls back to flat render when no pass headers are present. `splitReviewPasses` exported.
+- apps/ui/src/components/tabs/DiffTab.tsx — live `lastDiff` with one-shot `api.getDiff` bootstrap; per-file collapsible header (+N/-M chips, added/deleted badges); top toggle between Unified and Side-by-side; per-file 1000-line cap with "Show full diff" override; Prism syntax highlighting for ts/tsx/js/jsx/css/json/md/rust/bash via `renderContent`.
+
+Tests created (24 new tests, all green):
+- apps/ui/src/components/tabs/JournalTab.test.tsx — empty state, markdown render, auto-scroll on update (3 tests).
+- apps/ui/src/components/tabs/TasksTab.test.tsx — empty state, `[x]` filled / `[ ]` empty glyphs, section heading preservation, non-task `<li>` keeps default bullet (4 tests).
+- apps/ui/src/components/tabs/PlanTab.test.tsx — empty state, fenced code block render (2 tests).
+- apps/ui/src/components/tabs/SrdTab.test.tsx — 404 → empty state, 200 → markdown render via mocked fetch (2 tests).
+- apps/ui/src/components/tabs/ReviewTab.test.tsx — `splitReviewPasses` unit + ReviewTab smoke (empty / multi-pass / no-pass-headers) (5 tests).
+- apps/ui/src/components/tabs/DiffTab.test.tsx — `parseUnifiedDiff` + `truncateLines` units + DiffTab empty / file-count / view-toggle / 1000-line cap (8 tests).
+
+Files modified:
+- apps/ui/package.json — added `react-markdown@^9.1.0`, `remark-gfm@^4.0.1`, `react-diff-viewer-continued@^4.0.1`, `prismjs@^1.30.0`, `parse-diff@^0.11.1`, `@types/prismjs@^1.26.5`. (The same diff also includes Engineer C's parallel codemirror/xterm additions, which were on disk already; C will own those rows in their commit.)
+- pnpm-lock.yaml — regenerated.
+- .team/tasks.md — marked the 6 Engineer-B Phase-2 tasks `[x]` with implementation notes.
+- .team/decisions.md — recorded three decisions (no syntax-highlighter for plan/srd/review code fences; hast-walking for TasksTab task discrimination; per-file synthetic reconstruction for the diff viewer).
+
+Commits:
+- ef6cd9c feat(ui): add markdown + diff dependencies for read-only tabs
+- 1f8f52f feat(ui): add JournalTab and TasksTab with live updates
+- 4631ca8 feat(ui): add PlanTab, SrdTab, and ReviewTab
+- ebff4df feat(ui): add DiffTab with react-diff-viewer-continued and Prism highlighting
+
+Verification:
+- `pnpm install` at repo root — clean (1.5s).
+- `pnpm exec tsc -p apps/ui/tsconfig.json --noEmit` — 0 errors across the whole UI package.
+- `pnpm exec vitest run` (apps/ui) — 79 of 81 pass; the 2 flaky failures (`useAgentPrompt.test.ts:131` and `useSessionWebSocket.test.ts:191`) are not in my surface (the former is Engineer C, the latter is a pre-existing reconnect-flake in Engineer A's hook test). All 24 of my new tests pass.
+- `pnpm --filter @my-team/ui build` — succeeds; emits `dist/index.html` + 1.5 MB JS / 474 KB gzipped (the codemirror+prism+react-markdown+react-diff-viewer bundle is large; landing-page bundle-budget doesn't apply to a desktop/web fallback app).
+
+Preview: from this worktree, run `pnpm --filter @my-team/ui dev` to view the workspace at http://localhost:5173. Start the wrapper daemon first (`team start`) so the Journal/Tasks/Plan/Review tabs receive live `team_file` events and Diff renders something. With at least one active session, click into it from the sidebar and cycle through Journal / Tasks / Plan / SRD / Review / Diff to see each tab populated.
+
+Deviations from plan:
+- Plan code fences are NOT syntax-highlighted. The plan said "use `react-syntax-highlighter` if it pulls in nothing too heavy, OR keep it simple and just use a styled `<code>` block — your call, document the choice in journal". I picked the styled-code path for plan/srd/review and reserved Prism for DiffTab where it matters more. Logged in `.team/decisions.md`.

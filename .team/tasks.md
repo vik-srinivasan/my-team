@@ -20,35 +20,35 @@
 
 ### Engineer A — shell + interaction
 
-- [ ] @engineer Create `apps/ui/src/lib/api.ts` — typed fetch client wrapping all wrapper endpoints
-- [ ] @engineer Create `apps/ui/src/lib/ws.ts` — WebSocket helper with reconnect on close
-- [ ] @engineer Create `apps/ui/src/store.ts` — Zustand store for `selectedSessionId`, `activeTab`
-- [ ] @engineer Create `apps/ui/src/hooks/useSessions.ts` — TanStack Query for `GET /api/sessions`, polling every 2s
-- [ ] @engineer Create `apps/ui/src/hooks/useSessionDetail.ts` — TanStack Query for `GET /api/sessions/:id`
-- [ ] @engineer Create `apps/ui/src/hooks/useSessionWebSocket.ts` — connects, exposes typed event stream
-- [ ] @engineer Create `Sidebar.tsx` + `SidebarItem.tsx` — attention-sorted list with phase colors and search
-- [ ] @engineer Create `NewSessionModal.tsx` — repo picker (uses recents endpoint), title input, options checkboxes
-- [ ] @engineer Create `SessionWorkspace.tsx` — top-level layout with header + tab row + active tab content
-- [ ] @engineer Create `SessionHeader.tsx` — title, ID, phase chip, branch, PR link (when `pr.url` exists)
-- [ ] @engineer Create `SessionActions.tsx` — Approve, Kill, Purge, Open in VS Code, Send input
+- [x] @engineer Create `apps/ui/src/lib/api.ts` — typed fetch client wrapping all wrapper endpoints — commit e7cc752; subpath imports from `@my-team/shared/types`/`/errors`/`/format` to keep the browser bundle free of node-only modules.
+- [x] @engineer Create `apps/ui/src/lib/ws.ts` — WebSocket helper with reconnect on close — commit e7cc752; exponential backoff 250ms → 4s, send-queue for pre-open frames, typed `onState`/`onOutput`/`onTeamFile`/`onDiff`/`onSpecialist`/`onRemoteUrl`/`onStatus`/`onClose`/`onError` callbacks.
+- [x] @engineer Create `apps/ui/src/store.ts` — Zustand store for `selectedSessionId`, `activeTab` — commit e7cc752; also exports `TAB_NAMES` for Phase 3 keyboard shortcuts.
+- [x] @engineer Create `apps/ui/src/hooks/useSessions.ts` — TanStack Query for `GET /api/sessions`, polling every 2s — commit e7cc752; exports `SESSIONS_QUERY_KEY` and an `attentionSorted` derived slice using `compareByAttention` from `@my-team/shared/format`.
+- [x] @engineer Create `apps/ui/src/hooks/useSessionDetail.ts` — TanStack Query for `GET /api/sessions/:id` — commit e7cc752; `enabled: id !== null`, 2s poll, exported `sessionDetailQueryKey` builder.
+- [x] @engineer Create `apps/ui/src/hooks/useSessionWebSocket.ts` — connects, exposes typed event stream — commit e7cc752; `useReducer`-managed snapshot `{state, output, teamFiles, lastDiff, lastSpecialistEvent, remoteUrl, status}` plus imperative `send()`; resets on id change.
+- [x] @engineer Create `Sidebar.tsx` + `SidebarItem.tsx` — attention-sorted list with phase colors and search — commit a66edfb; 280px fixed-width, phase-color dot + selection border, ask-count badge, search across title/id/repo.
+- [x] @engineer Create `NewSessionModal.tsx` — repo picker (uses recents endpoint), title input, options checkboxes — commit a66edfb; recents dropdown + "Paste path…" fallback, title validation, `--new`/`--github`/`--public` rendered as state-only placeholders (decisions log notes the wrapper API doesn't accept these yet).
+- [x] @engineer Create `SessionWorkspace.tsx` — top-level layout with header + tab row + active tab content — commit a66edfb; owns the single `useSessionWebSocket` per session, broadcasts via `SessionSocketProvider`; renders tab stubs for engineers B/C to fill.
+- [x] @engineer Create `SessionHeader.tsx` — title, ID, phase chip, branch, PR link (when `pr.url` exists) — commit a66edfb; PR-link button deferred (wrapper's `/team/:file` route only handles known TeamFiles keys; `.team/pr.url` not exposed). Decisions log records the deviation.
+- [x] @engineer Create `SessionActions.tsx` — Approve, Kill, Purge, Open in VS Code, Send input — commit a66edfb; VS Code opens via `vscode://file/<worktree_path>` deep link (works in both Tauri and browser); Purge confirms before running kill+clean.
 
 ### Engineer B — read-only tabs + diff
 
-- [ ] @engineer Create `JournalTab.tsx` — react-markdown rendering, auto-scroll to bottom on WS update
-- [ ] @engineer Create `TasksTab.tsx` — render `tasks.md` with custom checkbox rendering (matches `team tasks` styling)
-- [ ] @engineer Create `PlanTab.tsx` — react-markdown rendering of `plan.md`
-- [ ] @engineer Create `SrdTab.tsx` — react-markdown rendering of `srd.md`
-- [ ] @engineer Create `ReviewTab.tsx` — react-markdown rendering of `review.md`, with iteration-pass collapsibles
-- [ ] @engineer Create `DiffTab.tsx` — `react-diff-viewer-continued` with unified/side-by-side toggle, 1k-line-per-file cap with "show full diff" override
+- [x] @engineer Create `JournalTab.tsx` — react-markdown rendering, auto-scroll to bottom on WS update — pending commit; uses `useSessionSocket().teamFiles.journal`, rAF-deferred scrollTop pin, empty-state "No journal entries yet."
+- [x] @engineer Create `TasksTab.tsx` — render `tasks.md` with custom checkbox rendering (matches `team tasks` styling) — pending commit; suppresses remark-gfm's `<input type=checkbox>`, detects task rows via the hast `node.properties.className === 'task-list-item'` (react-markdown v9 doesn't forward `checked` to `li`), renders styled filled/empty glyphs with `data-task-status` markers.
+- [x] @engineer Create `PlanTab.tsx` — react-markdown rendering of `plan.md` — pending commit; reuses shared `markdownComponents`. Decision: no syntax-highlighter dep on this surface; plan code fences use the styled `<pre><code>` block from `lib/markdown.tsx` to keep the bundle small. Diff tab still uses Prism for source highlighting.
+- [x] @engineer Create `SrdTab.tsx` — react-markdown rendering of `srd.md` — pending commit; uses `useTeamFile(id, 'srd.md')` since `TeamFileName` in the WS broadcast set is only `plan|tasks|journal|review`. SRD is locked after planning so 30s polling (the hook's default) is plenty.
+- [x] @engineer Create `ReviewTab.tsx` — react-markdown rendering of `review.md`, with iteration-pass collapsibles — pending commit; `splitReviewPasses` parses `# Review pass N` headers; latest pass expanded by default, older passes collapsed; falls back to flat render when no `# Review pass` heading is found.
+- [x] @engineer Create `DiffTab.tsx` — `react-diff-viewer-continued` with unified/side-by-side toggle, 1k-line-per-file cap with "show full diff" override — pending commit; live updates from `useSessionSocket().lastDiff`, one-shot bootstrap via `api.getDiff()` when WS hasn't pushed yet; `parse-diff` reconstructs per-file `oldValue`/`newValue`; Prism highlighting for ts/tsx/js/jsx/css/json/md/rust/bash via `renderContent`; per-file collapse + truncation toggle.
 
 ### Engineer C — interactive tabs
 
-- [ ] @engineer Create `Terminal.tsx` — xterm.js wrapper with `@xterm/addon-fit`; expose connect/disconnect via props
-- [ ] @engineer Create `TerminalTab.tsx` — wires `Terminal.tsx` to `useSessionWebSocket` for bidirectional pipe (output → render, input → WS)
-- [ ] @engineer Create `PromptEditor.tsx` — `@uiw/react-codemirror` + `@codemirror/lang-markdown`
-- [ ] @engineer Create `useAgentPrompt.ts` — read + write hook for `.claude/agents/<name>.md`
-- [ ] @engineer Create `useWorkflowConfig.ts` — read + write hook for `.team/workflow.json`
-- [ ] @engineer Create `WorkflowTab.tsx` — left pane: list of 9 specialists with edit buttons + override indicators; right pane: PromptEditor + Save; bottom: effort-level selector + optional-specialist on/off toggles
+- [x] @engineer Create `Terminal.tsx` — xterm.js wrapper with `@xterm/addon-fit`; expose connect/disconnect via props — uses `@xterm/xterm` 5.5.0 + `@xterm/addon-fit` + `@xterm/addon-web-links`. Forwarded ref exposes `write`/`clear`/`size`; ResizeObserver + window-resize listener trigger debounced refits. `convertEol: true` so PTY `\n` frames render as newlines.
+- [x] @engineer Create `TerminalTab.tsx` — wires `Terminal.tsx` to `useSessionWebSocket` for bidirectional pipe (output → render, input → WS) — reads `socket.output` and pipes new frames to `terminalRef.write()`; `onData` → `socket.send({type:'input'})`; `onResize` → `socket.send({type:'resize'})`. Connection-status dot (green/amber/red) top-right; empty-state until first frame; clears xterm on closed → connecting transitions.
+- [x] @engineer Create `PromptEditor.tsx` — `@uiw/react-codemirror` + `@codemirror/lang-markdown` — controlled `value`/`onChange`, fixed-height (60vh default), oneDark theme, line wrapping, monospace font.
+- [x] @engineer Create `useAgentPrompt.ts` — read + write hook for `.claude/agents/<name>.md` — `useAgentPrompt(sessionId, name)` plus `useAgentPromptMutation(sessionId, name)`; `staleTime: Infinity`; mutation seeds the prompt cache and invalidates the sibling agent-list query so the source chip flips to `session`.
+- [x] @engineer Create `useWorkflowConfig.ts` — read + write hook for `.team/workflow.json` — `useWorkflowConfig` + `useWorkflowConfigMutation` with optimistic update + rollback on error. Exports `DEFAULT_WORKFLOW_CONFIG`.
+- [x] @engineer Create `WorkflowTab.tsx` — left pane: list of 9 specialists with edit buttons + override indicators; right pane: PromptEditor + Save; bottom: effort-level selector + optional-specialist on/off toggles — three-region layout (specialist list left, prompt editor + Save right, workflow strip bottom). Tri-state segmented toggle (Off/Default/On) per optional specialist drives `disabled_specialists`/`forced_specialists`. Explicit "Save Workflow" button (rationale logged in decisions.md). "Reset to default" link hidden — wrapper has no DELETE endpoint (flagged in journal).
 
 ## Engineering — Phase 3 (polish, sequential)
 
