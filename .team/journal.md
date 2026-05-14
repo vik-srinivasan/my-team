@@ -201,3 +201,50 @@ Preview: from this worktree, run `pnpm --filter @my-team/ui dev` to view the wor
 
 Deviations from plan:
 - Plan code fences are NOT syntax-highlighted. The plan said "use `react-syntax-highlighter` if it pulls in nothing too heavy, OR keep it simple and just use a styled `<code>` block — your call, document the choice in journal". I picked the styled-code path for plan/srd/review and reserved Prism for DiffTab where it matters more. Logged in `.team/decisions.md`.
+
+## 2026-05-14T08:10:00Z — engineer (Engineer C, Phase 2)
+Completed: Phase 2 Engineer C scope — interactive tabs (Terminal + Workflow) plus the supporting hooks and components.
+
+Created:
+- apps/ui/src/hooks/useAgentList.ts — TanStack Query for `GET /api/sessions/:id/agents` (specialist list source-of-truth for the Workflow tab's left column).
+- apps/ui/src/hooks/useAgentPrompt.ts — `useAgentPrompt` + `useAgentPromptMutation`. staleTime Infinity, mutation seeds the prompt cache + invalidates the sibling agent-list query so the source chip flips to `session` after a save.
+- apps/ui/src/hooks/useAgentPrompt.test.ts — 7 tests (fetch happy path, disabled when sessionId or name is null, query-key shape, mutation cache-seeding, mutation failure without cache seed, throws-without-id-or-name).
+- apps/ui/src/hooks/useWorkflowConfig.ts — `useWorkflowConfig` + `useWorkflowConfigMutation` (optimistic update + rollback on error) + DEFAULT_WORKFLOW_CONFIG export.
+- apps/ui/src/components/Terminal.tsx — vanilla xterm.js wrapper. ForwardRef exposes `write(text)`, `clear()`, `size()`. FitAddon + WebLinksAddon. ResizeObserver + window-resize listener drive a debounced rAF refit. `convertEol: true` so PTY `\n` payloads render as newlines. Dark theme matching the rest of the UI.
+- apps/ui/src/components/Terminal.test.tsx — 3 tests; stubs ResizeObserver, matchMedia, HTMLCanvasElement.getContext so xterm's constructor runs in jsdom; asserts mount + ref-API wiring + write/clear non-throwing.
+- apps/ui/src/components/PromptEditor.tsx — `@uiw/react-codemirror` wrapper, controlled value/onChange, oneDark theme, markdown lang pack, line-wrapping, JetBrains Mono. Imports `EditorView` from `@uiw/react-codemirror` (re-exports it) rather than adding `@codemirror/view` as a direct dep.
+- apps/ui/src/components/tabs/TerminalTab.test.tsx — 6 tests; mocks <Terminal> with a stub exposing the same imperative API; asserts output → write, input → socket.send, resize → socket.send, status-dot rendering, empty-state, and closed→connecting clears the terminal.
+- apps/ui/src/components/tabs/WorkflowTab.test.tsx — 10 tests; mocks PromptEditor as a textarea; asserts source chips, override dots, click loads body, edit + Save calls putAgent with dirty body, toggling writes putWorkflow disabled/forced arrays, effort override writes effort_override, clearing effort drops it, empty states, list ordering.
+
+Modified:
+- apps/ui/src/components/tabs/TerminalTab.tsx — replaces Engineer A's stub with the real WS-piped terminal (output → xterm.write, onData → input, onResize → resize, status dot, empty state, clear-on-reconnect).
+- apps/ui/src/components/tabs/WorkflowTab.tsx — replaces Engineer A's stub with the three-region tab (specialist list / editor + Save / workflow strip).
+
+Commits:
+- be242d2 feat(ui): add agent-prompt and workflow-config hooks
+- bf6f1e9 feat(ui): add Terminal xterm.js wrapper
+- 5831116 feat(ui): add PromptEditor with codemirror markdown
+- ca14156 feat(ui): add TerminalTab with WS pty bridge
+- 8e11d0f feat(ui): add WorkflowTab with prompt editor and specialist toggles
+
+Decisions logged in `.team/decisions.md`:
+- (Save Workflow strategy) Explicit "Save Workflow" button rather than debounced auto-save. Reason: the config drives captain orchestration; users should feel the commit, and mixing auto-save here with explicit Save in the prompt editor above would be inconsistent. Optimistic update in `useWorkflowConfigMutation` keeps the click feel snappy.
+- (Reset-to-default link) Hidden. The wrapper exposes only GET/PUT for agent prompts; no DELETE handler exists. Adding the wrapper DELETE is explicitly outside Engineer C's scope. Flagged in this entry too.
+- (Terminal test stubs) Stub `ResizeObserver` / `matchMedia` / `HTMLCanvasElement.getContext` in the test file rather than installing the optional `canvas` npm package. Keeps CI lean; the test asserts the wiring, not the renderer.
+
+Deviations from prompt:
+- Dependencies were added to `apps/ui/package.json` and pnpm-lock.yaml by Engineer B's commit ef6cd9c (they noted "Engineer C's parallel additions (codemirror / xterm) that were already on disk; C's commit will own those rows"). End state is correct — `@xterm/xterm@5.5.0`, `@xterm/addon-fit@0.11.0`, `@xterm/addon-web-links@0.12.0`, `@uiw/react-codemirror@4.25.9`, `@codemirror/lang-markdown@6.5.0`, `@codemirror/theme-one-dark@6.1.3` are all present in HEAD and resolved in the lockfile.
+- xterm-package-name decision: `@xterm/xterm` 5.5.0 (the current major published under the `@xterm` org; the bare `xterm` package is at 5.3.0 and the package note recommends the scoped name going forward).
+- The wrapper has NO DELETE endpoint for agent prompts. The Workflow tab's "Reset to default" link is hidden as a result. Flagging here for follow-up: a Phase-1 engineer can add `DELETE /api/sessions/:id/agents/:name` + the corresponding `fs.rm` in `packages/wrapper/src/agent-prompts.ts`, then re-enable the link.
+
+Verification:
+- `pnpm install` — clean, 1.3s, 29 new packages added (codemirror + xterm chains).
+- `pnpm --filter @my-team/ui test` — 80 passing across 12 test files; the single failure (`useSessionWebSocket > reconnects after an unexpected close`) is pre-existing in Engineer A's commit 9287ca6 and unrelated to Engineer C's surface.
+- `pnpm --filter @my-team/ui build` — emits dist/index.html + 1.5 MB JS / 474 KB gzipped. The size warning is expected (xterm + codemirror are big); the dev-mode chunking strategy can be addressed in Phase 3 if needed.
+- `npx tsc --noEmit` from apps/ui — clean.
+
+Preview / how to view the result:
+- `pnpm --filter @my-team/ui dev` opens Vite at http://localhost:5173.
+- With the wrapper daemon running (`team start`) and a real session selected in the sidebar, the Terminal tab attaches to the captain PTY and renders its output; the Workflow tab loads the 10-specialist roster (captain, scout, engineer, tester, reviewer, designer, runner, auditor, documenter, debugger) and lets the user edit any of their prompts.
+- Workflow-tab end-to-end check: pick `engineer` from the list, append a marker line in the editor, click Save, then on disk: `cat <worktree>/.claude/agents/engineer.md` shows the edited body. Toggle a specialist; `cat <worktree>/.team/workflow.json` shows `{disabled_specialists, forced_specialists, ...}`.
+- Tauri preview: not exercised — Rust toolchain wasn't installed at Phase 1 (see Engineer 2's blocker in tasks.md line 16). Runner will exercise tauri:dev + tauri:build with rustup installed.
