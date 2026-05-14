@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent, type ReactElement } from 'react';
+import { useEffect, useRef, useState, type FormEvent, type ReactElement } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { createSession, getRecents } from '../lib/api.js';
@@ -46,6 +46,26 @@ export function NewSessionModal({ onClose, onCreated }: NewSessionModalProps): R
     }
   }, [recents.data, repoChoice]);
 
+  // When the recents query fails (daemon down, network glitch, etc.) auto-flip
+  // the select to the "paste path" option so the user gets a usable input
+  // instead of being stuck on a stale "Loading recents…" placeholder.
+  useEffect(() => {
+    if (recents.isError && repoChoice === '') {
+      setRepoChoice('__custom__');
+    }
+  }, [recents.isError, repoChoice]);
+
+  // After the auto-flip above renders, move focus into the path-override
+  // input so the user can start typing without an extra click. Only runs
+  // once per error transition (we depend on `recents.isError` flipping
+  // and the input being mounted).
+  const repoOverrideRef = useRef<HTMLInputElement | null>(null);
+  useEffect(() => {
+    if (recents.isError && repoChoice === '__custom__' && repoOverrideRef.current) {
+      repoOverrideRef.current.focus();
+    }
+  }, [recents.isError, repoChoice]);
+
   const mutation = useMutation({
     mutationFn: ({ source_repo, title: t }: { source_repo: string; title: string }) =>
       createSession({ source_repo, title: t }),
@@ -92,9 +112,22 @@ export function NewSessionModal({ onClose, onCreated }: NewSessionModalProps): R
           <select
             value={repoChoice}
             onChange={(e) => setRepoChoice(e.target.value)}
+            data-testid="repo-select"
+            data-recents-state={
+              recents.isError
+                ? 'error'
+                : recents.isLoading
+                  ? 'loading'
+                  : 'ready'
+            }
             className="mt-1 w-full rounded-sm bg-neutral-950 border border-neutral-800 px-2 py-1.5 text-sm text-neutral-100"
           >
             {recents.isLoading ? <option value="">Loading recents…</option> : null}
+            {recents.isError ? (
+              <option value="" disabled>
+                Recents unavailable — paste a path below
+              </option>
+            ) : null}
             {recents.data?.repos.map((repo) => (
               <option key={repo.path} value={repo.path}>
                 {repo.basename} — {repo.path}
@@ -102,16 +135,27 @@ export function NewSessionModal({ onClose, onCreated }: NewSessionModalProps): R
             ))}
             <option value="__custom__">Paste path…</option>
           </select>
+          {recents.isError ? (
+            <span
+              data-testid="recents-error"
+              className="mt-1 block text-xs text-neutral-500"
+            >
+              Couldn't reach the wrapper daemon. Paste an absolute path
+              below to continue.
+            </span>
+          ) : null}
         </label>
 
         {repoChoice === '__custom__' ? (
           <label className="block text-sm mt-3">
             <span className="text-neutral-300">Absolute path to repo</span>
             <input
+              ref={repoOverrideRef}
               type="text"
               value={repoOverride}
               onChange={(e) => setRepoOverride(e.target.value)}
               placeholder="/Users/you/code/my-project"
+              data-testid="repo-override-input"
               className="mt-1 w-full rounded-sm bg-neutral-950 border border-neutral-800 px-2 py-1.5 text-sm font-mono"
             />
           </label>
