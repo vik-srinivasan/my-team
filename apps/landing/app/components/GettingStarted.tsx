@@ -265,6 +265,10 @@ const CLI_GROUPS: readonly CliGroup[] = [
     commands: [
       { name: 'team kill <id>', description: 'Terminate the session; worktree preserved.' },
       {
+        name: 'team resume <id>',
+        description: 'Re-spawn a captain on an orphan session whose worktree survived.',
+      },
+      {
         name: 'team archive <id>',
         description: 'Copy .team/ to ~/team/archives/<id>/.',
       },
