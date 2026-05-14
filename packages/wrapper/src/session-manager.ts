@@ -22,6 +22,7 @@ import {
   SessionCorruptError,
   SessionProcessDeadError,
   NotAGitRepoError,
+  WorktreeError,
 } from '@my-team/shared';
 
 import { existsSync } from 'node:fs';
@@ -829,18 +830,24 @@ export class SessionManager extends EventEmitter<SessionManagerEventMap> {
       this.log.warn({ id, teamDirPath }, 'Skipping archive: .team/ missing');
     }
 
-    // Remove worktree. If the source_repo no longer exists on disk
-    // (deleted out from under us), `removeWorktree` throws
-    // `NotAGitRepoError`. Fall back to a plain recursive rm of the
-    // worktree dir — the git worktree metadata in the (missing) source
-    // repo is already orphaned, so there's nothing else to clean.
+    // Remove worktree. Two fallback cases land in the same recovery path:
+    //   1. `source_repo` no longer exists on disk (deleted out from under
+    //      us) → `removeWorktree` raises `NotAGitRepoError`.
+    //   2. `worktreePath` exists on disk but was never registered as a
+    //      real git worktree (e.g. created by tests or by a daemon that
+    //      crashed before `git worktree add` ran) → `git worktree remove
+    //      --force` fails with "is not a working tree" and
+    //      `removeWorktree` wraps it as `WorktreeError`.
+    // Both cases reduce to: just recursive-rm the worktree dir. The git
+    // metadata in the (possibly missing) source repo is already orphaned
+    // and there is nothing else to clean.
     try {
       await removeWorktree(managed.session.meta.source_repo, id);
     } catch (err) {
-      if (err instanceof NotAGitRepoError) {
+      if (err instanceof NotAGitRepoError || err instanceof WorktreeError) {
         this.log.warn(
-          { id, sourceRepo: managed.session.meta.source_repo },
-          'Source repo missing; falling back to recursive rm of worktree',
+          { id, sourceRepo: managed.session.meta.source_repo, err },
+          'removeWorktree failed; falling back to recursive rm of worktree dir',
         );
         await rm(worktreePath, { recursive: true, force: true });
       } else {
@@ -888,8 +895,14 @@ export class SessionManager extends EventEmitter<SessionManagerEventMap> {
     const purged: string[] = [];
     const skipped: Array<{ id: string; reason: string }> = [];
 
-    // Enumerate every session ID present on disk OR in memory.
-    const diskSummaries = await this.scanDiskSessions(new Set());
+    // Enumerate every session ID present on disk OR in memory. Pass the
+    // already-tracked in-memory IDs to `scanDiskSessions` so it skips
+    // redundant `meta.json` + `state.json` reads for sessions we already
+    // know about — those IDs are added back to the iteration set below
+    // via `this.sessions.keys()`.
+    const diskSummaries = await this.scanDiskSessions(
+      new Set(this.sessions.keys()),
+    );
     const ids = new Set<string>([
       ...diskSummaries.map((s) => s.id),
       ...this.sessions.keys(),
