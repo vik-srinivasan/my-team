@@ -1,16 +1,16 @@
-import {
-  MyTeamError,
-  type AgentListResponse,
-  type AgentPromptResponse,
-  type CreateSessionRequest,
-  type CreateSessionResponse,
-  type DiffResponse,
-  type ErrorResponse,
-  type RecentReposResponse,
-  type SessionDetail,
-  type SessionSummary,
-  type WorkflowConfig,
-} from '@my-team/shared';
+import { MyTeamError } from '@my-team/shared/errors';
+import type {
+  AgentListResponse,
+  AgentPromptResponse,
+  CreateSessionRequest,
+  CreateSessionResponse,
+  DiffResponse,
+  ErrorResponse,
+  RecentReposResponse,
+  SessionDetail,
+  SessionSummary,
+  WorkflowConfig,
+} from '@my-team/shared/types';
 
 /**
  * Wrapper daemon base URL. The wrapper hard-codes port 3001 and binds to

@@ -1,5 +1,5 @@
 import { useQuery, type UseQueryResult } from '@tanstack/react-query';
-import type { SessionDetail } from '@my-team/shared';
+import type { SessionDetail } from '@my-team/shared/types';
 
 import { getSession } from '../lib/api.js';
 

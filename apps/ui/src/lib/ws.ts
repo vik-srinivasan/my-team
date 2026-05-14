@@ -1,4 +1,4 @@
-import type { WsClientEvent, WsServerEvent } from '@my-team/shared';
+import type { WsClientEvent, WsServerEvent } from '@my-team/shared/types';
 
 /**
  * Base WebSocket URL for the wrapper daemon. Sibling to `API_BASE` in
@@ -13,10 +13,13 @@ export const WS_BASE = 'ws://127.0.0.1:3001';
  */
 export interface SessionSocketHandlers {
   onOutput?: (text: string) => void;
-  onState?: (state: import('@my-team/shared').SessionState) => void;
-  onTeamFile?: (name: import('@my-team/shared').TeamFileName, content: string) => void;
+  onState?: (state: import('@my-team/shared/types').SessionState) => void;
+  onTeamFile?: (
+    name: import('@my-team/shared/types').TeamFileName,
+    content: string,
+  ) => void;
   onDiff?: (diff: string) => void;
-  onSpecialist?: (event: import('@my-team/shared').WsSpecialistEvent) => void;
+  onSpecialist?: (event: import('@my-team/shared/types').WsSpecialistEvent) => void;
   onRemoteUrl?: (url: string) => void;
   /**
    * Fired whenever the underlying socket transitions: `connecting`,

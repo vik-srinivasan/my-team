@@ -4,7 +4,7 @@ import type {
   TeamFileName,
   WsClientEvent,
   WsSpecialistEvent,
-} from '@my-team/shared';
+} from '@my-team/shared/types';
 
 import {
   connectSessionSocket,

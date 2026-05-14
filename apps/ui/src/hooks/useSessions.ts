@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { compareByAttention, type SessionSummary } from '@my-team/shared';
+import { compareByAttention } from '@my-team/shared/format';
+import type { SessionSummary } from '@my-team/shared/types';
 
 import { listSessions } from '../lib/api.js';
 
