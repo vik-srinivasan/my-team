@@ -194,17 +194,23 @@ export function ChatTab(): ReactElement {
         data-testid="chat-scroll"
         className="flex-1 overflow-auto px-6 py-4"
       >
-        <div className="mx-auto max-w-3xl space-y-4 font-mono">
-          {messages.length === 0 ? (
-            <p className="py-8 text-center text-sm text-neutral-500">
+        {messages.length === 0 ? (
+          <div className="flex h-full items-center justify-center">
+            <p className="text-center font-sans text-sm text-neutral-500">
               No messages yet — type below to talk to the captain.
             </p>
-          ) : (
-            messages.map((msg, idx) => (
-              <ChatMessageView key={`${msg.ts}-${idx}`} message={msg} />
-            ))
-          )}
-        </div>
+          </div>
+        ) : (
+          <div className="mx-auto max-w-3xl space-y-4 font-mono">
+            {messages.map((msg, idx) => (
+              <ChatMessageView
+                key={`${msg.ts}-${idx}`}
+                message={msg}
+                isFirst={idx === 0}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
       {!stickToBottom ? (
@@ -283,12 +289,31 @@ function appendCaptainChunk(prev: ChatMessage[], text: string): ChatMessage[] {
  * Single message turn. A faint horizontal rule + small muted role label
  * does the visual separation work — no bubbles; both roles share the
  * monospace family so the transcript reads like a clean log.
+ *
+ * `isFirst` suppresses the divider on the very first message so we don't
+ * render an orphaned rule against empty space at the top of the transcript.
+ * User labels are a touch brighter than captain labels so the eye can scan
+ * "who said what" at a glance without re-reading the text.
  */
-function ChatMessageView({ message }: { message: ChatMessage }): ReactElement {
+function ChatMessageView({
+  message,
+  isFirst,
+}: {
+  message: ChatMessage;
+  isFirst: boolean;
+}): ReactElement {
+  const labelColor =
+    message.role === 'user' ? 'text-neutral-400' : 'text-neutral-500';
   return (
     <div data-testid={`chat-message-${message.role}`}>
-      <div className="mb-1 flex items-center gap-2 border-t border-zinc-800/60 pt-2">
-        <span className="text-[10px] uppercase tracking-wider text-neutral-500">
+      <div
+        className={`mb-1 flex items-center gap-2 pt-2${
+          isFirst ? '' : ' border-t border-zinc-800/60'
+        }`}
+      >
+        <span
+          className={`text-[10px] uppercase tracking-wider ${labelColor}`}
+        >
           {message.role === 'user' ? 'you' : 'captain'}
         </span>
       </div>
