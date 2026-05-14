@@ -1,76 +1,57 @@
 
-## 2026-05-13T09:22:00Z — captain
-Action: Session started. User wants landing-page dispatch-loop animation fixed (overlap + visibility) and a clear core/non-core distinction (4 main agents vs 5 optional). Dispatching scout to map the landing app.
+## 2026-05-14T06:08:00Z — captain
+Action: Session started. User asked about building a UI on top of my-team, citing Conductor.build as the comparable. Dispatching scout to map the existing surface (CLI commands, `.team/` artifacts, wrapper hooks, session lifecycle) so we can scope a UI proposal accurately.
 
-## 2026-05-13T09:24:00Z — captain
-Action: User scoping decisions captured —
-  * Visual distinction: TWO SEPARATE ORBITS (inner = 4 core, outer = 5 optional, smaller).
-  * Surfaces: audit ANYWHERE agents are listed across the landing page, not just animation.
-  * Effort: standard. Designer will be dispatched to verify the visual result.
-Waiting on scout (background) before drafting SRD.
+## 2026-05-14T06:12:00Z — captain
+Action: Scout completed. Wrote `.team/context.md`.
+Key finding: wrapper already exposes a full HTTP+WebSocket API on 127.0.0.1:3001. Every CLI command is already a thin client over it. PTY pass-through, multi-attach, state/file change broadcasts, and on-connect hydration are all live. A UI is "build a second client" not "build a data layer".
+Phase → planning (pending user direction on UI shape + goal).
 
-## 2026-05-13T09:26:00Z — captain
-Action: Scout completed; context.md persisted. Key findings:
-  * `agents.ts` has no core/optional flag — needs one field added.
-  * `Architecture.tsx` already does dashed-stroke conditional treatment — precedent to align with.
-  * `FlowNarrative.tsx` lists all 10 agents flat — needs grouping.
-  * Hero stat counter says "6 agents" — stale.
-  * Reduced-motion fallback text only lists 4 core agents — already matches new model but should be reviewed.
-Drafting SRD next.
+## 2026-05-14T06:22:00Z — captain
+Action: Drafted SRD + plan + tasks.
+Brief from user: rewrite (no legacy), Mac-app preferred + web fallback, goal is "better than Conductor for my use case", customizability is non-negotiable, other people use my-team via terminal so CLI must keep working. Scope: full v1 incl. Workflow pane. Effort: thorough.
+Decisions baked in:
+- Stack: Tauri v2 + Vite + React 19 + Tailwind 4 + TS strict.
+- Same frontend code powers .app and web (`team ui`).
+- Wrapper API stays; additive endpoints only (CORS, agent-prompt CRUD, workflow-config CRUD, recents).
+- Customization surface = Workflow tab (per-session prompt editor + specialist toggles + effort override) backed by `.team/workflow.json` honored by captain.
+- Out of scope: code signing, auto-update, Windows/Linux native, built-in editor, auth.
+Phase → awaiting_approval.
 
-## 2026-05-13T09:30:00Z — captain
-Action: User approved SRD ("perfect, ... and go"). Plan + tasks committed. Phase → executing. Dispatching single engineer for the full implementation chain (sequential because all consumers depend on the agents.ts change). Designer and Vercel preview to follow.
+## 2026-05-14T06:26:00Z — captain
+Action: Plan approved by user. Beginning execution.
+Phase 1 (foundation): dispatching two engineers in parallel.
+- Engineer 1 (backend foundation): shared/format move + wrapper CORS + agent-prompts + workflow-config + recents + api-client wrappers + tests + captain.md prompt change
+- Engineer 2 (frontend skeleton): apps/ui/ scaffolding (Vite + React + Tailwind + Tauri shim) + team ui CLI command
+Independent surfaces — no file collisions expected. Phase 2 (3 parallel engineers) follows Phase 1 completion.
 
-## 2026-05-13T02:40:00Z — engineer
-Completed: All 7 engineering tasks for the landing-page two-orbit + core/optional refactor.
-
+## 2026-05-14T06:58:00Z — engineer
+Completed: Phase 1 frontend skeleton (Engineer 2 lane) — apps/ui/ Vite+React+Tailwind+Tauri scaffolding plus the `team ui` CLI command.
 Created:
-  * `apps/landing/app/agents.test.ts` — locks down the 4-core / 5-optional partition, captain-as-non-core typing, and the explicit-flag invariant.
-  * `apps/landing/app/components/FlowNarrative.test.ts` — covers the captain/core/optional grouping, the shared-flag derivation, and the badge variants.
-
+- apps/ui/package.json, tsconfig.json, vite.config.ts, index.html, .gitignore, README.md
+- apps/ui/src/main.tsx, App.tsx (placeholder "my-team UI"), index.css (Tailwind 4 @import)
+- apps/ui/src-tauri/Cargo.toml, build.rs, tauri.conf.json, src/main.rs + lib.rs, capabilities/default.json
+- apps/ui/src-tauri/icons/ — full PNG ladder + icon.icns (via iconutil) + icon.ico (hand-built header wrapping a 256x256 PNG)
+- packages/cli/src/commands/ui.ts + ui.test.ts (8 tests, all green)
 Modified:
-  * `apps/landing/app/agents.ts` — added required `core: boolean` to the Agent interface; tagged scout/engineer/tester/reviewer core, captain + 5 optional as `false`; exported `CORE_SPECIALISTS` and `OPTIONAL_SPECIALISTS` helpers.
-  * `apps/landing/app/components/AgentFlow.tsx` — re-centred captain at (380, 260) inside a 760×520 viewBox; built two concentric orbits — inner r=140 with 4 cardinal core nodes (r=28, solid), outer r=225 with 5 evenly-spaced optional nodes (r=20, dashed/dimmed), offset 36° so the rings interleave; faint orbit guides; dashed connectors for optional; dispatch dot + active-path animation reused unchanged; reduced-motion fallback rewritten as a caption below the SVG so it doesn't crowd the bottom outer node.
-  * `apps/landing/app/components/Hero.tsx` — replaced stale `agents: 6` tile with two tiles `core: 4` + `optional: 5`; grid bumped to 4 columns.
-  * `apps/landing/app/components/FlowNarrative.tsx` — split into Captain → Core specialists → Optional specialists with eyebrow-style group headings + one-line blurbs; added solid (core) / dashed (optional) badge pill on each card; numbering continues 01..10 across all groups; extracted reusable `AgentCard` and `GroupHeading` components.
-  * `apps/landing/app/components/Architecture.tsx` — now derives `conditional: !agent.core` from the shared `SPECIALISTS` import; per-agent `produces` and `stack` metadata moved to a small `ARCH_META` map keyed by `AgentId` (Architecture-only metadata stays out of `agents.ts`); visual output unchanged.
-  * `apps/landing/app/components/Hero.test.ts` — asserts new core/optional stat copy and guards against the stale `agents: 6` framing returning.
-  * `apps/landing/app/components/Architecture.test.ts` — updated the conditional-flag assertion to match the new shared-flag derivation; added a "consumes the shared roster" guard.
-  * `apps/landing/app/components/agent-flow-state.test.ts` — added two arcPoints geometry tests covering the inner-orbit (4 cardinal) and outer-orbit (5 evenly-spaced 72°) layouts.
-
+- packages/cli/src/index.ts — registered `uiCommand`
+- apps/landing/app/components/GettingStarted.tsx — added `team ui` to the Daemon group (keeps CLI-coverage regression test green)
 Commits:
-  * `91700bd` feat(landing): add core flag to Agent interface as source of truth
-  * `bfb847b` feat(landing): two-orbit dispatch animation with core vs optional rings
-  * `f66794f` feat(landing): reframe stats and group narrative around core vs optional
-  * `b803419` refactor(landing): consume shared core flag in architecture diagram
-  * `b6719b7` test(landing): cover the two-orbit AgentFlow geometry
-
+- ba35ead feat(ui): scaffold apps/ui with vite + react 19 + tailwind 4
+- c669f48 feat(ui): add tauri v2 shim for macOS desktop build  (also absorbed Engineer 1's format-move staged changes that were in the index when I committed — clean, no rework needed)
+- 1c91b3f feat(cli): add team ui command
 Verification:
-  * `cd apps/landing && pnpm lint` — passes (tsc --noEmit clean).
-  * `cd apps/landing && pnpm build` — passes; static page generated.
-  * `pnpm vitest run apps/landing/` — 45/45 tests pass across 6 files.
-  * Numerically verified all 9 specialist nodes fit inside the 760×520 viewBox with ≥15px margin to the nearest edge (bottom-most outer node is the tightest at y_max=505 in a 520-tall box).
-  * Wrapper-suite test failures observed in repo-wide `pnpm vitest run` are pre-existing (`@my-team/shared` package-resolution issue) and unrelated to this work — confirmed by stashing my changes and re-running.
+- `pnpm install` resolves at the root.
+- `pnpm --filter @my-team/ui build` produces dist/index.html + assets.
+- `pnpm --filter @my-team/ui tauri info` reads the Tauri config and recognises the Vite/React frontend.
+- `pnpm test` from repo root: 332 / 332 passing.
+- Smoke-tested `startStaticServer()` against the real `apps/ui/dist`: 200 OK, content-type text/html, "my-team UI" in body, clean shutdown.
 
-Decisions worth recording:
-  * Made `core` a required field on the Agent interface (rather than optional) and set captain to `false`, so every agent has an explicit flag and TypeScript catches future-agent additions that forget to set it. Captain is filtered out of `SPECIALISTS` anyway, so the value is unobservable in render — the typing wins outweigh the slight semantic awkwardness ("captain isn't really a non-core specialist, it's an orchestrator").
-  * Numbering in FlowNarrative continues 01..10 across captain + core + optional rather than restarting per group. This reads as one canonical list of agents that happens to be sectioned, which matches how the rest of the page talks about the roster.
-  * Architecture.tsx's per-agent `produces` and `stack: true` metadata stays in a small sibling `ARCH_META` map in `Architecture.tsx` rather than getting added to `agents.ts`. agents.ts stays lean (5 fields + the new `core` flag); diagram-only knobs live where they're rendered.
+Preview:
+- Web: `pnpm --filter @my-team/ui build && pnpm --filter @my-team/cli build && node packages/cli/dist/index.js ui` (boots localhost:3737, opens browser, shows "my-team UI · Phase 1 scaffolding").
+- Vite dev (HMR): `pnpm --filter @my-team/ui dev` → http://localhost:5173.
+- Tauri Mac: blocked locally — see below.
 
-Preview command (no Vercel deploy from engineer per session conventions):
-  * `cd apps/landing && pnpm dev` → http://localhost:3100
-  * Captain will run `vercel` from `apps/landing/` after review for a preview URL.
-
-## 2026-05-13T09:42:00Z — captain
-Action: Engineer completed all 7 @engineer tasks across 5 commits (91700bd, bfb847b, f66794f, b803419, b6719b7). 45/45 landing tests pass, lint + build green. Dispatching tester + reviewer + designer in parallel for verification before Vercel preview deploy + PR.
-
-## 2026-05-13T02:45:00Z — tester
-Completed: Ran lint, build, and full test suite for `apps/landing/`. Added integration tests for the two-orbit AgentFlow geometry and FlowNarrative three-section structure. All checks green.
-
-Tests written:
-- `apps/landing/app/components/AgentFlow.test.ts` — 10 tests covering: correct import of 9 specialists (4 core + 5 optional), two orbit radii (CORE_RADIUS=140 < OPTIONAL_RADIUS=225), node radii (CORE_NODE_R=28 > OPTIONAL_NODE_R=20), captain centering (VIEW_W/2, VIEW_H/2), strokeDasharray applied only to optional circles, reduced opacity for optional nodes, smaller font size for optional labels, dashed outer orbit guide ring, reduced-motion fallback text listing both groups, aria-label describing two-orbit layout.
-- `apps/landing/app/components/FlowNarrative.integration.test.ts` — 8 tests covering: exactly three `<ol>` sections, correct DOM order (captain → core → optional), data-driven section counts (CORE.length and OPTIONAL.length), captain numbered as 1, core numbering formula `i + 2`, optional numbering formula `i + 2 + CORE.length`, all 10 agents covered via AGENTS import, GroupHeading used exactly twice.
-
-Tests passed: 63
-Tests failed: 0
-Bugs filed: none
+Blockers / gaps:
+- **Rust toolchain not installed on this machine** (`rustc not installed`, `cargo not installed` per `tauri info`). `pnpm --filter @my-team/ui tauri:dev` and `tauri:build` were therefore NOT exercised. Documented in apps/ui/README.md (rustup link, Gatekeeper note). Runner needs to install rustup + Xcode CLT and verify the Tauri shell boots.
+- Icons are placeholder teal-on-dark "mt" marks generated via sharp/iconutil; designer can replace later.
