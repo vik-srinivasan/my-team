@@ -12,7 +12,7 @@
 - [x] @engineer Add `purgeOrphans(exclude: string[])` method in `packages/cli/src/api-client.ts`.
 - [x] @engineer Update `packages/cli/src/commands/purge.ts`: add `--orphans` option, make `<id>` optional when the flag is set, derive current session id from `$PWD` (walk up to find `~/team/sessions/<id>/` parent), call `api.purgeOrphans([currentId].filter(Boolean))`, print a friendly summary table (`Purged N, skipped M (live: A, current: B, errors: C)`). — current-session detection exported as `currentSessionIdFromCwd` for tester reuse.
 - [x] @engineer Update CLI help text in `packages/cli/src/commands/help-info.ts` to document `team purge --orphans`.
-- [ ] @engineer In `packages/wrapper/src/websocket.test.ts`, add `MY_TEAM_SESSIONS_DIR` + `MY_TEAM_ARCHIVES_DIR` isolation in `beforeAll` (mkdtemp), `git worktree remove --force` each created session in `afterAll`, then `rm -rf` the temp dirs. Add a guard assertion at top of suite: `expect(sessionsDir()).not.toBe(join(homedir(), 'team', 'sessions'))`.
+- [x] @engineer In `packages/wrapper/src/websocket.test.ts`, add `MY_TEAM_SESSIONS_DIR` + `MY_TEAM_ARCHIVES_DIR` isolation in `beforeAll` (mkdtemp), `git worktree remove --force` each created session in `afterAll`, then `rm -rf` the temp dirs. Add a guard assertion at top of suite: `expect(sessionsDir()).not.toBe(join(homedir(), 'team', 'sessions'))`. — recursive rm of `sessionsRootDir` nukes the worktrees, so no per-session `git worktree remove` is needed.
 
 ## Testing
 
