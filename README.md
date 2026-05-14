@@ -4,8 +4,6 @@ Multi-agent orchestration for Claude Code. Spin up a team of AI specialists that
 
 Landing page → [docs-olive-eight-29.vercel.app](https://docs-olive-eight-29.vercel.app/)
 
-The live site has a tabbed "Get started" walkthrough — Quickstart, Agent (use my-team to set up my-team), and Remote (control sessions from your phone via Claude Code remote, or re-attach from any terminal).
-
 ## Quickstart
 
 Three commands. Then walk away.
@@ -32,6 +30,8 @@ team start
 ```
 
 Then `team attach <id>` from any terminal to rejoin the chat.
+
+For full prerequisites and troubleshooting, see [SETUP.md](./SETUP.md).
 
 ### Prerequisites
 
@@ -61,62 +61,33 @@ A captain plus a roster of nine specialists share a session. The captain drives;
 - **Auditor** — Narrow security pass on auth, payments, PII, and migrations. Walks OWASP top-10 categories against sensitive files in the diff and appends findings under a Security audit section in `review.md`.
 - **Documenter** — Keeps README, CHANGELOG, AGENTS, and `docs/` in sync after the engineer commits. Reads the diff for public-surface changes, updates affected docs, commits separately.
 
-## UI (web + Mac app)
-
-my-team now ships a UI in addition to the CLI. The UI offers a visual dashboard for session control, real-time monitoring of journal/tasks/diff, an interactive terminal, and a **Workflow tab** for in-session customization of specialist prompts and effort level.
-
-Run **`team ui`** to start the web app at `localhost:3737` in your default browser. Alternatively, build and launch the native macOS app with `pnpm --filter @my-team/ui tauri:build`, then run the `.app` from `/Applications`. Both targets run the same React + Tailwind frontend, so the experience is identical.
-
-### Quick start: web + desktop
-
-To boot the web fallback:
-```bash
-team start                    # Start the wrapper daemon (required)
-team ui                       # Open localhost:3737 in your browser
-```
-
-To boot the macOS desktop app (requires Rust toolchain):
-```bash
-pnpm --filter @my-team/ui tauri:dev        # Dev shell with HMR at localhost:5173
-# or
-pnpm --filter @my-team/ui tauri:build      # Unsigned .app + .dmg under src-tauri/target/release/
-```
-
-For full development and build instructions, see [`apps/ui/README.md`](./apps/ui/README.md).
-
-### Customization: specialist prompts and effort override
-
-The **Workflow tab** in the UI lets you customize the session in real-time. From any session's sidebar, open the Workflow tab to:
-
-- **Edit specialist prompts** — Click a specialist name (captain, engineer, scout, etc.) to open their prompt in a Markdown editor. Changes are saved to `.team/.claude/agents/<name>.md` in the session worktree and take effect on the next dispatch.
-- **Toggle specialists** — Mark optional specialists (designer, runner, auditor, documenter, debugger) as disabled or forced. Disabled specialists are skipped even if their trigger fires; forced specialists always run. Changes are persisted in `.team/workflow.json`.
-- **Override effort level** — Set a per-session effort override (`light`, `standard`, or `thorough`) that the captain will honor for all dispatch decisions, bypassing the value in `plan.md`.
-
-All changes are immediately visible in the `.team/` folder and reflected in the captain's behavior on the next dispatch.
-
 ## Commands
 
 | Command | Description |
 |---|---|
 | `team start` | Start the wrapper daemon |
-| `team ui` | Start the web UI on localhost:3737 |
 | `team new "<title>"` | Create a session in the current repo |
 | `team new <shortcut> "<title>"` | Create a session against a known repo basename (no `cd` needed) |
 | `team new <name> --new` | Bootstrap a new project (`mkdir` + `git init` + initial commit) and start a session |
-| `team list` | List all active and orphan sessions |
+| `team list` | List all active and orphan sessions. **`--json`**, **`-a/--needs-attention`**. |
 | `team list-past` | List source repos used in past sessions (works without the daemon) |
+| `team watch` | Live-refreshing top-like view of all sessions. **`--interval <seconds>`** (default 2). Quit with `q` or Ctrl-C. |
 | `team status <id>` | Detailed status for one session |
+| `team journal <id>` | Show recent entries from the session's `.team/journal.md`. **`-n <count>`** (default 5), **`--all`**, **`-f/--follow`**. |
+| `team tasks <id>` | Pretty-print `.team/tasks.md` with colored checkboxes |
+| `team plan <id>` | Pretty-print `.team/plan.md` |
+| `team diff <id>` | Git diff of the session branch vs source branch, paged through `$PAGER` |
+| `team srd <id>` | Pretty-print `.team/srd.md` (captain's session requirements doc) |
+| `team logs <id>` | Tail the wrapper's pino log for a session. **`-n <count>`** (default 50), **`-f/--follow`**. |
 | `team attach <id>` | Re-attach to a session's chat |
 | `team jump <id>` | Print a session's worktree path (use with `cd "$(team jump <id>)"`) |
-| `team kill <id>` | Stop a running session (preserves worktree) |
-| `team logs <id>` | Print recent journal entries |
-| `team srd <id>` | Pretty-print `.team/srd.md` (captain's session requirements doc) |
 | `team open <id>` | Open a session worktree in VS Code |
 | `team resume <id>` | Re-spawn a captain on an orphan session (after daemon crash or restart) |
-| `team archive <id>` | Archive `.team/` files |
+| `team kill <id>` | Stop a running session (preserves worktree) |
 | `team clean <id>` | Remove session worktree entirely |
 | `team purge <id>` | Kill and clean a session in one step |
 | `team purge --orphans` | Purge every disk-only session (skips live captains and current session) |
+| `team archive <id>` | Archive `.team/` files |
 | `team notifications` | Show blocked session alerts |
 | `team notifications --clear` | Clear all notifications |
 | `team help` | Show this help summary |
@@ -184,7 +155,7 @@ $ approve
 
 ### Session recovery
 
-If the wrapper daemon (or the captain process) crashes mid-session, the worktree and all `.team/` files survive on disk. `team list` will show the session with `pid: null`. Use `team resume <id>` to re-spawn the captain on the existing worktree — the captain reads its `.team/journal.md`, `.team/state.json`, and other files to resume where it left off. After resume, `team open <id>` re-attaches to the captain cleanly.
+If the wrapper daemon (or the captain process) crashes mid-session, the worktree and all `.team/` files survive on disk. `team list` will show the session with `pid: null`. Use `team resume <id>` to re-spawn the captain on the existing worktree — the captain reads its `.team/journal.md`, `.team/state.json`, and other files to resume where it left off. After resume, `team attach <id>` re-attaches to the captain. `team open <id>` opens the worktree in VS Code separately.
 
 See `SPEC.md` for the full specification.
 
@@ -197,6 +168,9 @@ packages/
 └── cli/       — 'team' CLI (thin HTTP client)
 
 agent-prompts/ — Specialist definitions (.claude/agents/*.md format)
+
+apps/
+└── ui/
 ```
 
 ## API
@@ -215,6 +189,8 @@ pnpm install
 pnpm -r build
 pnpm test          # Run all tests (vitest)
 ```
+
+See [CHANGELOG.md](./CHANGELOG.md) for recent updates.
 
 ## Key dependencies
 
