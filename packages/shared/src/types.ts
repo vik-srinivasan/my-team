@@ -175,3 +175,92 @@ export interface RepoRegistry {
   version: 1;
   repos: RepoRecord[];
 }
+
+/**
+ * Compact shape of the recents registry surfaced by the wrapper's
+ * `GET /api/repos/recents` endpoint and consumed by the UI's
+ * New Session modal. Mirrors `RepoRecord` minus the bookkeeping fields
+ * the UI doesn't need.
+ */
+export interface RecentRepo {
+  path: string;
+  basename: string;
+  last_used: string;
+  session_count: number;
+}
+
+export interface RecentReposResponse {
+  repos: RecentRepo[];
+}
+
+// ── Agent prompts (Workflow tab) ────────────────────────────────────
+
+/**
+ * Where an agent-prompt body was resolved from.
+ *
+ * - `session` — the session's own `<worktree>/.claude/agents/<name>.md`
+ *   (highest priority; the user's editable copy via the UI Workflow tab).
+ * - `repo` — the source repo's `<repo>/.claude/agents/<name>.md`.
+ * - `user` — the per-user `~/.claude/agents/<name>.md`.
+ * - `default` — the packaged my-team default at
+ *   `<repo-root>/agent-prompts/<name>.md`.
+ */
+export type AgentSource = 'session' | 'repo' | 'user' | 'default';
+
+export interface AgentPrompt {
+  /** kebab-case agent name (e.g. `engineer`, `tester`). */
+  name: string;
+  /** Whether ANY layer (session/repo/user/default) has this prompt on disk. */
+  exists: boolean;
+  /** The layer the prompt body would currently come from, if any. */
+  source: AgentSource | null;
+}
+
+export interface AgentListResponse {
+  agents: AgentPrompt[];
+}
+
+export interface AgentPromptResponse {
+  name: string;
+  content: string;
+  source: AgentSource;
+}
+
+export interface PutAgentPromptRequest {
+  content: string;
+}
+
+// ── Workflow config (per-session .team/workflow.json) ───────────────
+
+/**
+ * Effort level the captain applies to the session. Mirrors the
+ * captain.md vocabulary. Set on the session via the Workflow tab to
+ * override what `plan.md` already records.
+ */
+export type EffortLevel = 'light' | 'standard' | 'thorough';
+
+/**
+ * Per-session overrides the captain honors when deciding which
+ * conditional specialists to dispatch. Lives at
+ * `<worktree>/.team/workflow.json` and is read by the captain via the
+ * "Workflow config overrides" section of `agent-prompts/captain.md`.
+ */
+export interface WorkflowConfig {
+  /** Conditional specialist names the captain MUST skip. */
+  disabled_specialists: string[];
+  /** Conditional specialist names the captain MUST dispatch even if the trigger doesn't fire. */
+  forced_specialists: string[];
+  /** Replaces the plan.md effort level for dispatch-table decisions. */
+  effort_override?: EffortLevel;
+}
+
+/** Names of every conditional specialist this config can toggle. */
+export const KNOWN_CONDITIONAL_SPECIALISTS = [
+  'designer',
+  'runner',
+  'auditor',
+  'documenter',
+  'debugger',
+] as const;
+
+export type ConditionalSpecialistName = (typeof KNOWN_CONDITIONAL_SPECIALISTS)[number];
