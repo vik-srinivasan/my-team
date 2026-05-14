@@ -41,6 +41,7 @@ export function helpInfoCommand(): Command {
     team archive <id>         Archive .team/ files to ~/team/archives/
     team clean <id>           Remove worktree entirely (archives first)
     team purge <id>           Kill and clean a session in one step
+    team purge --orphans      Purge every disk-only session (skips live captains + cwd)
 
   \x1b[33mOther:\x1b[0m
     team notifications        Check for blocked sessions needing attention

@@ -867,6 +867,59 @@ export class SessionManager extends EventEmitter<SessionManagerEventMap> {
     return archiveWorktree(id);
   }
 
+  /**
+   * Bulk-purges every session on disk that does not have a live captain,
+   * skipping any IDs the caller passes in `exclude` (typically the
+   * current session — the one running `team purge --orphans`).
+   *
+   * Best-effort per session: if `killSession` or `cleanSession` throws
+   * on an individual orphan (e.g. corrupt `meta.json`), the error is
+   * recorded in `skipped` with reason `"error: <message>"` and the loop
+   * continues. The summary is returned to the caller.
+   *
+   * Iterates the union of disk worktree IDs and in-memory IDs so any
+   * tracked session with a dead captain is also eligible.
+   */
+  async purgeOrphans({ exclude }: { exclude?: string[] } = {}): Promise<{
+    purged: string[];
+    skipped: Array<{ id: string; reason: string }>;
+  }> {
+    const excludeSet = new Set(exclude ?? []);
+    const purged: string[] = [];
+    const skipped: Array<{ id: string; reason: string }> = [];
+
+    // Enumerate every session ID present on disk OR in memory.
+    const diskSummaries = await this.scanDiskSessions(new Set());
+    const ids = new Set<string>([
+      ...diskSummaries.map((s) => s.id),
+      ...this.sessions.keys(),
+    ]);
+
+    for (const id of ids) {
+      if (excludeSet.has(id)) {
+        skipped.push({ id, reason: 'current session' });
+        continue;
+      }
+
+      if (this.sessions.get(id)?.captain?.running === true) {
+        skipped.push({ id, reason: 'live captain' });
+        continue;
+      }
+
+      try {
+        await this.killSession(id);
+        await this.cleanSession(id);
+        purged.push(id);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        skipped.push({ id, reason: `error: ${message}` });
+        this.log.warn({ id, err }, 'purgeOrphans: per-session error');
+      }
+    }
+
+    return { purged, skipped };
+  }
+
   async getDiff(id: string): Promise<string> {
     const managed = this.sessions.get(id);
     if (!managed) {
