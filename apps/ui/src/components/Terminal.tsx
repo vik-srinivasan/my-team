@@ -109,7 +109,11 @@ export const Terminal = forwardRef<TerminalHandle, TerminalProps>(function Termi
       fontFamily: 'JetBrains Mono, Menlo, Consolas, monospace',
       fontSize: 13,
       lineHeight: 1.2,
-      convertEol: true,
+      // The PTY (`xterm-256color`) already emits `\r\n` for line breaks.
+      // Letting xterm convert `\n` → `\r\n` on top of that produces `\r\r\n`,
+      // which breaks every CR-based overwrite the Claude Code TUI relies on
+      // for spinners and the bottom status bar. Keep this disabled.
+      convertEol: false,
       cursorBlink: true,
       scrollback: 5000,
       allowProposedApi: false,
