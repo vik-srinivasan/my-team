@@ -1,5 +1,6 @@
 import chalk from 'chalk';
-import type { SessionSummary, SessionPhase } from '@my-team/shared';
+
+import type { SessionSummary, SessionPhase } from './types.js';
 
 // ── ANSI handling ──────────────────────────────────────────────────────
 

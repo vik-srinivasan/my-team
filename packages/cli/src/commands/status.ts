@@ -1,9 +1,9 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import type { SessionMeta, SessionState } from '@my-team/shared';
+import { humanizeAgo, getAttention, abbreviatePhase, visibleLength } from '@my-team/shared';
 import { api, ApiError } from '../api-client.js';
 import { readTeamFile } from '../session-paths.js';
-import { humanizeAgo, getAttention, abbreviatePhase, visibleLength } from '../format.js';
 
 interface StatusOptions {
   json?: boolean;

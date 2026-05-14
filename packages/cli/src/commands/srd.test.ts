@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { mkdtemp, rm, mkdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { stripAnsi } from '../format.js';
+import { stripAnsi } from '@my-team/shared';
 import { __test__, srdCommand } from './srd.js';
 
 const { renderSrd } = __test__;
