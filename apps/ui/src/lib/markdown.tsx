@@ -125,3 +125,32 @@ export function EmptyState({ children }: { children: ReactNode }): ReactElement 
     </div>
   );
 }
+
+/**
+ * Single-block shimmer used while a markdown-style tab is fetching its
+ * first body. Matches the rough layout the real content lands into
+ * (heading + a few paragraph rows + a small list) so the page doesn't
+ * shift much on first paint.
+ */
+export function MarkdownSkeleton(): ReactElement {
+  return (
+    <div
+      data-testid="markdown-skeleton"
+      role="status"
+      aria-busy="true"
+      aria-label="Loading content"
+      className="h-full overflow-hidden px-6 py-4"
+    >
+      <div className="mx-auto max-w-3xl space-y-3">
+        <div className="h-6 w-1/3 animate-pulse rounded bg-zinc-800/50" />
+        <div className="h-3 w-full animate-pulse rounded bg-zinc-800/50" />
+        <div className="h-3 w-11/12 animate-pulse rounded bg-zinc-800/50" />
+        <div className="h-3 w-4/5 animate-pulse rounded bg-zinc-800/50" />
+        <div className="h-3 w-2/3 animate-pulse rounded bg-zinc-800/50" />
+        <div className="mt-6 h-5 w-1/4 animate-pulse rounded bg-zinc-800/50" />
+        <div className="h-3 w-3/4 animate-pulse rounded bg-zinc-800/50" />
+        <div className="h-3 w-2/3 animate-pulse rounded bg-zinc-800/50" />
+      </div>
+    </div>
+  );
+}

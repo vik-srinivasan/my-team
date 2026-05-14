@@ -35,7 +35,7 @@ describe('PlanTab', () => {
       </Wrapper>,
     );
 
-    expect(screen.getByText(/No plan yet\./i)).toBeInTheDocument();
+    expect(screen.getByText(/No plan yet/i)).toBeInTheDocument();
   });
 
   it('renders plan markdown including fenced code blocks', () => {

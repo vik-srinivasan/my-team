@@ -3,7 +3,7 @@ import ReactMarkdown, { type Components, type ExtraProps } from 'react-markdown'
 import remarkGfm from 'remark-gfm';
 
 import { useSessionSocket } from '../SessionContext.js';
-import { EmptyState, markdownComponents } from '../../lib/markdown.js';
+import { EmptyState, MarkdownSkeleton, markdownComponents } from '../../lib/markdown.js';
 
 /**
  * Live view of `.team/tasks.md`.
@@ -138,11 +138,19 @@ const tasksComponents: Components = {
 };
 
 export function TasksTab(): ReactElement {
-  const { teamFiles } = useSessionSocket();
+  const { teamFiles, status } = useSessionSocket();
   const content = teamFiles.tasks ?? '';
 
+  if (content === '' && status === 'connecting') {
+    return <MarkdownSkeleton />;
+  }
+
   if (content.trim() === '') {
-    return <EmptyState>No tasks yet.</EmptyState>;
+    return (
+      <EmptyState>
+        No tasks yet — they appear once the captain writes `.team/tasks.md`.
+      </EmptyState>
+    );
   }
 
   return (

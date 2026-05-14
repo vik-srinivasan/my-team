@@ -61,7 +61,7 @@ describe('ReviewTab', () => {
       </Wrapper>,
     );
 
-    expect(screen.getByText(/No review yet\./i)).toBeInTheDocument();
+    expect(screen.getByText(/No review yet/i)).toBeInTheDocument();
   });
 
   it('expands the latest review pass by default and collapses older ones', () => {

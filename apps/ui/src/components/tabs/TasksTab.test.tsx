@@ -35,7 +35,7 @@ describe('TasksTab', () => {
       </Wrapper>,
     );
 
-    expect(screen.getByText(/No tasks yet\./i)).toBeInTheDocument();
+    expect(screen.getByText(/No tasks yet/i)).toBeInTheDocument();
   });
 
   it('renders [x] as a filled checkbox glyph and [ ] as an empty one', () => {

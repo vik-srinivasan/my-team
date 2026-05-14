@@ -48,7 +48,7 @@ describe('JournalTab', () => {
       </Wrapper>,
     );
 
-    expect(screen.getByText(/No journal entries yet\./i)).toBeInTheDocument();
+    expect(screen.getByText(/No journal entries yet/i)).toBeInTheDocument();
   });
 
   it('renders markdown content from teamFiles.journal', () => {

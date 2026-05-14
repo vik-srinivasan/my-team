@@ -16,7 +16,7 @@ import 'prismjs/components/prism-bash.js';
 
 import { useSessionSocket } from '../SessionContext.js';
 import { useUiStore } from '../../store.js';
-import { EmptyState } from '../../lib/markdown.js';
+import { EmptyState, MarkdownSkeleton } from '../../lib/markdown.js';
 import { getDiff } from '../../lib/api.js';
 import {
   parseUnifiedDiff,
@@ -94,8 +94,22 @@ export function DiffTab(): ReactElement {
     );
   }
 
+  // While the one-shot bootstrap is in flight (no WS push yet, no fetch
+  // result yet), render a shimmer so we don't flash the "no diff" empty
+  // state for sessions that DO have changes. `lastDiff === null` means the
+  // WS hasn't emitted a `diff` event yet; `lastDiff === ''` is a genuine
+  // "no changes" response and falls through to the empty state below.
+  if (lastDiff === null && bootstrap === null && bootstrapErr === null) {
+    return <MarkdownSkeleton />;
+  }
+
   if (rawDiff.trim() === '' || files.length === 0) {
-    return <EmptyState>No diff yet — session branch matches base.</EmptyState>;
+    return (
+      <EmptyState>
+        No diff yet — session branch matches base. Changes appear here as the
+        captain commits.
+      </EmptyState>
+    );
   }
 
   return (

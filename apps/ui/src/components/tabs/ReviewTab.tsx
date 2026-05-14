@@ -3,7 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
 import { useSessionSocket } from '../SessionContext.js';
-import { EmptyState, markdownComponents } from '../../lib/markdown.js';
+import { EmptyState, MarkdownSkeleton, markdownComponents } from '../../lib/markdown.js';
 
 /**
  * Live view of `.team/review.md`.
@@ -100,7 +100,7 @@ function ReviewSectionView({
 }
 
 export function ReviewTab(): ReactElement {
-  const { teamFiles } = useSessionSocket();
+  const { teamFiles, status } = useSessionSocket();
   const content = teamFiles.review ?? '';
 
   const sections = useMemo(() => splitReviewPasses(content), [content]);
@@ -112,8 +112,16 @@ export function ReviewTab(): ReactElement {
     return Number.isFinite(max) ? max : null;
   }, [sections]);
 
+  if (content === '' && status === 'connecting') {
+    return <MarkdownSkeleton />;
+  }
+
   if (content.trim() === '') {
-    return <EmptyState>No review yet.</EmptyState>;
+    return (
+      <EmptyState>
+        No review yet — the reviewer writes `.team/review.md` after execution.
+      </EmptyState>
+    );
   }
 
   // No `# Review pass` headers detected — render whole document as one.

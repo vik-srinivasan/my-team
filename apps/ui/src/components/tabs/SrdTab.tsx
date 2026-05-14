@@ -4,7 +4,7 @@ import remarkGfm from 'remark-gfm';
 
 import { useUiStore } from '../../store.js';
 import { useTeamFile } from '../../hooks/useTeamFile.js';
-import { EmptyState, markdownComponents } from '../../lib/markdown.js';
+import { EmptyState, MarkdownSkeleton, markdownComponents } from '../../lib/markdown.js';
 
 /**
  * Static view of `.team/srd.md`.
@@ -22,7 +22,7 @@ export function SrdTab(): ReactElement {
   const query = useTeamFile(sessionId, 'srd.md');
 
   if (query.isLoading) {
-    return <EmptyState>Loading SRD…</EmptyState>;
+    return <MarkdownSkeleton />;
   }
 
   if (query.isError) {
@@ -39,7 +39,11 @@ export function SrdTab(): ReactElement {
 
   const content = query.data ?? '';
   if (content.trim() === '') {
-    return <EmptyState>No SRD yet — usually drafted during planning.</EmptyState>;
+    return (
+      <EmptyState>
+        No SRD yet — captain drafts `.team/srd.md` during the planning phase.
+      </EmptyState>
+    );
   }
 
   return (

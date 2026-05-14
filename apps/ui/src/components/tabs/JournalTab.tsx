@@ -3,7 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
 import { useSessionSocket } from '../SessionContext.js';
-import { EmptyState, markdownComponents } from '../../lib/markdown.js';
+import { EmptyState, MarkdownSkeleton, markdownComponents } from '../../lib/markdown.js';
 
 /**
  * Live view of `.team/journal.md` streamed over the session WebSocket.
@@ -22,7 +22,7 @@ import { EmptyState, markdownComponents } from '../../lib/markdown.js';
  * revisit this.
  */
 export function JournalTab(): ReactElement {
-  const { teamFiles } = useSessionSocket();
+  const { teamFiles, status } = useSessionSocket();
   const content = teamFiles.journal ?? '';
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -39,8 +39,19 @@ export function JournalTab(): ReactElement {
     return () => cancelAnimationFrame(id);
   }, [content]);
 
+  // While the WS handshake is in flight and we haven't received the
+  // initial-emit `team_file` payload yet, show a shimmer rather than
+  // flashing "No journal entries yet." for sessions that DO have one.
+  if (content === '' && status === 'connecting') {
+    return <MarkdownSkeleton />;
+  }
+
   if (content.trim() === '') {
-    return <EmptyState>No journal entries yet.</EmptyState>;
+    return (
+      <EmptyState>
+        No journal entries yet — they appear as the captain dispatches specialists.
+      </EmptyState>
+    );
   }
 
   return (

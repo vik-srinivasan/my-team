@@ -20,6 +20,7 @@ import {
   useWorkflowConfigMutation,
 } from '../../hooks/useWorkflowConfig.js';
 import { PromptEditor } from '../PromptEditor.js';
+import { Skeleton, SkeletonList } from '../Skeleton.js';
 
 // ── Helpers ────────────────────────────────────────────────────────────
 
@@ -262,10 +263,14 @@ export function WorkflowTab(): ReactElement {
             Specialists
           </header>
           {agentList.isLoading ? (
-            <p className="p-3 text-sm text-neutral-500">Loading specialists…</p>
+            <SkeletonList count={9} rowClassName="h-8 w-full" containerClassName="space-y-2 p-3" />
           ) : agentList.isError ? (
             <p className="p-3 text-sm text-red-400">
               Failed to load specialists.
+            </p>
+          ) : agents.length === 0 ? (
+            <p className="p-3 text-sm text-neutral-500">
+              No specialists found — check `agent-prompts/` in the session repo.
             </p>
           ) : (
             <ul>
@@ -343,7 +348,13 @@ export function WorkflowTab(): ReactElement {
 
               <div className="flex-1 min-h-0 p-3 overflow-auto">
                 {agentPrompt.isLoading ? (
-                  <p className="text-sm text-neutral-500">Loading prompt…</p>
+                  <div data-testid="prompt-skeleton" className="space-y-2">
+                    <Skeleton className="h-4 w-1/3" />
+                    <Skeleton className="h-3 w-full" />
+                    <Skeleton className="h-3 w-11/12" />
+                    <Skeleton className="h-3 w-10/12" />
+                    <Skeleton className="h-[55vh] w-full" />
+                  </div>
                 ) : agentPrompt.isError ? (
                   <p className="text-sm text-red-400">Failed to load prompt.</p>
                 ) : (
