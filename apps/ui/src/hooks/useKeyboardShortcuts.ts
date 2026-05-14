@@ -70,8 +70,10 @@ export function isMac(): boolean {
 }
 
 /**
- * Maps the 8 tab keys (1..8) to the names defined in `TAB_NAMES`. Exported
- * so tests can drive it without binding the listener.
+ * Maps the tab digit keys (1..N, where N === `TAB_NAMES.length`) to the
+ * names defined in `TAB_NAMES`. Exported so tests can drive it without
+ * binding the listener. There are nine tabs today (chat is the new
+ * leftmost), so 1..9 are valid.
  */
 export function tabForDigit(digit: string): TabName | null {
   const idx = Number.parseInt(digit, 10) - 1;
@@ -86,7 +88,7 @@ export function tabForDigit(digit: string): TabName | null {
  * Bindings:
  * - **Mod+N**: open New Session modal
  * - **Mod+W**: clear `selectedSessionId` (when one is selected)
- * - **Mod+1..8**: jump to tab journal/tasks/plan/srd/review/diff/terminal/workflow
+ * - **Mod+1..9**: jump to tab chat/journal/tasks/plan/srd/review/diff/terminal/workflow
  * - **?  (Shift+/):** open the shortcut help overlay
  *
  * When the user is typing in an `<input>` / `<textarea>` / contenteditable
@@ -136,7 +138,9 @@ export function useKeyboardShortcuts(options: KeyboardShortcutsOptions): void {
         return;
       }
 
-      // ⌘/Ctrl + 1..8 — jump to tab. The keypad digits also map.
+      // ⌘/Ctrl + 1..N — jump to tab (N === TAB_NAMES.length). The keypad
+      // digits also map. With the Chat tab added as the new leftmost
+      // entry, this is now 1..9.
       const tab = tabForDigit(event.key);
       if (tab !== null) {
         event.preventDefault();

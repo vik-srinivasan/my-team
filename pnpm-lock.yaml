@@ -108,6 +108,9 @@ importers:
       remark-gfm:
         specifier: ^4.0.1
         version: 4.0.1
+      strip-ansi:
+        specifier: ^7.1.0
+        version: 7.2.0
       zustand:
         specifier: ^5.0.13
         version: 5.0.13(@types/react@19.2.14)(react@19.2.6)
