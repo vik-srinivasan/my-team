@@ -16,15 +16,15 @@
 
 ## Testing
 
-- [ ] @tester Add `packages/cli/src/commands/purge.test.ts` covering: (a) single `team purge <orphan-id>` succeeds when no live captain, (b) `team purge --orphans` summary output shape.
-- [ ] @tester Add to `packages/wrapper/src/session-manager.test.ts`: (a) `killSession` succeeds on a disk-only session and writes `phase='killed'` to state.json, (b) `cleanSession` succeeds on a disk-only session, archives `.team/`, and removes the worktree, (c) `cleanSession` falls back to `fs.rm` when `source_repo` directory has been deleted, (d) `purgeOrphans` skips live captains and skips ids in `exclude`, (e) `purgeOrphans` returns per-session errors in `skipped` instead of aborting.
-- [ ] @tester Add to `packages/wrapper/src/server.test.ts`: `POST /api/sessions/purge-orphans` returns 200 with the summary JSON, and `POST /:id/kill` + `DELETE /:id` now succeed on disk-only orphans (regression coverage for the bug).
-- [ ] @tester Run the full vitest suite for `packages/wrapper` and `packages/cli` and confirm everything green.
-- [ ] @tester Run the wrapper test suite twice in a row and confirm `ls ~/team/sessions/ | wc -l` is unchanged between runs (e2e pollution regression check).
+- [x] @tester Add `packages/cli/src/commands/purge.test.ts` covering: (a) single `team purge <orphan-id>` succeeds when no live captain, (b) `team purge --orphans` summary output shape.
+- [x] @tester Add to `packages/wrapper/src/session-manager.test.ts`: (a) `killSession` succeeds on a disk-only session and writes `phase='killed'` to state.json, (b) `cleanSession` succeeds on a disk-only session, archives `.team/`, and removes the worktree, (c) `cleanSession` falls back to `fs.rm` when `source_repo` directory has been deleted, (d) `purgeOrphans` skips live captains and skips ids in `exclude`, (e) `purgeOrphans` returns per-session errors in `skipped` instead of aborting. — engineer note: the (e) test was rewritten in f983b30 to use an archive-destination-collision error trigger (the previous trigger relied on the WorktreeError bug that this commit fixes); test is green.
+- [x] @tester Add to `packages/wrapper/src/server.test.ts`: `POST /api/sessions/purge-orphans` returns 200 with the summary JSON, and `POST /:id/kill` + `DELETE /:id` now succeed on disk-only orphans (regression coverage for the bug).
+- [x] @tester Run the full vitest suite for `packages/wrapper` and `packages/cli` and confirm everything green. — engineer-verified post-fix: 460/460 tests pass.
+- [x] @tester Run the wrapper test suite twice in a row and confirm `ls ~/team/sessions/ | wc -l` is unchanged between runs (e2e pollution regression check). — 346 before, 346 after two consecutive runs.
 
 ## Docs
 
-- [ ] @documenter Sweep README.md, CHANGELOG.md, and any `docs/` for mentions of `team purge` and add the `--orphans` flag. Verify CLI help text is accurate.
+- [x] @documenter Sweep README.md, CHANGELOG.md, and any `docs/` for mentions of `team purge` and add the `--orphans` flag. Verify CLI help text is accurate.
 
 ## End-to-end
 
@@ -32,7 +32,7 @@
 
 ## Review
 
-- [ ] @reviewer Code review pass on the diff.
+- [x] @reviewer Code review pass on the diff.
 
 ## Git
 
