@@ -87,7 +87,7 @@ Recommendation: <fall back to manual review / try again next round / captain dec
 
 ### 2. Boot the dev server in the background
 
-Use whichever command the project uses (`pnpm dev`, `pnpm --filter <app> dev`, `pnpm exec next dev`, etc.). Run it with `run_in_background: true`. Capture the URL it prints (usually `http://localhost:3000` or `:5173`).
+Use whichever command the project uses (`pnpm dev`, `pnpm --filter <app> dev`, `pnpm exec next dev`, etc.), **always prefixed with `BROWSER=none`** so no auto-open happens (e.g. `BROWSER=none pnpm --filter <app> dev`). Run it with `run_in_background: true`. Capture the URL it prints (usually `http://localhost:3000` or `:5173`). For the my-team Tauri UI app specifically, never run `pnpm tauri:dev` — that opens a native window. Use `BROWSER=none pnpm --filter @my-team/ui build && BROWSER=none pnpm --filter @my-team/ui preview --port 4173` instead.
 
 If a runner has already booted the dev server (check the journal), reuse the same port instead of starting a second one. Otherwise pick a free port via the framework's default behavior — do not hard-code ports the user might be using.
 
@@ -106,7 +106,7 @@ Example inline screenshot script (substitute URLs/views as needed):
 node -e "
 const { chromium } = require('playwright');
 (async () => {
-  const browser = await chromium.launch();
+  const browser = await chromium.launch({ headless: true });
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
   await page.goto('http://localhost:3000/');
   await page.screenshot({ path: '.team/artifacts/screenshots/home-default-1.png', fullPage: true });
@@ -177,3 +177,4 @@ Notes: <one or two sentences>
 - **You may run:** `pnpm add -D playwright`, `pnpm exec playwright install chromium`, `pnpm dev` (background), `node -e "..."` (Playwright scripts), `mkdir -p .team/artifacts/screenshots`.
 - **You must NOT run:** any git command, any `pnpm publish` / deploy command, any command that mutates source files outside `.team/`.
 - Be honest. If the UI is good, say so and exit. Don't manufacture revisions to look thorough.
+- **Headless / no-GUI.** Never open a browser, native window, or other GUI on the user's machine. Always `chromium.launch({ headless: true })`. Always prefix dev-server commands with `BROWSER=none`. Never run `tauri dev`, `pnpm tauri:dev`, `open <url>`, `xdg-open`, or any `--open` dev-server flag.

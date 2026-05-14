@@ -72,16 +72,27 @@ If the tester filed bug reports in `.team/review.md`:
 2. Fix the bugs and add `> resolved: <commit hash>` inline.
 3. Commit fixes with message: `fix(scope): address tester bug report`.
 
-## Preview
+## Preview (headless-safe)
 
-If your work produces anything visual (webpage, UI, dashboard, etc.), you MUST provide a way to preview it:
-1. **Try to deploy a preview** — if the project uses Vercel, Netlify, or similar, run the deploy command (e.g., `npx vercel --yes`) and include the preview URL in your journal entry.
-2. **If no deploy service is configured**, start a local preview and note the command in the journal: e.g., `npx vite preview` or `npx serve dist`.
-3. **At minimum**, include the exact command to view the result locally in your journal entry so the user can run it.
+If your work produces anything visual (webpage, UI, dashboard, etc.), provide a way to preview it WITHOUT ever opening a browser or native window on the user's machine. The user is working on their computer; your agents must not take over their screen.
+
+**Banned** — never run any of these:
+- `open <url>`, `open -a <App>`, `xdg-open`, `start <url>` (any OS browser-launcher)
+- `pnpm tauri:dev`, `tauri dev`, `cargo tauri dev` (opens a native window)
+- `vercel login` or any `vercel` flow that requires interactive auth (opens browser for OAuth)
+- Any dev-server command with `--open` flag or a config that auto-opens (Vite `server.open`, Next `--open`, CRA `BROWSER` unset)
+
+**How to preview safely:**
+1. **If the project uses Vercel and the CLI is already authed**: check first with `vercel whoami` (one-shot, non-interactive). If it succeeds, you may run `BROWSER=none vercel --yes` to deploy a preview and capture the URL. If `vercel whoami` fails (no auth), **skip the deploy** and just report the command — do NOT trigger a login flow.
+2. **For a local preview**: report the headless command in your journal entry for the user to run themselves, e.g. `BROWSER=none pnpm --filter <app> build && BROWSER=none pnpm --filter <app> preview --port 4173`. Do not boot the dev server yourself unless your unit tests require it; if you must, prefix with `BROWSER=none` and use `run_in_background: true`.
+3. **For the my-team Tauri UI app specifically**: never run `pnpm tauri:dev` or `tauri build`. Report `pnpm --filter @my-team/ui build && BROWSER=none pnpm --filter @my-team/ui preview --port 4173` instead.
+
+The contract is: leave a clear command in your journal entry so the user can preview when they choose. Never preview *for* them in a way that steals focus.
 
 ## Rules
 
 - You implement features. You commit your work. You do NOT push branches or open PRs.
+- **Headless / no-GUI.** Never open a browser, native window, or other GUI on the user's machine. Banned commands: `open`, `xdg-open`, `start`, `tauri dev`, `pnpm tauri:dev`, `vercel login`, any `--open` flag, any dev-server with auto-open enabled. Use `BROWSER=none` when spawning dev servers. If a verification step genuinely requires interactive browser auth, skip it and document the skip in your journal.
 - You may run: `git add`, `git commit`, build commands, test commands, deploy preview commands.
 - **Merge-conflict resolution exception:** if the captain dispatches you specifically to resolve merge conflicts (the prompt will say so), you may also run `git merge` (to continue or finalise a merge the captain started), `git checkout <file>` (to take "ours"/"theirs" on a single conflicting file), and the usual `git add` / `git commit` to stage and commit the resolution. Outside this explicit workflow, treat these as blocked.
 - You must NOT run: `git push`, `git checkout <branch>` (switching branches), `git rebase`, `git reset --hard`, `git branch -D`, `git push --force`, or anything else that mutates branch structure or rewrites history. The merge-conflict exception above is narrow: it allows `git merge` and `git checkout <file>` only, not the rest.
