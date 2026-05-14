@@ -190,47 +190,32 @@ export function NewSessionModal({ onClose, onCreated }: NewSessionModalProps): R
           ) : null}
         </label>
 
-        <fieldset className="mt-4">
-          <legend className="text-xs uppercase tracking-wide text-neutral-500">
+        <fieldset className="mt-5">
+          <legend className="text-xs uppercase tracking-wider text-neutral-500">
             Options
           </legend>
-          <div className="mt-2 space-y-1.5 text-sm">
-            <label className="flex items-center gap-2 text-neutral-400">
-              <input
-                type="checkbox"
-                checked={newBranch}
-                onChange={(e) => setNewBranch(e.target.checked)}
-                className="size-3.5 accent-neutral-200"
-              />
-              <span>
-                <code className="text-neutral-300">--new</code> (create a new
-                source branch first)
-              </span>
-            </label>
-            <label className="flex items-center gap-2 text-neutral-400">
-              <input
-                type="checkbox"
-                checked={github}
-                onChange={(e) => setGithub(e.target.checked)}
-                className="size-3.5 accent-neutral-200"
-              />
-              <span>
-                <code className="text-neutral-300">--github</code> (push branch
-                and open a PR)
-              </span>
-            </label>
-            <label className="flex items-center gap-2 text-neutral-400">
-              <input
-                type="checkbox"
-                checked={publicRepo}
-                onChange={(e) => setPublicRepo(e.target.checked)}
-                className="size-3.5 accent-neutral-200"
-              />
-              <span>
-                <code className="text-neutral-300">--public</code> (set the
-                GitHub repo public)
-              </span>
-            </label>
+          <div className="mt-3 space-y-1.5 text-sm">
+            <OptionCheckbox
+              flag="--new"
+              description="(create a new source branch first)"
+              checked={newBranch}
+              onChange={setNewBranch}
+              disabled={false}
+            />
+            <OptionCheckbox
+              flag="--github"
+              description="(push branch and open a PR)"
+              checked={github}
+              onChange={setGithub}
+              disabled={false}
+            />
+            <OptionCheckbox
+              flag="--public"
+              description="(set the GitHub repo public)"
+              checked={publicRepo}
+              onChange={setPublicRepo}
+              disabled={false}
+            />
           </div>
         </fieldset>
 
@@ -258,5 +243,58 @@ export function NewSessionModal({ onClose, onCreated }: NewSessionModalProps): R
         </div>
       </form>
     </div>
+  );
+}
+
+interface OptionCheckboxProps {
+  flag: string;
+  description: string;
+  checked: boolean;
+  onChange: (next: boolean) => void;
+  disabled: boolean;
+}
+
+/**
+ * Single options-row in the modal. The flag token (`--new` / `--github` /
+ * `--public`) renders as a tinted `<code>` element so it visually pops as a
+ * literal token, while the descriptor stays in muted body type. The
+ * disabled state grays out both the checkbox AND the flag so the row reads
+ * uniformly inert — previously only the checkbox communicated disabled
+ * while the flag stayed at full weight.
+ */
+function OptionCheckbox({
+  flag,
+  description,
+  checked,
+  onChange,
+  disabled,
+}: OptionCheckboxProps): ReactElement {
+  return (
+    <label
+      className={`flex items-center gap-2 ${
+        disabled ? 'text-neutral-600' : 'text-neutral-400'
+      }`}
+      data-testid="option-row"
+      data-disabled={disabled ? 'true' : 'false'}
+    >
+      <input
+        type="checkbox"
+        checked={checked}
+        disabled={disabled}
+        onChange={(e) => onChange(e.target.checked)}
+        className="size-3.5 accent-neutral-200 disabled:opacity-50"
+      />
+      <span>
+        <code
+          data-testid="option-flag"
+          className={`font-mono ${
+            disabled ? 'text-neutral-600' : 'text-cyan-300'
+          }`}
+        >
+          {flag}
+        </code>{' '}
+        {description}
+      </span>
+    </label>
   );
 }
