@@ -77,3 +77,85 @@ Behavioral audit results:
 - useKeyboardShortcuts.test.ts: tabForDigit asserts all 9 digits (1-9) including new chat=1 and workflow=9; integration test checks ⌘1, ⌘4, ⌘8, ⌘9. All 9 are present in the tabForDigit unit test.
 - ANSI-only chunk edge case: code already has the guard (stripped.length === 0 → skip); added test to pin the contract.
 - Multi-line paste edge case: Shift+Enter must not trigger send; plain Enter sends full draft. Test added and verified.
+
+## 2026-05-14T11:00:00Z — reviewer
+Completed: Review pass 1
+Blockers: 2
+Suggestions: 5
+Verdict: Blockers remain
+
+## 2026-05-14T11:01:00Z — captain
+Action: Reviewer pass 1 found 2 blockers — (1) `TerminalTab.test.tsx` `makeSnapshot` factory missing required `recentOutput: []` field → `tsc --noEmit` fails (vite build skips typecheck so it passed earlier); (2) `attach.ts` `ws.on('close')` doesn't call cleanup() → stdin/stdout listener leak on server-initiated disconnect. Dispatched fix-only engineer with narrow scope. Designer still in flight. Will re-run reviewer once engineer returns. The 5 non-blocking suggestions are deferred to a follow-up unless user wants them addressed now. review_iterations bumped to 1.
+
+## 2026-05-14T11:15:00Z — designer
+Iteration: 1
+Status: Revisions requested
+Screenshots:
+- .team/artifacts/screenshots/chat-empty-1.png (empty state, full view)
+- .team/artifacts/screenshots/chat-user-msg-1.png (one user message, no reply)
+- .team/artifacts/screenshots/chat-with-reply-1.png (user + multi-paragraph captain reply with markdown)
+- .team/artifacts/screenshots/chat-multi-code-1.png (multi-turn with fenced code block + list)
+- .team/artifacts/screenshots/chat-jump-to-latest-1.png (long scroll with jump-to-latest button)
+- .team/artifacts/screenshots/chat-inputbar-zoom-1.png (input bar / disconnected state crop)
+- .team/artifacts/screenshots/chat-emptystate-zoom-1.png (empty state text crop)
+
+### Blocking issues (2)
+
+1. **Empty state is top-anchored, not centered** — the "No messages yet" `<p>` lives inside
+   the `font-mono` transcript wrapper with only `py-8` padding; it hugs the top of the chat
+   area rather than centering vertically like every other tab's empty state. Fix: wrap in
+   `flex h-full items-center justify-center` (same as the shared `EmptyState` component) and
+   apply `font-sans` so it doesn't render in monospace.
+
+2. **First message has an orphaned top border** — `ChatMessageView` unconditionally applies
+   `border-t border-zinc-800/60` to the role-label row, including on the very first message
+   where there is nothing above it to separate from. A horizontal rule at position 0 reads as
+   a layout artefact. Fix: pass `isFirst: boolean` prop and suppress `border-t` when
+   `isFirst === true`.
+
+### Approved
+
+- Transcript divider pattern (faint rule + role label) does the intended work — turns separate cleanly without bubbles.
+- Space between turns (`space-y-4`) is comfortable, not cramped.
+- Code block rendering (bg-neutral-900, text-xs, leading-relaxed) is legible and fits the palette.
+- Markdown body (bold, inline code, lists) renders correctly via shared markdownComponents.
+- Jump-to-latest button fits the existing palette; position (bottom-28 right-6) does not occlude the input.
+- Tab placement: Chat is leftmost, default active. Correct.
+- Font choice: monospace throughout for transcript body is coherent with the terminal-aesthetic intent per the spec.
+
+Engineer revision task list written to `.team/artifacts/designer-revisions.md`.
+Two items added to `## Visual revisions` in tasks.md.
+
+Captain: please dispatch engineer for the two blocking fixes, then re-dispatch designer for pass 2.
+
+## 2026-05-14T03:30:00Z — engineer
+Completed: Designer pass-1 visual revisions on ChatTab (empty-state centering, first-row border suppression, role label contrast).
+Modified:
+- apps/ui/src/components/tabs/ChatTab.tsx (empty state pulled out of font-mono wrapper, wrapped in flex h-full items-center justify-center + font-sans; ChatMessageView gained isFirst prop, border-t suppressed when first; user label text-neutral-400, captain stays text-neutral-500)
+Verification:
+- pnpm --filter @my-team/ui exec tsc --noEmit → clean (no output)
+- pnpm --filter @my-team/ui test → 18 files / 128 tests passing (incl. all 8 ChatTab tests)
+Commit: 4d84f12
+Preview: pnpm --filter @my-team/ui dev → http://localhost:5173 (open Chat tab; empty state should be vertically centered, first message has no top divider, "you" label is one shade brighter than "captain")
+
+## 2026-05-14T03:30:00Z — engineer
+Completed: Review pass 1 blocker fixes (TS strict failure in tab test fixtures; listener leak in `team attach` server-initiated close path).
+Modified:
+- apps/ui/src/components/tabs/TerminalTab.test.tsx (added `recentOutput: []` to makeSnapshot)
+- apps/ui/src/components/tabs/ChatTab.test.tsx (tightened sendInputMock signature for TS2556)
+- apps/ui/src/components/tabs/DiffTab.test.tsx (added `recentOutput: []` to makeSocket)
+- apps/ui/src/components/tabs/JournalTab.test.tsx (added `recentOutput: []` to makeSocket)
+- apps/ui/src/components/tabs/PlanTab.test.tsx (added `recentOutput: []` to makeSocket)
+- apps/ui/src/components/tabs/ReviewTab.test.tsx (added `recentOutput: []` to makeSocket)
+- apps/ui/src/components/tabs/TasksTab.test.tsx (added `recentOutput: []` to makeSocket)
+- packages/cli/src/commands/attach.ts (hoisted cleanup with idempotent `cleaned` guard; close handler now invokes cleanup; added `MY_TEAM_WS_BASE` env override for testability)
+Created:
+- packages/cli/src/commands/attach.test.ts (2 regression tests: single close + repeated calls assert listener counts return to baseline; verified to fail on bugged version with counts 3 vs expected 1)
+Commits:
+- 9b495c3 fix(ui): include recentOutput in tab test snapshot fixtures
+- 73d0e32 fix(cli): cleanup stdin/stdout listeners on server-initiated WS close
+- 43daebd test(cli): regression for attach close listener cleanup
+Verification:
+- `pnpm -r exec tsc --noEmit` → clean across all packages
+- `pnpm test` from worktree root → 440 / 440 passing across 35 files
+- `pnpm --filter @my-team/ui test` → 128 / 128 passing across 18 files

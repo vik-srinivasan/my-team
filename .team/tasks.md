@@ -43,9 +43,20 @@
 
 - [ ] @designer Screenshot + critique the new Chat tab: message density, bubble vs. transcript readability, input affordances, empty state, autoscroll feel. Iterate with engineer for revisions if needed.
 
+## Visual revisions (from designer pass 1 — blocking)
+
+- [x] @engineer Fix 1: Center empty state vertically — move the empty state `<p>` out of the `font-mono` div and apply `flex h-full items-center justify-center` centering. Use `font-sans` on the empty state text. See `.team/artifacts/designer-revisions.md` for exact diff. (commit 4d84f12)
+- [x] @engineer Fix 2: Suppress top border on first message — add `isFirst: boolean` prop to `ChatMessageView` and conditionally omit `border-t border-zinc-800/60` when `isFirst` is true. See `.team/artifacts/designer-revisions.md` for exact diff. (commit 4d84f12; also tweaked role label contrast — user `text-neutral-400`, captain `text-neutral-500`)
+
 ## Review
 
-- [ ] @reviewer Code review pass; produce `.team/review.md` with severity-bucketed findings.
+- [x] @reviewer Code review pass; produce `.team/review.md` with severity-bucketed findings.
+
+## Review revisions (from reviewer pass 1 — blocking)
+
+- [x] @engineer Fix Blocker 1: add `recentOutput: []` to `makeSnapshot` / `makeSocket` fixtures (TerminalTab + DiffTab + JournalTab + PlanTab + ReviewTab + TasksTab + ChatTab mock sig). `tsc --noEmit` now clean. (commit 9b495c3)
+- [x] @engineer Fix Blocker 2: call `cleanup()` from `attach.ts` `ws.on('close')` handler; made cleanup idempotent with `cleaned` guard so user-initiated and server-initiated paths can both invoke it safely. (commit 73d0e32)
+- [x] @engineer Regression test: `packages/cli/src/commands/attach.test.ts` boots a real WS server on an ephemeral port (new `MY_TEAM_WS_BASE` env override), drives server-side close, asserts listener counts return to baseline. Verified to fail on the bugged version. (commit 43daebd)
 
 ## Docs
 
