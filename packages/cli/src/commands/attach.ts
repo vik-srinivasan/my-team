@@ -20,6 +20,14 @@ export function attachToSession(id: string): Promise<void> {
     const url = `${WS_BASE}/ws/sessions/${id}`;
     const ws = new WebSocket(url);
 
+    // Cleanup is installed by the `open` handler. The `close` handler
+    // (server-initiated disconnect path) also needs to run it so that
+    // the `process.stdin` and `process.stdout` listeners are removed —
+    // otherwise repeated `attachToSession` calls in one process leak
+    // listeners. The `cleaned` guard makes `cleanup()` idempotent so
+    // both paths can call it safely.
+    let cleanup: ((reason: 'user' | 'server') => void) | null = null;
+
     ws.on('error', (err) => {
       console.error(chalk.red(`WebSocket error: ${err.message}`));
       reject(err);
@@ -68,7 +76,7 @@ export function attachToSession(id: string): Promise<void> {
 
         // Ctrl+] to detach (standard escape for terminal multiplexers)
         if (data.length === 1 && data[0] === 0x1d) {
-          cleanup();
+          cleanup?.('user');
           return;
         }
 
@@ -76,15 +84,24 @@ export function attachToSession(id: string): Promise<void> {
       };
       process.stdin.on('data', onData);
 
-      const cleanup = (): void => {
+      let cleaned = false;
+      cleanup = (reason: 'user' | 'server'): void => {
+        if (cleaned) return;
+        cleaned = true;
         process.stdin.removeListener('data', onData);
         process.stdout.removeListener('resize', onResize);
-        if (process.stdin.isTTY) {
+        if (process.stdin.isTTY && process.stdin.isRaw) {
           process.stdin.setRawMode(false);
         }
         process.stdin.pause();
-        ws.close();
-        console.log(chalk.dim('\nDetached from session. (Ctrl+] to detach)'));
+        if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
+          ws.close();
+        }
+        if (reason === 'user') {
+          console.log(chalk.dim('\nDetached from session. (Ctrl+] to detach)'));
+        } else {
+          console.log(chalk.dim('\nDisconnected from session.'));
+        }
         resolve();
       };
     });
@@ -111,12 +128,19 @@ export function attachToSession(id: string): Promise<void> {
     });
 
     ws.on('close', () => {
-      if (process.stdin.isTTY && process.stdin.isRaw) {
-        process.stdin.setRawMode(false);
+      if (cleanup) {
+        cleanup('server');
+      } else {
+        // The socket closed before `open` ran (e.g. immediate reject).
+        // No listeners to remove; still resolve the promise so callers
+        // unblock.
+        if (process.stdin.isTTY && process.stdin.isRaw) {
+          process.stdin.setRawMode(false);
+        }
+        process.stdin.pause();
+        console.log(chalk.dim('\nDisconnected from session.'));
+        resolve();
       }
-      process.stdin.pause();
-      console.log(chalk.dim('\nDisconnected from session.'));
-      resolve();
     });
   });
 }
