@@ -257,4 +257,62 @@ describe('ChatTab', () => {
         .scrollTop;
     });
   });
+
+  // ── (g) ANSI-only chunk is suppressed (no empty message) ─────────────
+  it('suppresses a captain chunk that is entirely ANSI escape codes', () => {
+    // A chunk containing only ANSI control sequences (e.g. cursor-up,
+    // clear-line) strips to an empty string. The component must not
+    // create a captain message with empty text in that case.
+    const ansiOnlyChunk = '\x1b[1A\x1b[2K\x1b[0m';
+    const Wrapper = wrap(makeSocket({ recentOutput: [ansiOnlyChunk] }));
+    render(
+      <Wrapper>
+        <ChatTab />
+      </Wrapper>,
+    );
+
+    // No captain message element should exist — the chunk is invisible.
+    expect(screen.queryByTestId('chat-message-captain')).toBeNull();
+    // The empty-state placeholder is shown instead.
+    expect(
+      screen.getByText(/No messages yet/i),
+    ).toBeInTheDocument();
+  });
+
+  // ── (h) Shift+Enter inserts a newline; plain Enter sends ─────────────
+  it('inserts a newline on Shift+Enter and sends on plain Enter', async () => {
+    const Wrapper = wrap(makeSocket());
+    render(
+      <Wrapper>
+        <ChatTab />
+      </Wrapper>,
+    );
+
+    const input = screen.getByTestId('chat-input') as HTMLTextAreaElement;
+
+    // Type the first line and press Shift+Enter — should NOT send.
+    fireEvent.change(input, { target: { value: 'line one' } });
+    fireEvent.keyDown(input, { key: 'Enter', shiftKey: true });
+    expect(sendInputMock).not.toHaveBeenCalled();
+    // The textarea is still focused and the draft is unchanged.
+    expect(input.value).toBe('line one');
+
+    // Now simulate the full multi-line content a user would have after
+    // pressing Shift+Enter and typing more.
+    fireEvent.change(input, { target: { value: 'line one\nline two' } });
+
+    // Plain Enter should submit the whole draft.
+    await act(async () => {
+      fireEvent.keyDown(input, { key: 'Enter', shiftKey: false });
+    });
+
+    expect(sendInputMock).toHaveBeenCalledTimes(1);
+    // Both lines should arrive as one payload (trimmed text + trailing newline).
+    expect(sendInputMock).toHaveBeenCalledWith(
+      'sess-1',
+      'line one\nline two\n',
+    );
+    // Textarea clears after send.
+    expect(input.value).toBe('');
+  });
 });
