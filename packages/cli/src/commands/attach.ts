@@ -4,7 +4,15 @@ import WebSocket from 'ws';
 
 import type { WsServerEvent } from '@my-team/shared';
 
-const WS_BASE = 'ws://127.0.0.1:3001';
+/**
+ * WebSocket base for the wrapper daemon. Hard-coded to the daemon's
+ * fixed `127.0.0.1:3001`. The `MY_TEAM_WS_BASE` override exists solely
+ * for tests that need to point at an ephemeral port — production paths
+ * (CLI invocation, scripted retry) always hit the daemon.
+ */
+function wsBase(): string {
+  return process.env['MY_TEAM_WS_BASE'] ?? 'ws://127.0.0.1:3001';
+}
 
 export function attachCommand(): Command {
   return new Command('attach')
@@ -17,8 +25,16 @@ export function attachCommand(): Command {
 
 export function attachToSession(id: string): Promise<void> {
   return new Promise((resolve, reject) => {
-    const url = `${WS_BASE}/ws/sessions/${id}`;
+    const url = `${wsBase()}/ws/sessions/${id}`;
     const ws = new WebSocket(url);
+
+    // Cleanup is installed by the `open` handler. The `close` handler
+    // (server-initiated disconnect path) also needs to run it so that
+    // the `process.stdin` and `process.stdout` listeners are removed —
+    // otherwise repeated `attachToSession` calls in one process leak
+    // listeners. The `cleaned` guard makes `cleanup()` idempotent so
+    // both paths can call it safely.
+    let cleanup: ((reason: 'user' | 'server') => void) | null = null;
 
     ws.on('error', (err) => {
       console.error(chalk.red(`WebSocket error: ${err.message}`));
@@ -31,6 +47,15 @@ export function attachToSession(id: string): Promise<void> {
         process.stdin.setRawMode(true);
       }
       process.stdin.resume();
+
+      // Identify ourselves to the wrapper before any other frame. This
+      // is what gives the CLI priority over the web UI for resize
+      // authority: while a `cli` client is attached, the wrapper drops
+      // `resize` messages from `web` clients (see plan.md Track C and
+      // packages/wrapper/src/api/websocket.ts). Sending this first
+      // guarantees we're counted as a CLI client before our initial
+      // resize is processed.
+      ws.send(JSON.stringify({ type: 'hello', role: 'cli' }));
 
       // Send initial terminal size
       if (process.stdout.isTTY) {
@@ -59,7 +84,7 @@ export function attachToSession(id: string): Promise<void> {
 
         // Ctrl+] to detach (standard escape for terminal multiplexers)
         if (data.length === 1 && data[0] === 0x1d) {
-          cleanup();
+          cleanup?.('user');
           return;
         }
 
@@ -67,15 +92,24 @@ export function attachToSession(id: string): Promise<void> {
       };
       process.stdin.on('data', onData);
 
-      const cleanup = (): void => {
+      let cleaned = false;
+      cleanup = (reason: 'user' | 'server'): void => {
+        if (cleaned) return;
+        cleaned = true;
         process.stdin.removeListener('data', onData);
         process.stdout.removeListener('resize', onResize);
-        if (process.stdin.isTTY) {
+        if (process.stdin.isTTY && process.stdin.isRaw) {
           process.stdin.setRawMode(false);
         }
         process.stdin.pause();
-        ws.close();
-        console.log(chalk.dim('\nDetached from session. (Ctrl+] to detach)'));
+        if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
+          ws.close();
+        }
+        if (reason === 'user') {
+          console.log(chalk.dim('\nDetached from session. (Ctrl+] to detach)'));
+        } else {
+          console.log(chalk.dim('\nDisconnected from session.'));
+        }
         resolve();
       };
     });
@@ -102,12 +136,19 @@ export function attachToSession(id: string): Promise<void> {
     });
 
     ws.on('close', () => {
-      if (process.stdin.isTTY && process.stdin.isRaw) {
-        process.stdin.setRawMode(false);
+      if (cleanup) {
+        cleanup('server');
+      } else {
+        // The socket closed before `open` ran (e.g. immediate reject).
+        // No listeners to remove; still resolve the promise so callers
+        // unblock.
+        if (process.stdin.isTTY && process.stdin.isRaw) {
+          process.stdin.setRawMode(false);
+        }
+        process.stdin.pause();
+        console.log(chalk.dim('\nDisconnected from session.'));
+        resolve();
       }
-      process.stdin.pause();
-      console.log(chalk.dim('\nDisconnected from session.'));
-      resolve();
     });
   });
 }

@@ -1,10 +1,12 @@
 import { create } from 'zustand';
 
 /**
- * The eight workspace tabs. Index 0 (`journal`) is the default selection
- * when a session is first opened — matches `team status` ordering.
+ * The nine workspace tabs. Index 0 (`chat`) is the default selection
+ * when a session is first opened — the Chat tab is the primary way to
+ * talk to the captain. The legacy ordering had `journal` first.
  */
 export type TabName =
+  | 'chat'
   | 'journal'
   | 'tasks'
   | 'plan'
@@ -15,6 +17,7 @@ export type TabName =
   | 'workflow';
 
 export const TAB_NAMES: readonly TabName[] = [
+  'chat',
   'journal',
   'tasks',
   'plan',
@@ -28,7 +31,7 @@ export const TAB_NAMES: readonly TabName[] = [
 /**
  * Ephemeral UI state — nothing here is persisted. Lives in a Zustand
  * store so the sidebar, workspace, and any future global UI control
- * (Cmd+1..8 in Phase 3) can read and update the selection without prop
+ * (Cmd+1..9 in Phase 3) can read and update the selection without prop
  * drilling.
  *
  * `newSessionRequestNonce` is a write-only "doorbell": components that
@@ -47,7 +50,7 @@ export interface UiState {
 
 export const useUiStore = create<UiState>((set) => ({
   selectedSessionId: null,
-  activeTab: 'journal',
+  activeTab: 'chat',
   newSessionRequestNonce: 0,
   setSelectedSessionId: (id) => set({ selectedSessionId: id }),
   setActiveTab: (tab) => set({ activeTab: tab }),

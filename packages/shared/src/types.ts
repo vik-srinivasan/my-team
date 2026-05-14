@@ -113,7 +113,26 @@ export interface WsClientResizeEvent {
   rows: number;
 }
 
-export type WsClientEvent = WsClientInputEvent | WsClientResizeEvent;
+/**
+ * Identifies the client role on first WS message after connect. The
+ * wrapper uses this to enforce CLI-priority resize authority: while any
+ * `cli` client is attached to a session, `web` clients' resize messages
+ * are dropped (the CLI is the "true" view; the web UI is a viewer).
+ *
+ * Backwards-compatible: legacy clients that don't send a hello are
+ * treated as `web`.
+ */
+export type WsClientRole = 'web' | 'cli';
+
+export interface WsClientHelloEvent {
+  type: 'hello';
+  role: WsClientRole;
+}
+
+export type WsClientEvent =
+  | WsClientInputEvent
+  | WsClientResizeEvent
+  | WsClientHelloEvent;
 
 // ── HTTP API types ──────────────────────────────────────────────────
 

@@ -10,6 +10,7 @@ function makeSocket(overrides: Partial<UseSessionWebSocketResult> = {}): UseSess
   return {
     state: null,
     output: null,
+    recentOutput: [],
     teamFiles: {},
     lastDiff: null,
     lastSpecialistEvent: null,

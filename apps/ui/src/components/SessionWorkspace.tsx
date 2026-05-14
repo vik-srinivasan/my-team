@@ -6,6 +6,7 @@ import { TAB_NAMES, useUiStore, type TabName } from '../store.js';
 import { SessionHeader } from './SessionHeader.js';
 import { SessionSocketProvider } from './SessionContext.js';
 import { ErrorBoundary } from './ErrorBoundary.js';
+import { ChatTab } from './tabs/ChatTab.js';
 import { JournalTab } from './tabs/JournalTab.js';
 import { TasksTab } from './tabs/TasksTab.js';
 import { PlanTab } from './tabs/PlanTab.js';
@@ -16,6 +17,7 @@ import { TerminalTab } from './tabs/TerminalTab.js';
 import { WorkflowTab } from './tabs/WorkflowTab.js';
 
 export const TAB_LABELS: Record<TabName, string> = {
+  chat: 'Chat',
   journal: 'Journal',
   tasks: 'Tasks',
   plan: 'Plan',
@@ -28,6 +30,8 @@ export const TAB_LABELS: Record<TabName, string> = {
 
 function renderTab(tab: TabName): ReactElement {
   switch (tab) {
+    case 'chat':
+      return <ChatTab />;
     case 'journal':
       return <JournalTab />;
     case 'tasks':

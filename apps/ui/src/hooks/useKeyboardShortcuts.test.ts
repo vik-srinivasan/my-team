@@ -16,26 +16,28 @@ import { useUiStore } from '../store.js';
 function resetStore(): void {
   useUiStore.setState({
     selectedSessionId: null,
-    activeTab: 'journal',
+    activeTab: 'chat',
     newSessionRequestNonce: 0,
   });
 }
 
 describe('tabForDigit', () => {
-  it('maps "1".."8" to tab names', () => {
-    expect(tabForDigit('1')).toBe('journal');
-    expect(tabForDigit('2')).toBe('tasks');
-    expect(tabForDigit('3')).toBe('plan');
-    expect(tabForDigit('4')).toBe('srd');
-    expect(tabForDigit('5')).toBe('review');
-    expect(tabForDigit('6')).toBe('diff');
-    expect(tabForDigit('7')).toBe('terminal');
-    expect(tabForDigit('8')).toBe('workflow');
+  it('maps "1".."9" to tab names', () => {
+    expect(tabForDigit('1')).toBe('chat');
+    expect(tabForDigit('2')).toBe('journal');
+    expect(tabForDigit('3')).toBe('tasks');
+    expect(tabForDigit('4')).toBe('plan');
+    expect(tabForDigit('5')).toBe('srd');
+    expect(tabForDigit('6')).toBe('review');
+    expect(tabForDigit('7')).toBe('diff');
+    expect(tabForDigit('8')).toBe('terminal');
+    expect(tabForDigit('9')).toBe('workflow');
   });
 
   it('returns null for out-of-range or non-numeric values', () => {
     expect(tabForDigit('0')).toBeNull();
-    expect(tabForDigit('9')).toBeNull();
+    // '9' is now a valid digit (workflow) — the first out-of-range is '0'
+    // and any letter/empty value still returns null.
     expect(tabForDigit('a')).toBeNull();
     expect(tabForDigit('')).toBeNull();
   });
@@ -136,18 +138,25 @@ describe('useKeyboardShortcuts', () => {
     expect(onCloseSession).not.toHaveBeenCalled();
   });
 
-  it('switches active tab on ⌘1..⌘8', async () => {
+  it('switches active tab on ⌘1..⌘9', async () => {
     bind();
     const user = userEvent.setup();
 
-    await user.keyboard('{Meta>}3{/Meta}');
+    // Chat tab (new leftmost) on ⌘1.
+    await user.keyboard('{Meta>}1{/Meta}');
+    expect(useUiStore.getState().activeTab).toBe('chat');
+
+    // Plan slid to position 4 after chat became 1.
+    await user.keyboard('{Meta>}4{/Meta}');
     expect(useUiStore.getState().activeTab).toBe('plan');
 
-    await user.keyboard('{Meta>}7{/Meta}');
+    // Terminal slid to position 8.
+    await user.keyboard('{Meta>}8{/Meta}');
     expect(useUiStore.getState().activeTab).toBe('terminal');
 
-    await user.keyboard('{Meta>}1{/Meta}');
-    expect(useUiStore.getState().activeTab).toBe('journal');
+    // Workflow is now reachable as the 9th tab.
+    await user.keyboard('{Meta>}9{/Meta}');
+    expect(useUiStore.getState().activeTab).toBe('workflow');
   });
 
   it('does NOT intercept shortcuts while the user is typing in an input', async () => {

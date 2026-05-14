@@ -109,7 +109,11 @@ export const Terminal = forwardRef<TerminalHandle, TerminalProps>(function Termi
       fontFamily: 'JetBrains Mono, Menlo, Consolas, monospace',
       fontSize: 13,
       lineHeight: 1.2,
-      convertEol: true,
+      // The PTY (`xterm-256color`) already emits `\r\n` for line breaks.
+      // Letting xterm convert `\n` → `\r\n` on top of that produces `\r\r\n`,
+      // which breaks every CR-based overwrite the Claude Code TUI relies on
+      // for spinners and the bottom status bar. Keep this disabled.
+      convertEol: false,
       cursorBlink: true,
       scrollback: 5000,
       allowProposedApi: false,
@@ -123,17 +127,21 @@ export const Terminal = forwardRef<TerminalHandle, TerminalProps>(function Termi
     termRef.current = term;
     fitRef.current = fit;
 
-    // Initial fit — defer one frame so the container has measured.
-    let initialFitFrame: number | null = requestAnimationFrame(() => {
-      initialFitFrame = null;
-      try {
-        fit.fit();
-      } catch {
-        // Container is detached or hidden — ignore. Subsequent observer
-        // ticks will pick up the right size once it's visible.
-      }
-      onResizeRef.current(term.cols, term.rows);
-    });
+    // Initial fit runs SYNCHRONOUSLY here, before the first PTY frame is
+    // pumped into xterm. If we deferred this to a rAF (as we used to), the
+    // first chunk of captain output could land while the grid was still at
+    // xterm's default 80×24, causing the first frame to render at the
+    // wrong width and the next frame to reflow on top of it. Doing the
+    // fit synchronously means the very first frame goes in at the user's
+    // actual viewport width. Subsequent resizes still go through the
+    // debounced rAF + ResizeObserver path below.
+    try {
+      fit.fit();
+    } catch {
+      // Container is detached or hidden — ignore. Subsequent observer
+      // ticks will pick up the right size once it's visible.
+    }
+    onResizeRef.current(term.cols, term.rows);
 
     const dataSub = term.onData((text) => onDataRef.current(text));
     const resizeSub = term.onResize(({ cols, rows }) => {
@@ -163,7 +171,6 @@ export const Terminal = forwardRef<TerminalHandle, TerminalProps>(function Termi
     return () => {
       window.removeEventListener('resize', handleWindowResize);
       observer.disconnect();
-      if (initialFitFrame !== null) cancelAnimationFrame(initialFitFrame);
       if (refitFrame !== null) cancelAnimationFrame(refitFrame);
       dataSub.dispose();
       resizeSub.dispose();
