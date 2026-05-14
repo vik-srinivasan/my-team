@@ -3,6 +3,15 @@ import { useCallback, useEffect, useRef, type ReactElement } from 'react';
 import { useSessionSocket } from '../SessionContext.js';
 import { Terminal, type TerminalHandle } from '../Terminal.js';
 
+/**
+ * Trailing window for batching xterm resize WS sends. xterm's FitAddon
+ * + ResizeObserver can fire `onResize` dozens of times during a single
+ * window drag, and each one would otherwise become an independent WS
+ * frame to the wrapper. 16ms ≈ one animation frame — long enough to
+ * collapse a drag into a single message, short enough to feel instant.
+ */
+const RESIZE_DEBOUNCE_MS = 16;
+
 const STATUS_LABEL: Record<'connecting' | 'open' | 'closed', string> = {
   connecting: 'Connecting',
   open: 'Connected',
@@ -46,12 +55,39 @@ export function TerminalTab(): ReactElement {
     [socket],
   );
 
+  // Trailing-debounced resize: a single window drag fires onResize dozens
+  // of times via FitAddon + ResizeObserver. We collapse them into one WS
+  // frame per ~16ms window so the wrapper isn't flooded with no-op resizes.
+  // The last (cols, rows) wins, which is what we want — only the final
+  // dimensions matter.
+  const resizeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingResizeRef = useRef<{ cols: number; rows: number } | null>(null);
+
   const handleResize = useCallback(
     (cols: number, rows: number): void => {
-      socket.send({ type: 'resize', cols, rows });
+      pendingResizeRef.current = { cols, rows };
+      if (resizeTimerRef.current !== null) return;
+      resizeTimerRef.current = setTimeout(() => {
+        resizeTimerRef.current = null;
+        const pending = pendingResizeRef.current;
+        pendingResizeRef.current = null;
+        if (pending === null) return;
+        socket.send({ type: 'resize', cols: pending.cols, rows: pending.rows });
+      }, RESIZE_DEBOUNCE_MS);
     },
     [socket],
   );
+
+  // Clear any pending resize on unmount so we don't fire into a dead socket.
+  useEffect(() => {
+    return () => {
+      if (resizeTimerRef.current !== null) {
+        clearTimeout(resizeTimerRef.current);
+        resizeTimerRef.current = null;
+      }
+      pendingResizeRef.current = null;
+    };
+  }, []);
 
   // Pipe new `output` frames into xterm. The reducer in
   // `useSessionWebSocket` exposes only the latest chunk; that's fine for
