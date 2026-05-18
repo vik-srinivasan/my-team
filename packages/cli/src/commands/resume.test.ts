@@ -66,11 +66,11 @@ describe('resumeCommand', () => {
       // eslint-disable-next-line no-control-regex
       .replace(/\x1b\[[0-9;]*m/g, '');
     expect(firstLine).toContain('Resumed orphan-foo-42');
-    // Second line: hint about team open.
+    // Second line: hint about team attach.
     const secondLine = (vi.mocked(console.log).mock.calls[1]?.[0] as string)
       // eslint-disable-next-line no-control-regex
       .replace(/\x1b\[[0-9;]*m/g, '');
-    expect(secondLine).toContain('team open orphan-foo-42');
+    expect(secondLine).toContain('team attach orphan-foo-42');
     expect(vi.mocked(process.exit)).not.toHaveBeenCalled();
   });
 

@@ -26,7 +26,7 @@ export function resumeCommand(): Command {
       try {
         await api.resumeSession(id);
         console.log(chalk.green(`Resumed ${id}`));
-        console.log(chalk.dim(`Attach with: team open ${id}`));
+        console.log(chalk.dim(`Attach with: team attach ${id}`));
       } catch (err) {
         if (err instanceof ApiError) {
           if (err.code === 'SESSION_ACTIVE') {
