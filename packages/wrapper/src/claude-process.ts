@@ -14,6 +14,22 @@ interface CaptainProcessEventMap {
 /** How long to hold a partial line before flushing on the idle timer. */
 const LINE_FLUSH_MS = 50;
 
+/**
+ * Model alias the captain runs on. Pinned to the fable tier — Anthropic's
+ * most capable model, tuned for long-horizon agentic work — so the
+ * orchestrator gets the strongest planning/coordination available. Passed
+ * to the `claude` CLI via `--model`. The CLI accepts the short alias
+ * `fable` (see `claude --help`); use the full name `claude-fable-5` only if
+ * a future CLI drops the alias.
+ */
+export const CAPTAIN_MODEL = 'fable';
+
+/**
+ * Reasoning effort the captain runs at. Fable's thinking is always on;
+ * `xhigh` gives the orchestrator the deepest deliberation short of `max`.
+ */
+export const CAPTAIN_EFFORT = 'xhigh';
+
 export interface CaptainProcessOptions {
   /**
    * Buffer PTY output until a newline or `flushMs` of idle time. Reduces
@@ -182,10 +198,11 @@ export async function spawnCaptain(options: SpawnCaptainOptions): Promise<Captai
   }
 
   const args = [
+    '--model', CAPTAIN_MODEL,
     '--append-system-prompt', captainPrompt,
     '--dangerously-skip-permissions',
     '--remote-control', sessionId ?? 'my-team-captain',
-    '--effort', 'xhigh',
+    '--effort', CAPTAIN_EFFORT,
   ];
 
   const ptyProcess = pty.spawn(claudeBin, args, {

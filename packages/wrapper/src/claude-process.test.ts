@@ -1,6 +1,30 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { IPty } from 'node-pty';
-import { CaptainProcess } from './claude-process.js';
+import {
+  CaptainProcess,
+  spawnCaptain,
+  CAPTAIN_MODEL,
+  CAPTAIN_EFFORT,
+} from './claude-process.js';
+
+// Mock node-pty at the boundary (per CLAUDE.md testing conventions) so
+// spawnCaptain never launches a real process. We capture the args array
+// passed to pty.spawn to assert the CLI invocation shape.
+const spawnMock = vi.fn();
+vi.mock('node-pty', () => ({
+  spawn: (...args: unknown[]) => spawnMock(...args),
+}));
+
+// readFile is used by spawnCaptain to load the captain prompt; stub it so
+// the test does not depend on a real prompt file on disk.
+vi.mock('node:fs/promises', () => ({
+  readFile: vi.fn(async () => 'CAPTAIN PROMPT BODY'),
+}));
+
+// execSync resolves the claude binary path; keep it deterministic.
+vi.mock('node:child_process', () => ({
+  execSync: vi.fn(() => '/usr/local/bin/claude\n'),
+}));
 
 function createMockPty(): IPty & {
   _emitData: (text: string) => void;
@@ -183,5 +207,58 @@ describe('CaptainProcess line buffer', () => {
     captain.on('remoteUrl', urlHandler);
     mockPty._emitData('Open https://claude.ai/code/abc123 to control\n');
     expect(urlHandler).toHaveBeenCalledWith('https://claude.ai/code/abc123');
+  });
+});
+
+describe('spawnCaptain args', () => {
+  beforeEach(() => {
+    spawnMock.mockReset();
+    spawnMock.mockReturnValue(createMockPty());
+  });
+
+  async function spawnAndGetArgs(): Promise<{ bin: string; args: string[] }> {
+    await spawnCaptain({
+      worktreePath: '/tmp/worktree',
+      captainPromptPath: '/tmp/captain.md',
+      sessionId: 'brave-otter-7',
+    });
+    expect(spawnMock).toHaveBeenCalledTimes(1);
+    const [bin, args] = spawnMock.mock.calls[0] as [string, string[]];
+    return { bin, args };
+  }
+
+  it('pins the captain to the fable model', async () => {
+    const { args } = await spawnAndGetArgs();
+    const modelIdx = args.indexOf('--model');
+    expect(modelIdx).toBeGreaterThanOrEqual(0);
+    expect(args[modelIdx + 1]).toBe('fable');
+    expect(args[modelIdx + 1]).toBe(CAPTAIN_MODEL);
+  });
+
+  it('runs at xhigh effort', async () => {
+    const { args } = await spawnAndGetArgs();
+    const effortIdx = args.indexOf('--effort');
+    expect(effortIdx).toBeGreaterThanOrEqual(0);
+    expect(args[effortIdx + 1]).toBe('xhigh');
+    expect(args[effortIdx + 1]).toBe(CAPTAIN_EFFORT);
+  });
+
+  it('appends the captain system prompt read from disk', async () => {
+    const { args } = await spawnAndGetArgs();
+    const promptIdx = args.indexOf('--append-system-prompt');
+    expect(promptIdx).toBeGreaterThanOrEqual(0);
+    expect(args[promptIdx + 1]).toBe('CAPTAIN PROMPT BODY');
+  });
+
+  it('skips permission prompts (unattended orchestration)', async () => {
+    const { args } = await spawnAndGetArgs();
+    expect(args).toContain('--dangerously-skip-permissions');
+  });
+
+  it('wires the session id into remote control', async () => {
+    const { args } = await spawnAndGetArgs();
+    const rcIdx = args.indexOf('--remote-control');
+    expect(rcIdx).toBeGreaterThanOrEqual(0);
+    expect(args[rcIdx + 1]).toBe('brave-otter-7');
   });
 });

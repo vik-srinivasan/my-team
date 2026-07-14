@@ -7,7 +7,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const AGENT_PROMPTS_DIR = resolve(__dirname, '..', '..', '..', 'agent-prompts');
 
 // Allowed values per CLAUDE.md / SPEC.md / context.md conventions.
-const ALLOWED_MODELS = new Set(['sonnet', 'opus', 'haiku']);
+const ALLOWED_MODELS = new Set(['sonnet', 'opus', 'haiku', 'fable']);
 const RECOGNIZED_TOOLS = new Set([
   'Read',
   'Write',
@@ -138,7 +138,7 @@ describe.each(specialistFiles.map((f) => [f.name, f] as const))(
       expect(desc!.value).not.toContain('\n');
     });
 
-    it('frontmatter `model` is one of sonnet | opus | haiku', () => {
+    it('frontmatter `model` is one of sonnet | opus | haiku | fable', () => {
       if (!fm) throw new Error('no frontmatter');
       const model = fm.fields.find((f) => f.key === 'model');
       expect(ALLOWED_MODELS.has(model?.value ?? '')).toBe(true);
