@@ -140,7 +140,7 @@ A live session looks roughly like this:
 ```
 $ team new "Add user authentication"
   [my-team] creating worktree at ~/team/sessions/calm-river-12
-  [my-team] spawning captain (claude-opus-4)…
+  [my-team] spawning captain (claude-fable-5)…
   captain › I'll scout the repo, draft a plan, and check in. Anything specific to call out?
 $ > JWT, please. RS256.
   captain › Got it. Dispatching scout.
