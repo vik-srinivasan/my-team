@@ -202,6 +202,17 @@ team clean <session-id>
 team new "same task title"
 ```
 
+### `team start` crashes with `EPERM: operation not permitted, open '.../dist/index.js'`
+This means iCloud evicted the file's contents to free space — the file's metadata is still on disk, but the bytes have been offloaded to the cloud. It happens when the repo lives under an iCloud-synced folder (e.g. `~/Documents`) with **Optimize Mac Storage** enabled.
+
+```bash
+# Force the offloaded files back onto local disk, then retry
+brctl download /path/to/my-team
+team start
+```
+
+Durable fix: keep the repo **outside** any iCloud-synced folder (move it out of `~/Documents`, `~/Desktop`, etc.) so its files are never evicted.
+
 ### Build failures
 ```bash
 # Rebuild everything

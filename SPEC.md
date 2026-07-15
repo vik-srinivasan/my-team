@@ -224,7 +224,7 @@ The four specialists plus captain (the captain also handles the final push + PR 
 
 ### 5.1 Captain
 - **Where defined**: Not as a subagent. The captain's system prompt is injected via `--append-system-prompt` when the wrapper spawns `claude`.
-- **Model**: most recent opus model with highest context (default in Claude Code; do not override unless cost becomes a concern)
+- **Model**: pinned to the fable tier (Anthropic's most capable model) via `--model fable` at spawn — the orchestrator gets the strongest planning/coordination available. Effort stays at `xhigh`.
 - **Tools**: All standard Claude Code tools. Captain needs broad access for orchestration but should not directly write source files — that's engineer's job.
 - **Role**:
   - Phase: scouting → calls scout subagent, ingests `context.md`
@@ -245,7 +245,7 @@ The four specialists plus captain (the captain also handles the final push + PR 
 
 ### 5.3 Engineer
 - **Tools**: Read, Write, Edit, Grep, Glob, Bash
-- **Model**: most recent opus model with highest context
+- **Model**: opus by default, escalated by effort level — `sonnet` at `light`, opus (frontmatter default) at `standard`, `fable` at `thorough`. The captain sets the override when dispatching.
 - **Role**: Implements the plan. Writes feature code and accompanying unit tests. Commits to the session branch. Marks tasks done in `tasks.md`. Logs ambiguous decisions in `decisions.md`. Reads `review.md` and addresses blockers when captain re-dispatches.
 - **Bash restrictions** (prompt-level, not enforced): may run `git add`, `git commit`, build commands, test commands. Must not run `git push`, `git rebase`, `git reset --hard`, `git push --force`, `git branch -D`, or `git checkout <branch>` (branch-mutating). **Exception:** when the captain explicitly dispatches the engineer to resolve a merge conflict, the engineer may run `git merge` and `git checkout <file>` as part of that narrowly-scoped workflow. Branch-creation and pushing remain reserved for the captain.
 - **Stuck protocol**: Make the most reasonable choice based on `plan.md` and `context.md`, log the decision in `decisions.md`, continue. Only escalate to captain if the choice would meaningfully change scope or break the plan.
@@ -308,7 +308,7 @@ The remaining five specialists are **conditional** — the captain dispatches th
 
 ### 5.9 Auditor
 - **Tools**: Read, Grep, Glob, Write
-- **Model**: most recent opus model (security-sensitive)
+- **Model**: opus (security-sensitive). Deliberately stays on opus at every effort level — **never escalated to fable**, because Fable's safety classifiers target security-focused (cyber) analysis and an OWASP audit prompt risks a mid-audit refusal on that model.
 - **Trigger**: Diff touches auth code, payment code, anything with PII, or DB migrations. Captain matches file paths against these patterns and dispatches auditor before the final reviewer pass.
 - **Role**: Narrow security pass. Walks OWASP top-10 categories — injection, broken auth, sensitive-data exposure, XXE, broken access control, security misconfig, XSS, insecure deserialization, vulnerable components, insufficient logging — against the diff. Writes findings, not fixes.
 - **Output artifact**: Appends a `## Security audit (auditor) — <ISO timestamp>` subsection to `.team/review.md` so the reviewer sees it inline. Findings carry the same Blocking / Suggestion / Approved buckets as the rest of `review.md`.

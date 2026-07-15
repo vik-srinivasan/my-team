@@ -1,13 +1,31 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync, readdirSync } from 'node:fs';
+import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { resolve, dirname, basename, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const AGENT_PROMPTS_DIR = resolve(__dirname, '..', '..', '..', 'agent-prompts');
+const CLAUDE_AGENTS_DIR = resolve(__dirname, '..', '..', '..', '.claude', 'agents');
+
+// The ten packaged specialist names (captain + the nine dispatchable
+// subagents). `.claude/agents/` may contain extra, non-packaged files (e.g.
+// git.md) that don't have an agent-prompts/ counterpart — those are
+// intentionally ignored below; only these ten are compared.
+const PACKAGED_AGENT_NAMES = [
+  'captain',
+  'scout',
+  'engineer',
+  'tester',
+  'reviewer',
+  'debugger',
+  'designer',
+  'runner',
+  'auditor',
+  'documenter',
+];
 
 // Allowed values per CLAUDE.md / SPEC.md / context.md conventions.
-const ALLOWED_MODELS = new Set(['sonnet', 'opus', 'haiku']);
+const ALLOWED_MODELS = new Set(['sonnet', 'opus', 'haiku', 'fable']);
 const RECOGNIZED_TOOLS = new Set([
   'Read',
   'Write',
@@ -138,7 +156,7 @@ describe.each(specialistFiles.map((f) => [f.name, f] as const))(
       expect(desc!.value).not.toContain('\n');
     });
 
-    it('frontmatter `model` is one of sonnet | opus | haiku', () => {
+    it('frontmatter `model` is one of sonnet | opus | haiku | fable', () => {
       if (!fm) throw new Error('no frontmatter');
       const model = fm.fields.find((f) => f.key === 'model');
       expect(ALLOWED_MODELS.has(model?.value ?? '')).toBe(true);
@@ -212,6 +230,42 @@ describe('agent-prompts/designer.md tool grants', () => {
     expect(parsed).toContain('Write');
   });
 });
+
+// ── .claude/agents/ sync regression test ────────────────────────────
+//
+// The wrapper's `Task` dispatcher reads prompts from `.claude/agents/`,
+// while `agent-prompts/` is the source-of-truth directory this whole file
+// otherwise validates. These two directories previously drifted — a
+// captain.md edit landed in agent-prompts/ but was never re-synced to
+// .claude/agents/, so the wrapper kept dispatching a stale captain prompt
+// even though every prompt-shape test above was green. Lock the two
+// directories together so that regression can't ship silently again.
+
+describe.each(PACKAGED_AGENT_NAMES.map((name) => [name] as const))(
+  '.claude/agents/%s.md sync with agent-prompts/',
+  (name) => {
+    const sourcePath = join(AGENT_PROMPTS_DIR, `${name}.md`);
+    const packagedPath = join(CLAUDE_AGENTS_DIR, `${name}.md`);
+
+    it('exists in agent-prompts/', () => {
+      expect(existsSync(sourcePath), `missing ${sourcePath}`).toBe(true);
+    });
+
+    it('exists in .claude/agents/', () => {
+      expect(existsSync(packagedPath), `missing ${packagedPath}`).toBe(true);
+    });
+
+    it('is byte-identical to its agent-prompts/ counterpart', () => {
+      const source = readFileSync(sourcePath, 'utf-8');
+      const packaged = readFileSync(packagedPath, 'utf-8');
+      expect(
+        packaged,
+        `.claude/agents/${name}.md has drifted from agent-prompts/${name}.md — ` +
+          `re-sync it (this is the bug that once shipped a stale captain prompt)`,
+      ).toBe(source);
+    });
+  },
+);
 
 function assertHeadersInOrder(agentName: string, body: string): void {
   let cursor = 0;
